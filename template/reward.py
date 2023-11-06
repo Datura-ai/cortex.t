@@ -18,22 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import typing
-import bittensor as bt
 import openai
-import time
-openai.api_key = "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"
-
-
-def dummy(query: int, response: int) -> float:
-    """
-    Reward the miner response to the dummy request. This method returns a reward
-    value for the miner, which is used to update the miner's score.
-
-    Returns:
-    - float: The reward value for the miner.
-    """
-
-    return 1.0 if response == query * 2 else 0
 
 def openai_score(openai_answer: str, response: str) -> str:
 

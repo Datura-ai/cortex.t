@@ -1,1 +1,0 @@
-{"_timestamp": 1698674554.1780906, "_runtime": 7.152557373046875e-07, "engine": "gpt-3.5-turbo", "prompt": "What is your favorite love story?", "responses": [{"uid": 0, "response": "", "score": 0}], "_step": 2, "_wandb": {"runtime": 77}}
