@@ -230,7 +230,13 @@ async def score_responses(query, engine, response_generators, config, scores):
             }
             scores[i] = config.alpha * scores[i] + (1 - config.alpha) * score
         else:
-            bt.logging.warning(f"no openai answer")
+            bt.logging.warning(f"No openai answer")
+            score = 0
+            responses_dict[i] = {
+                'response': full_response_str,
+                'score': score
+            }
+            scores[i] = 0
 
     bt.logging.info(f"scores = {scores}")
     return responses_dict
@@ -259,7 +265,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             if openai_answer:
                 responses_dict = score_responses(openai_answer, [full_response], config, scores) # Note the [full_response] to make it a list.
                 bt.logging.info(f"responses_dict is {responses_dict}")
-                log_wandb(query, engine, responses_dict, step, time.time())
+                if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
 
             if (step + 1) % 25 == 0:  
                 set_weights(step, scores, config, subtensor, wallet, metagraph)
