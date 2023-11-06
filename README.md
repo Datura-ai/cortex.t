@@ -15,7 +15,9 @@
 
 **IMPORTANT**: If you are unaware of Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
 
-Explain why this subnet is important, brief overview of what it does. 
+The Bittensor Subnet 18 is designed to always have reliably good answers for api usage through the bittensor protocol. This is an initial effort to propel more api-related apps and products that can provide value to clients of validators. 
+
+More info here.
 
 ## Setup
 
@@ -28,26 +30,18 @@ Before you proceed with the installation of the subnet, note the following:
 - Note that this subnet requires very little compute. We recommend to run the miner and/or validator on a machine that you are already using for a different subnet. The main functionality is just api calls, so we outsource the compute to openai. The cost for this subnet comes from api calls, not from compute.
 
 ### Installation
+Once you are navigated into the repo, `pip install -e .` will install the necessary requirements
+In order to run a miner or validator, make sure you set your openai key to your profile.
+```echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc```
 
+Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
 
 ### Starting a Miner
-
-- **Running locally**: Follow the step-by-step instructions described in this section: [Running Subnet Locally](./docs/running_on_staging.md).
-- **Running on Bittensor testnet**: Follow the step-by-step instructions described in this section: [Running on the Test Network](./docs/running_on_testnet.md).
-- **Running on Bittensor mainnet**: Follow the step-by-step instructions described in this section: [Running on the Main Network](./docs/running_on_mainnet.md).
-
+In order to start miners easily with pm2, we have made a bash [alias](./alias.sh) for 10 miners and a validator. Note that for mining this script assumes your hotkeys are named 01-09. If you don't follow this naming convention, make sure to update the `hotkey` variable in the `start_miner` function. Ensure all other preferences align with the other variables within that file. After that, just run `source alias.sh` and then you can run the commands `start_miner[n]` with n being hotkey number or `start_vali` to launch a pm2 process that should score perfectly on the network.
 
 ### Starting a Validator
 
-- **Running locally**: Follow the step-by-step instructions described in this section: [Running Subnet Locally](./docs/running_on_staging.md).
-- **Running on Bittensor testnet**: Follow the step-by-step instructions described in this section: [Running on the Test Network](./docs/running_on_testnet.md).
-- **Running on Bittensor mainnet**: Follow the step-by-step instructions described in this section: [Running on the Main Network](./docs/running_on_mainnet.md).
-
----
-
-### Examples
-
-The Bittensor Subnet 1 for Text Prompting is built using this template. See [Bittensor Text-Prompting](https://github.com/opentensor/text-prompting) for how to configure the files and how to add monitoring and telemetry and support multiple miner types. Also see this Subnet 1 in action on [Taostats](https://taostats.io/subnets/netuid-1/) explorer.
+Similarly to the miner, just fix the variable names in the [alias](./alias.sh) script, source it, and then launch by running `start_vali` in your terminal. Simple as that!
 
 ---
 
