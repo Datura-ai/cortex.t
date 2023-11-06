@@ -1,4 +1,4 @@
-<div align="center">
+<div align="left">
 
 # **Cortex.t Subnet** <!-- omit in toc -->
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
