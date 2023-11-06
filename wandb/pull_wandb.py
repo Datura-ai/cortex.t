@@ -2,7 +2,10 @@ import wandb
 import pandas as pd
 
 api = wandb.Api()
-run = api.run("/surcyf2/openai_qa/runs/wev5by5x")
+username = "username here"
+project_name = "project name here"
+run_name = "run name here"
+run = api.run(f"/{username}/{project_name}/runs/{run_name}")
 history = run.history()
 
 # Write the history to a file in JSON format using pandas
