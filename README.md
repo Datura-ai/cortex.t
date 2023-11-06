@@ -7,8 +7,8 @@
 ---
 - [Introduction](#introduction)
 - [Setup](#setup)
-  - [Usage](#usage)
-- [Examples](#examples)
+- [Mining](#mining)
+- [Validating](#validating)
 - [License](#license)
 
 ## Introduction
@@ -36,10 +36,10 @@ In order to run a miner or validator, make sure you set your openai key to your 
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
 
-### Starting a Miner
+### Mining
 In order to start miners easily with pm2, we have made a bash [alias](./alias.sh) for 10 miners and a validator. Note that for mining this script assumes your hotkeys are named 01-09. If you don't follow this naming convention, make sure to update the `hotkey` variable in the `start_miner` function. Ensure all other preferences align with the other variables within that file. After that, just run `source alias.sh` and then you can run the commands `start_miner[n]` with n being hotkey number or `start_vali` to launch a pm2 process that should score perfectly on the network.
 
-### Starting a Validator
+### Validating
 
 Similarly to the miner, just fix the variable names in the [alias](./alias.sh) script, source it, and then launch by running `start_vali` in your terminal. Simple as that!
 
