@@ -15,25 +15,29 @@
 
 **IMPORTANT**: If you are unaware of Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
 
-
-
-1. `template/protocol.py`: Contains the definition of the protocol used by subnet miners and subnet validators.
-2. `neurons/miner.py`: Script that defines the subnet miner's behavior, i.e., how the subnet miner responds to requests from subnet validators.
-3. `neurons/validator.py`: This script defines the subnet validator's behavior, i.e., how the subnet validator requests information from the subnet miners and determines the scores.
-
+Explain why this subnet is important, brief overview of what it does. 
 
 ## Setup
 
 ### Before you proceed
 Before you proceed with the installation of the subnet, note the following: 
 
-- Use these instructions to run your subnet locally for your development and testing, or on Bittensor testnet or on Bittensor mainnet. 
-- **IMPORTANT**: We **strongly recommend** that you first run your subnet locally and complete your development and testing before running the subnet on Bittensor testnet. Furthermore, make sure that you next run your subnet on Bittensor testnet before running it on the Bittensor mainnet.
-- You can run your subnet either as a subnet owner, or as a subnet validator or as a subnet miner. 
-- **IMPORTANT:** Make sure you are aware of the minimum compute requirements for your subnet. See the [Minimum compute YAML configuration](./min_compute.yml).
-- Note that installation instructions differ based on your situation: For example, installing for local development and testing will require a few additional steps compared to installing for testnet. Similarly, installation instructions differ for a subnet owner vs a validator or a miner. 
+- **IMPORTANT**: We **strongly recommend** before preceding that you test both subtensor and openai api key. Ensure you are running subtensor locally to minimize chances of outages and improve the latency/connection. After exporting your Openai api key to your bash profile, test the streaming service for both the gpt-3.5-turbo and gpt-4 engines using ./neurons/test_openai.py. Neither the miner or the validator will function without a valid and working openai api key. 
 
-### Usage
+- **IMPORTANT:** Make sure you are aware of the minimum compute requirements for cortex.t. See the [Minimum compute YAML configuration](./min_compute.yml).
+- Note that this subnet requires very little compute. We recommend to run the miner and/or validator on a machine that you are already using for a different subnet. The main functionality is just api calls, so we outsource the compute to openai. The cost for this subnet comes from api calls, not from compute.
+
+### Installation
+
+
+### Starting a Miner
+
+- **Running locally**: Follow the step-by-step instructions described in this section: [Running Subnet Locally](./docs/running_on_staging.md).
+- **Running on Bittensor testnet**: Follow the step-by-step instructions described in this section: [Running on the Test Network](./docs/running_on_testnet.md).
+- **Running on Bittensor mainnet**: Follow the step-by-step instructions described in this section: [Running on the Main Network](./docs/running_on_mainnet.md).
+
+
+### Starting a Validator
 
 - **Running locally**: Follow the step-by-step instructions described in this section: [Running Subnet Locally](./docs/running_on_staging.md).
 - **Running on Bittensor testnet**: Follow the step-by-step instructions described in this section: [Running on the Test Network](./docs/running_on_testnet.md).
