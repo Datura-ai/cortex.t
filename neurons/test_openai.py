@@ -19,11 +19,15 @@ def send_openai_request(prompt, engine = "gpt-3.5-turbo"):
 
         collected_messages = []
         for chunk in response:
-            chunk_message = str(chunk['choices'][0]['delta']['content'])
+            try:
+                chunk_message = str(chunk['choices'][0]['delta']['content'])
+            except:
+                continue
             print(chunk_message)
             collected_messages.append(chunk_message)
 
-        return collected_messages
+        all_messages = ' '.join(collected_messages)
+        return all_messages
 
     except Exception as e:
         print(f"Got exception when calling openai {e}")
