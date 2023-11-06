@@ -12,14 +12,11 @@ import template
 import openai
 import wandb
 import re
+import random
 import ast
 import asyncio
 import logging
 
-
-wandb.init(entity = "opentensor-dev", project="opentext_qa")
-
-# Do this for the openai api key in terminal: echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
@@ -34,6 +31,7 @@ def get_config():
     parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--custom", default="my_custom_value")
     parser.add_argument("--netuid", type=int, default=1)
+    parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
@@ -41,6 +39,21 @@ def get_config():
     config.full_path = os.path.expanduser(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator")
     if not os.path.exists(config.full_path):
         os.makedirs(config.full_path, exist_ok=True)
+    if config.wandb.on:
+        run_name = f'validator-{my_uid}-' + ''.join(random.choice( string.ascii_uppercase + string.digits ) for i in range(10))
+        config.uid = my_uid
+        config.hotkey = wallet.hotkey.ss58_address
+        config.run_name = run_name
+        wandb_run =  wandb.init(
+            name = run_name,
+            anonymous = "allow",
+            reinit = False,
+            project = 'opentext_qa',
+            entity = 'opentensor-dev',
+            config = config,
+            dir = config.full_path,
+        )
+        bt.logging.success( f'Started wandb run' )
     return config
 
 def initialize_components(config):
@@ -74,7 +87,7 @@ def call_openai(prompt, temperature, engine="gpt-3.5-turbo"):
 def get_openai_answer(query, engine):
     temperature = 0
     answer = call_openai(query, temperature, engine)
-    bt.logging.info(f"Response from openai: {answer}")
+    bt.logging.info(f"Response from validator openai: {answer}")
     return answer
 
 def extract_python_list(text):
@@ -100,7 +113,6 @@ def get_list_from_openai(prompt, default_list, max_retries=5):
     for retry_count in range(max_retries):
         try:
             answer = call_openai(prompt, .33).replace("\n", " ")
-            # bt.logging.info(f"attempting to extract list from {answer}")
             extracted_list = extract_python_list(answer)
             if extracted_list:
                 return extracted_list
@@ -197,7 +209,6 @@ async def score_responses(query, engine, response_generators, config, scores):
                 first_chunk = await asyncio.wait_for(chunks_iterator.__anext__(), timeout=0.2)
                 full_response.append(first_chunk)
                 async for chunk in chunks_iterator:
-                    bt.logging.info(f"Received chunk: {chunk} from miner with UID {i}.")
                     full_response.append(chunk)
             except asyncio.TimeoutError:
                 bt.logging.warning(f"Timeout while waiting for the first chunk from miner with UID {i}.")
@@ -207,14 +218,12 @@ async def score_responses(query, engine, response_generators, config, scores):
         except Exception as e:
             bt.logging.error(f"Error while processing chunks for miner with UID {i}: {e}")
 
-        bt.logging.info(f"full response is {full_response}")
         full_response_str = ''.join(full_response)
         response_data = {"message": full_response_str}
         # openai_answer = get_openai_answer(query, engine)
         openai_answer = "yes"
         if openai_answer:
             score = template.reward.openai_score(openai_answer, full_response_str)
-            bt.logging.info(f"Full response from miner with UID {i} scored: {score}")
             responses_dict[i] = {
                 'response': full_response_str,
                 'score': score
@@ -231,10 +240,9 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
     while True:
         try:
             bt.logging.info(f"Starting validator loop iteration {step}.")
-            
             query = get_question()
-            engine = "gpt-3.5-turbo"
-            
+            probability = random.random()
+            engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
             bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
             
             # Create an empty list to store all chunks
@@ -242,7 +250,6 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             
             # Query the dendrite and process the chunks as they arrive
             for chunk in dendrite.query(metagraph.axons, template.protocol.Openai(openai_input=query, openai_engine=engine), deserialize=True):
-                bt.logging.info(f"Received chunk: {chunk}")
                 all_chunks.append(chunk)
             
             # After processing all chunks, concatenate to get the full response
@@ -268,6 +275,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             logging.exception(f"General exception at step {step}: {e}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            if config.wandb.on: wandb_run.finish()
             exit()
 
 def main(config):

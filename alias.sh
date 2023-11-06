@@ -6,11 +6,11 @@
 export MINER_WALLET_NAME="MINER WALLET HERE"
 export MINER_NETWORK_NAME="local" # Can change this to finney if you don't have a local node set up
 export MINER_BASE_PORT=9000 # Pick an available listening tcp port here
-export LOGGING_LEVEL="debug" # Other options are info and trace. Info is less logging and trace is more logging.
+export LOGGING_LEVEL="info" # Other options are info and trace. Info is less logging and trace is more logging.
 
 # Set global variables for validator
-export VALI_NAME="vali_name"
-export VALI_HOTKEY="vali_hotkey"
+export VALI_NAME="default"
+export VALI_HOTKEY="default"
 export VALI_BASE_PORT=15000
 
 function start_miner {
@@ -24,7 +24,6 @@ function start_miner {
 }
 
 function start_vali {
-  local hotkey="VALI HOTKEY HERE"
   local cmd="pm2 start ./neurons/validator.py --interpreter python3 -- --netuid 18 --subtensor.network $MINER_NETWORK_NAME --wallet.name $VALI_NAME --wallet.hotkey $VALI_HOTKEY --logging.$LOGGING_LEVEL"
 
   echo "Executing command: $cmd"
