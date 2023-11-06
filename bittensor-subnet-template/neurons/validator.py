@@ -233,7 +233,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             bt.logging.info(f"Starting validator loop iteration {step}.")
             
             query = get_question()
-            engine = "gpt-3.5"
+            engine = "gpt-3.5-turbo"
             
             bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
             
