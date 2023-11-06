@@ -17,7 +17,7 @@ import asyncio
 import logging
 
 
-# wandb.init(project="openai_qa", name="run1")
+wandb.init(entity = "opentensor-dev", project="opentext_qa")
 
 # Do this for the openai api key in terminal: echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc
 openai.api_key = os.environ.get('OPENAI_API_KEY')

@@ -1,4 +1,3 @@
-# cd bittensor-subnet-template && pip install -e . && pip3 install openai wandb && wandb init && echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc
 #!/bin/bash
 
 # Change all variables accoriding to your wallet/hotkey names, open ports, and logging preference.
