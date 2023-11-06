@@ -260,7 +260,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             bt.logging.info(f"step = {step}")
             step += 1
             metagraph = subtensor.metagraph(config.netuid)
-            await asyncio.sleep(bt.__blocktime__)
+            await asyncio.sleep(1) # (bt.__blocktime__)
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError at step {step}: {e}")
