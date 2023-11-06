@@ -13,11 +13,13 @@
 
 ## Introduction
 
-**IMPORTANT**: If you are unaware of Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
+**IMPORTANT**: If you are new to Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
 
-The Bittensor Subnet 18 is designed to always have reliably good answers for api usage through the bittensor protocol. This is an initial effort to propel more api-related apps and products that can provide value to clients of validators. 
+The Bittensor Subnet 18 (cortex.t) is designed to provide reliable consistent quality responses for  app developemnt via api usage through the bittensor protocol [BitAPAI](https://bitapai.io). It is also designed to provide an accessible, fair and manipulation free landscape to the incentivised production of data (mining) and reward production of organic user prompts. 
 
-More info here.
+This initiative takes the first steps in simplifying and re-imagining how text-prompting can be rewarded and is a push to provide stability and reassurance to developers of api-related apps and products allowing them to prioritise the provision of value to their clients without the worry of data inconsistencies. 
+
+"Why is it not as good as ChatGPT?" was the often made comparison. Now it is. Now you can rely on the quality of GPT within the Bittensor network and pair it with other subnets and modalities using a single API key from [BitAPAI](https://bitapai.io).
 
 ## Setup
 
