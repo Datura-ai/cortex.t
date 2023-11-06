@@ -1,0 +1,210 @@
+{
+    "os": "Linux-6.1.38-59.109.amzn2023.x86_64-x86_64-with-glibc2.34",
+    "python": "3.9.10",
+    "heartbeatAt": "2023-10-30T14:01:38.499317",
+    "startedAt": "2023-10-30T14:01:38.142449",
+    "docker": null,
+    "cuda": null,
+    "args": [
+        "--netuid",
+        "24",
+        "--subtensor.network",
+        "test",
+        "--wallet.name",
+        "validator",
+        "--wallet.hotkey",
+        "default",
+        "--logging.trace"
+    ],
+    "state": "running",
+    "program": "/home/ec2-user/exploitproof-net/bittensor-subnet-template/neurons/validator.py",
+    "codePathLocal": null,
+    "codePath": "bittensor-subnet-template/neurons/validator.py",
+    "git": {
+        "remote": "https://github.com/surcyf123/exploitproof-net",
+        "commit": "9e9973e7b72ddd7479ec5bc286bf039fb8d45c8b"
+    },
+    "email": "surcyf@gmail.com",
+    "root": "/home/ec2-user/exploitproof-net",
+    "host": "ip-172-31-46-82.ca-central-1.compute.internal",
+    "username": "ec2-user",
+    "executable": "/home/ec2-user/anaconda3/envs/bit2/bin/python3",
+    "cpu_count": 16,
+    "cpu_count_logical": 32,
+    "cpu_freq": {
+        "current": 3294.4511875,
+        "min": 0.0,
+        "max": 0.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 3495.897,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3497.903,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.748,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.918,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3500.467,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3534.252,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.104,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.12,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3497.748,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.317,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3500.505,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.661,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.939,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3500.237,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3501.773,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3501.671,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3502.679,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3495.232,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 2899.95,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.632,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3498.696,
+            "min": 0.0,
+            "max": 0.0
+        },
+        {
+            "current": 3499.489,
+            "min": 0.0,
+            "max": 0.0
+        }
+    ],
+    "disk": {
+        "/": {
+            "total": 499.9257621765137,
+            "used": 109.98017883300781
+        }
+    },
+    "memory": {
+        "total": 247.71762084960938
+    }
+}

@@ -1,0 +1,329 @@
+2023-11-06 09:41:22,051 INFO    StreamThr :1055823 [internal.py:wandb_internal():86] W&B internal server running at pid: 1055823, started at: 2023-11-06 09:41:22.050824
+2023-11-06 09:41:22,053 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status
+2023-11-06 09:41:22,061 INFO    WriterThread:1055823 [datastore.py:open_for_write():85] open: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/run-e6wg2z1b.wandb
+2023-11-06 09:41:22,061 DEBUG   SenderThread:1055823 [sender.py:send():380] send: header
+2023-11-06 09:41:22,066 DEBUG   SenderThread:1055823 [sender.py:send():380] send: run
+2023-11-06 09:41:22,521 INFO    SenderThread:1055823 [dir_watcher.py:__init__():211] watching files in: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files
+2023-11-06 09:41:22,521 INFO    SenderThread:1055823 [sender.py:_start_run_threads():1122] run started: e6wg2z1b with start time 1699263682.049999
+2023-11-06 09:41:22,530 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: check_version
+2023-11-06 09:41:22,531 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: check_version
+2023-11-06 09:41:22,672 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: run_start
+2023-11-06 09:41:22,673 DEBUG   HandlerThread:1055823 [system_info.py:__init__():32] System info init
+2023-11-06 09:41:22,673 DEBUG   HandlerThread:1055823 [system_info.py:__init__():47] System info init done
+2023-11-06 09:41:22,673 INFO    HandlerThread:1055823 [system_monitor.py:start():194] Starting system monitor
+2023-11-06 09:41:22,673 INFO    SystemMonitor:1055823 [system_monitor.py:_start():158] Starting system asset monitoring threads
+2023-11-06 09:41:22,674 INFO    HandlerThread:1055823 [system_monitor.py:probe():214] Collecting system info
+2023-11-06 09:41:22,675 INFO    SystemMonitor:1055823 [interfaces.py:start():190] Started cpu monitoring
+2023-11-06 09:41:22,676 INFO    SystemMonitor:1055823 [interfaces.py:start():190] Started disk monitoring
+2023-11-06 09:41:22,676 INFO    SystemMonitor:1055823 [interfaces.py:start():190] Started memory monitoring
+2023-11-06 09:41:22,678 INFO    SystemMonitor:1055823 [interfaces.py:start():190] Started network monitoring
+2023-11-06 09:41:22,682 DEBUG   HandlerThread:1055823 [system_info.py:probe():196] Probing system
+2023-11-06 09:41:22,684 DEBUG   HandlerThread:1055823 [system_info.py:_probe_git():181] Probing git
+2023-11-06 09:41:22,689 DEBUG   HandlerThread:1055823 [system_info.py:_probe_git():189] Probing git done
+2023-11-06 09:41:22,689 DEBUG   HandlerThread:1055823 [system_info.py:probe():244] Probing system done
+2023-11-06 09:41:22,689 DEBUG   HandlerThread:1055823 [system_monitor.py:probe():223] {'os': 'Linux-5.15.0-67-generic-x86_64-with-glibc2.35', 'python': '3.10.12', 'heartbeatAt': '2023-11-06T09:41:22.682295', 'startedAt': '2023-11-06T09:41:22.038693', 'docker': None, 'cuda': None, 'args': ('--netuid', '18', '--subtensor.network', 'finney', '--wallet.name', 'default', '--wallet.hotkey', 'default', '--logging.trace'), 'state': 'running', 'program': '/root/subnets/exploitproof-net/bittensor-subnet-template/neurons/validator.py', 'codePathLocal': 'bittensor-subnet-template/neurons/validator.py', 'codePath': 'bittensor-subnet-template/neurons/validator.py', 'git': {'remote': 'https://github.com/surcyf123/exploitproof-net.git', 'commit': '4935d382bdd478c1ed52ab1bc315b17b4fe050e7'}, 'email': 'surcyf@gmail.com', 'root': '/root/subnets/exploitproof-net', 'host': 'sn18', 'username': 'root', 'executable': '/usr/bin/python3', 'cpu_count': 8, 'cpu_count_logical': 8, 'cpu_freq': {'current': 1999.999, 'min': 0.0, 'max': 0.0}, 'cpu_freq_per_core': [{'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}, {'current': 1999.999, 'min': 0.0, 'max': 0.0}], 'disk': {'/': {'total': 154.8827362060547, 'used': 20.832256317138672}}, 'memory': {'total': 15.625530242919922}}
+2023-11-06 09:41:22,689 INFO    HandlerThread:1055823 [system_monitor.py:probe():224] Finished collecting system info
+2023-11-06 09:41:22,689 INFO    HandlerThread:1055823 [system_monitor.py:probe():227] Publishing system info
+2023-11-06 09:41:22,689 DEBUG   HandlerThread:1055823 [system_info.py:_save_pip():52] Saving list of pip packages installed into the current environment
+2023-11-06 09:41:22,690 DEBUG   HandlerThread:1055823 [system_info.py:_save_pip():68] Saving pip packages done
+2023-11-06 09:41:22,690 INFO    HandlerThread:1055823 [system_monitor.py:probe():229] Finished publishing system info
+2023-11-06 09:41:22,695 DEBUG   SenderThread:1055823 [sender.py:send():380] send: files
+2023-11-06 09:41:22,695 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-metadata.json with policy now
+2023-11-06 09:41:22,700 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:41:22,701 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:41:22,745 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:41:22,966 DEBUG   SenderThread:1055823 [sender.py:send():380] send: telemetry
+2023-11-06 09:41:23,258 INFO    wandb-upload_0:1055823 [upload_job.py:push():131] Uploaded file /tmp/tmpiikk6dpwwandb/4zq3e43d-wandb-metadata.json
+2023-11-06 09:41:23,522 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_created():271] file/dir created: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-metadata.json
+2023-11-06 09:41:23,523 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_created():271] file/dir created: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:41:23,523 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_created():271] file/dir created: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/requirements.txt
+2023-11-06 09:41:25,522 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:41:27,968 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:32,969 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:37,719 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:41:37,720 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:41:37,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:41:37,995 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:39,527 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:41:41,528 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:41:43,763 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:48,765 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:52,703 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:41:52,704 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:41:52,714 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:41:53,945 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:41:54,533 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/config.yaml
+2023-11-06 09:41:59,131 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:04,132 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:07,703 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:42:07,704 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:42:07,745 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:42:09,866 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:14,867 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:19,868 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:22,678 DEBUG   SystemMonitor:1055823 [system_monitor.py:_start():172] Starting system metrics aggregation loop
+2023-11-06 09:42:22,679 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:42:22,703 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:42:22,704 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:42:22,715 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:42:23,546 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:42:24,914 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:25,168 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: partial_history
+2023-11-06 09:42:25,170 DEBUG   SenderThread:1055823 [sender.py:send():380] send: history
+2023-11-06 09:42:25,170 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: summary_record
+2023-11-06 09:42:25,170 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:42:25,546 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_created():271] file/dir created: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:42:27,547 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:42:30,171 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:35,173 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:37,777 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:42:37,777 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:42:37,777 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:42:39,552 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:42:41,012 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:46,015 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:51,016 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:42:52,680 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:42:52,720 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:42:52,720 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:42:52,721 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:42:56,964 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:01,965 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:06,967 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:07,720 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:43:07,721 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:43:07,721 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:43:12,961 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:17,963 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:22,681 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:43:22,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:43:22,745 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:43:22,746 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:43:23,570 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:43:23,887 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:25,255 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: partial_history
+2023-11-06 09:43:25,256 DEBUG   SenderThread:1055823 [sender.py:send():380] send: history
+2023-11-06 09:43:25,256 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: summary_record
+2023-11-06 09:43:25,257 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:43:25,571 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:43:27,572 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:43:29,257 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:34,259 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:37,731 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:43:37,732 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:43:37,794 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:43:39,610 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:43:40,053 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:45,054 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:50,055 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:43:52,682 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:43:52,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:43:52,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:43:52,726 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:43:55,966 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:00,968 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:05,969 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:07,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:44:07,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:44:07,726 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:44:11,928 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:16,929 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:21,930 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:22,682 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:44:22,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:44:22,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:44:22,726 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:44:25,792 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: partial_history
+2023-11-06 09:44:25,794 DEBUG   SenderThread:1055823 [sender.py:send():380] send: history
+2023-11-06 09:44:25,794 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: summary_record
+2023-11-06 09:44:25,794 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:44:26,629 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:44:26,629 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:44:27,795 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:28,630 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:44:32,797 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:37,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:44:37,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:44:37,726 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:44:37,960 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:40,634 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:44:42,635 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:44:43,529 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:48,530 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:52,683 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:44:52,725 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:44:52,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:44:52,726 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:44:53,880 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:44:58,881 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:03,882 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:07,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:45:07,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:45:07,727 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:45:09,877 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:14,878 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:19,879 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:22,684 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:45:22,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:45:22,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:45:22,727 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:45:24,652 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:45:25,273 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:30,274 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:35,275 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:35,379 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: partial_history
+2023-11-06 09:45:35,380 DEBUG   SenderThread:1055823 [sender.py:send():380] send: history
+2023-11-06 09:45:35,381 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: summary_record
+2023-11-06 09:45:35,381 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:45:35,657 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:45:36,657 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:45:37,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:45:37,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:45:37,727 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:45:40,958 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:45,959 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:48,694 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:45:50,689 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:45:51,150 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:45:52,684 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:45:52,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:45:52,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:45:52,727 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:45:56,924 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:01,925 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:06,927 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:07,726 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:46:07,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:46:07,727 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:46:11,960 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:16,961 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:21,962 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:22,685 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:46:22,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:46:22,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:46:22,728 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:46:26,963 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:28,799 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:46:30,774 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:46:32,082 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:34,776 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:46:37,227 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:37,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: internal_messages
+2023-11-06 09:46:37,727 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: stop_status
+2023-11-06 09:46:37,728 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: stop_status
+2023-11-06 09:46:38,018 DEBUG   SenderThread:1055823 [sender.py:send():380] send: exit
+2023-11-06 09:46:38,018 INFO    SenderThread:1055823 [sender.py:send_exit():585] handling exit code: 1
+2023-11-06 09:46:38,018 INFO    SenderThread:1055823 [sender.py:send_exit():587] handling runtime: 315
+2023-11-06 09:46:38,019 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:46:38,019 INFO    SenderThread:1055823 [sender.py:send_exit():593] send defer
+2023-11-06 09:46:38,020 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,020 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 0
+2023-11-06 09:46:38,020 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,020 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 0
+2023-11-06 09:46:38,020 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 1
+2023-11-06 09:46:38,020 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,020 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 1
+2023-11-06 09:46:38,020 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,020 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 1
+2023-11-06 09:46:38,021 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 2
+2023-11-06 09:46:38,021 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,021 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 2
+2023-11-06 09:46:38,021 INFO    HandlerThread:1055823 [system_monitor.py:finish():203] Stopping system monitor
+2023-11-06 09:46:38,021 INFO    HandlerThread:1055823 [interfaces.py:finish():202] Joined cpu monitor
+2023-11-06 09:46:38,021 INFO    HandlerThread:1055823 [interfaces.py:finish():202] Joined disk monitor
+2023-11-06 09:46:38,021 INFO    HandlerThread:1055823 [interfaces.py:finish():202] Joined memory monitor
+2023-11-06 09:46:38,021 DEBUG   SystemMonitor:1055823 [system_monitor.py:_start():179] Finished system metrics aggregation loop
+2023-11-06 09:46:38,022 INFO    HandlerThread:1055823 [interfaces.py:finish():202] Joined network monitor
+2023-11-06 09:46:38,022 DEBUG   SystemMonitor:1055823 [system_monitor.py:_start():183] Publishing last batch of metrics
+2023-11-06 09:46:38,022 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,023 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 2
+2023-11-06 09:46:38,023 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 3
+2023-11-06 09:46:38,023 DEBUG   SenderThread:1055823 [sender.py:send():380] send: stats
+2023-11-06 09:46:38,023 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,023 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 3
+2023-11-06 09:46:38,023 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,023 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 3
+2023-11-06 09:46:38,023 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 4
+2023-11-06 09:46:38,023 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,023 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 4
+2023-11-06 09:46:38,024 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,024 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 4
+2023-11-06 09:46:38,024 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 5
+2023-11-06 09:46:38,024 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,024 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 5
+2023-11-06 09:46:38,024 DEBUG   SenderThread:1055823 [sender.py:send():380] send: summary
+2023-11-06 09:46:38,024 INFO    SenderThread:1055823 [sender.py:_save_file():1378] saving file wandb-summary.json with policy end
+2023-11-06 09:46:38,025 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,025 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 5
+2023-11-06 09:46:38,025 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 6
+2023-11-06 09:46:38,025 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,025 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 6
+2023-11-06 09:46:38,025 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,025 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 6
+2023-11-06 09:46:38,025 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 7
+2023-11-06 09:46:38,025 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: status_report
+2023-11-06 09:46:38,026 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:38,026 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 7
+2023-11-06 09:46:38,026 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:38,026 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 7
+2023-11-06 09:46:38,777 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:46:39,020 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: poll_exit
+2023-11-06 09:46:39,949 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 8
+2023-11-06 09:46:39,949 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: poll_exit
+2023-11-06 09:46:39,949 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:39,950 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 8
+2023-11-06 09:46:39,950 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:39,950 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 8
+2023-11-06 09:46:39,950 INFO    SenderThread:1055823 [job_builder.py:build():281] Attempting to build job artifact
+2023-11-06 09:46:39,951 INFO    SenderThread:1055823 [job_builder.py:_get_source_type():393] is repo sourced job
+2023-11-06 09:46:39,952 INFO    SenderThread:1055823 [job_builder.py:build():369] adding wandb-job metadata file
+2023-11-06 09:46:39,958 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 9
+2023-11-06 09:46:39,960 DEBUG   SenderThread:1055823 [sender.py:send():380] send: artifact
+2023-11-06 09:46:39,960 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:39,962 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 9
+2023-11-06 09:46:40,020 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: poll_exit
+2023-11-06 09:46:40,778 INFO    Thread-12 :1055823 [dir_watcher.py:_on_file_modified():288] file/dir modified: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:46:41,659 INFO    SenderThread:1055823 [sender.py:send_artifact():1456] sent artifact job-https___github.com_surcyf123_exploitproof-net.git_bittensor-subnet-template_neurons_validator.py - {'id': 'QXJ0aWZhY3Q6NjIzNzY4OTIz', 'state': 'COMMITTED', 'artifactSequence': {'id': 'QXJ0aWZhY3RDb2xsZWN0aW9uOjExMTY1NDY1OQ==', 'latestArtifact': {'id': 'QXJ0aWZhY3Q6NjI5NjIwMTgw', 'versionIndex': 1}}}
+2023-11-06 09:46:41,659 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:41,659 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 9
+2023-11-06 09:46:41,660 INFO    SenderThread:1055823 [dir_watcher.py:finish():358] shutting down directory watcher
+2023-11-06 09:46:41,779 INFO    SenderThread:1055823 [dir_watcher.py:finish():388] scan: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files
+2023-11-06 09:46:41,780 INFO    SenderThread:1055823 [dir_watcher.py:finish():402] scan save: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/config.yaml config.yaml
+2023-11-06 09:46:41,780 INFO    SenderThread:1055823 [dir_watcher.py:finish():402] scan save: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json wandb-summary.json
+2023-11-06 09:46:41,780 INFO    SenderThread:1055823 [dir_watcher.py:finish():402] scan save: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log output.log
+2023-11-06 09:46:41,780 INFO    SenderThread:1055823 [dir_watcher.py:finish():402] scan save: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-metadata.json wandb-metadata.json
+2023-11-06 09:46:41,782 INFO    SenderThread:1055823 [dir_watcher.py:finish():402] scan save: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/requirements.txt requirements.txt
+2023-11-06 09:46:41,783 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 10
+2023-11-06 09:46:41,783 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: poll_exit
+2023-11-06 09:46:41,785 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:41,785 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 10
+2023-11-06 09:46:41,786 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:41,786 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 10
+2023-11-06 09:46:41,786 INFO    SenderThread:1055823 [file_pusher.py:finish():175] shutting down file pusher
+2023-11-06 09:46:42,466 INFO    wandb-upload_0:1055823 [upload_job.py:push():131] Uploaded file /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/config.yaml
+2023-11-06 09:46:42,468 INFO    wandb-upload_1:1055823 [upload_job.py:push():131] Uploaded file /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/wandb-summary.json
+2023-11-06 09:46:42,638 INFO    wandb-upload_3:1055823 [upload_job.py:push():131] Uploaded file /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/requirements.txt
+2023-11-06 09:46:43,078 INFO    wandb-upload_2:1055823 [upload_job.py:push():131] Uploaded file /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/files/output.log
+2023-11-06 09:46:43,279 INFO    Thread-11 (_thread_body):1055823 [sender.py:transition_state():613] send defer: 11
+2023-11-06 09:46:43,279 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:43,279 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 11
+2023-11-06 09:46:43,280 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:43,280 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 11
+2023-11-06 09:46:43,280 INFO    SenderThread:1055823 [file_pusher.py:join():181] waiting for file pusher
+2023-11-06 09:46:43,280 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 12
+2023-11-06 09:46:43,280 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:43,280 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 12
+2023-11-06 09:46:43,280 DEBUG   SenderThread:1055823 [sender.py:send_request():407] send_request: defer
+2023-11-06 09:46:43,280 INFO    SenderThread:1055823 [sender.py:send_request_defer():609] handle sender defer: 12
+2023-11-06 09:46:43,280 INFO    SenderThread:1055823 [file_stream.py:finish():595] file stream finish called
+2023-11-06 09:46:43,477 WARNING StreamThr :1055823 [internal.py:is_dead():414] Internal process exiting, parent pid 1055795 disappeared
+2023-11-06 09:46:43,477 ERROR   StreamThr :1055823 [internal.py:wandb_internal():152] Internal process shutdown.
+2023-11-06 09:46:43,735 INFO    SenderThread:1055823 [file_stream.py:finish():599] file stream finish is done
+2023-11-06 09:46:43,735 INFO    SenderThread:1055823 [sender.py:transition_state():613] send defer: 13
+2023-11-06 09:46:43,735 INFO    SenderThread:1055823 [sender.py:finish():1534] shutting down sender
+2023-11-06 09:46:43,735 INFO    SenderThread:1055823 [file_pusher.py:finish():175] shutting down file pusher
+2023-11-06 09:46:43,736 INFO    SenderThread:1055823 [file_pusher.py:join():181] waiting for file pusher
+2023-11-06 09:46:43,736 DEBUG   HandlerThread:1055823 [handler.py:handle_request():146] handle_request: defer
+2023-11-06 09:46:43,736 INFO    HandlerThread:1055823 [handler.py:handle_request_defer():172] handle defer: 13
+2023-11-06 09:46:43,736 INFO    HandlerThread:1055823 [handler.py:finish():866] shutting down handler
+2023-11-06 09:46:43,736 INFO    WriterThread:1055823 [datastore.py:close():294] close: /root/subnets/exploitproof-net/wandb/run-20231106_094122-e6wg2z1b/run-e6wg2z1b.wandb

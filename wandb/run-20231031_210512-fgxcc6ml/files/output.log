@@ -1,0 +1,384 @@
+
+[34m2023-10-31 21:05:13.443[39m | [1m      INFO      [22m | Running validator for subnet: 18 on network: wss://entrypoint-finney.opentensor.ai:443
+[34m2023-10-31 21:05:27.720[39m | [1m      INFO      [22m | retrived new questions: ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is your favorite love story?', 'What is the best way to maintain a healthy relationship?', 'What is the most romantic gesture you have ever received?', 'What is your idea of a perfect date?', 'What is the key to a successful long-term relationship?', 'What is the biggest lesson you have learned from past relationships?', 'What is the role of trust in a relationship?', 'What is your favorite love quote?']
+[34m2023-10-31 21:05:27.720[39m | [1m      INFO      [22m | Sent query to miner: 'What is the most important quality you look for in a partner?' using gpt-3.5-turbo
+[34m2023-10-31 21:05:27.721[39m | [1m      INFO      [22m | query called in dendrite
+[34m2023-10-31 21:05:27.721[39m | [1m      INFO      [22m | forward_called from forward in dendrite
+[34m2023-10-31 21:05:27.722[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3858 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 0 | Success
+[34m2023-10-31 21:05:27.733[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.743[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.752[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.761[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.771[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.781[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.790[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.799[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3860 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 0 | Success
+[34m2023-10-31 21:05:27.809[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3860 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 0 | Success
+[34m2023-10-31 21:05:27.818[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3860 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 0 | Success
+[34m2023-10-31 21:05:27.827[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3859 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 0 | Success
+[34m2023-10-31 21:05:27.836[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.845[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.855[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.865[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.877[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.887[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.898[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.907[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.916[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.925[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.934[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.944[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.953[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.963[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3824 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:05:27.978[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 4016 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 503 | Service at 167.172.100.157:9001/Openai unavailable.
+[34m2023-10-31 21:05:27.988[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 4016 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 503 | Service at 167.172.100.157:9002/Openai unavailable.
+[34m2023-10-31 21:05:28.005[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.014[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.023[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.033[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.042[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.051[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.060[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.069[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.078[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.087[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.097[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.105[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.114[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.123[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.132[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.141[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.149[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.158[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.167[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.176[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.184[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3956 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:28.293[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3991 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 422 | Failed to parse with error:
+[34m2023-10-31 21:05:30.081[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 9282 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 200 | Success
+[34m2023-10-31 21:06:13.221[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3991 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 408 | Timedout after 45.0 seconds.
+[34m2023-10-31 21:06:13.232[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.232[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.233[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.233[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.233[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.233[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.233[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk: As an AI language model, I don't have personal preferences or opinions. However, the most important quality in a partner can vary greatly depending on individual preferences and values. Some common qualities that people often look for in a partner include trustworthiness, compatibility, communication skills, emotional intelligence, kindness, shared values, and a sense of humor. Ultimately, the most important quality will depend on the unique needs and desires of each individual.
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.234[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.235[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.236[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.236[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.236[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:13.236[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:06:16.053[39m | [1m      INFO      [22m | Response from openai: As an AI language model, I don't have personal preferences or opinions. However, the most important quality in a partner can vary greatly depending on individual preferences and values. Some common qualities that people often look for in a partner include trustworthiness, compatibility, communication skills, emotional intelligence, kindness, shared values, and a sense of humor. Ultimately, the most important quality will depend on the unique needs and desires of each individual.
+[34m2023-10-31 21:06:16.053[39m | [1m      INFO      [22m | Received response: As an AI language model, I don't have personal preferences or opinions. However, the most important quality in a partner can vary greatly depending on individual preferences and values. Some common qualities that people often look for in a partner include trustworthiness, compatibility, communication skills, emotional intelligence, kindness, shared values, and a sense of humor. Ultimately, the most important quality will depend on the unique needs and desires of each individual. from miner with UID 0. Assigned score: 1.0
+[34m2023-10-31 21:06:16.056[39m | [1m      INFO      [22m | scores = tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+        1., 1., 1., 1., 1., 1., 1., 1.])
+[34m2023-10-31 21:06:16.056[39m | [1m      INFO      [22m | responses_dict is {0: {'response': "As an AI language model, I don't have personal preferences or opinions. However, the most important quality in a partner can vary greatly depending on individual preferences and values. Some common qualities that people often look for in a partner include trustworthiness, compatibility, communication skills, emotional intelligence, kindness, shared values, and a sense of humor. Ultimately, the most important quality will depend on the unique needs and desires of each individual.", 'score': 1.0}}
+[34m2023-10-31 21:06:16.238[39m | [1m      INFO      [22m | step = 0
+[34m2023-10-31 21:06:28.239[39m | [1m      INFO      [22m | Sent query to miner: 'How do you define love?' using gpt-3.5-turbo
+[34m2023-10-31 21:06:28.240[39m | [1m      INFO      [22m | query called in dendrite
+[34m2023-10-31 21:06:28.240[39m | [1m      INFO      [22m | forward_called from forward in dendrite
+[34m2023-10-31 21:06:28.242[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3820 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 0 | Success
+[34m2023-10-31 21:06:28.252[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.262[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.272[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.282[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.292[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.302[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.311[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.321[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3822 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 0 | Success
+[34m2023-10-31 21:06:28.331[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3822 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 0 | Success
+[34m2023-10-31 21:06:28.341[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3822 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 0 | Success
+[34m2023-10-31 21:06:28.351[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3821 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 0 | Success
+[34m2023-10-31 21:06:28.361[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.372[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.381[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.391[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.401[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.410[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.420[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.429[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.440[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.450[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.460[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.470[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.480[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.489[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3786 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:06:28.505[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3978 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 503 | Service at 167.172.100.157:9001/Openai unavailable.
+[34m2023-10-31 21:06:28.515[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3978 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 503 | Service at 167.172.100.157:9002/Openai unavailable.
+[34m2023-10-31 21:06:28.531[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.541[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.550[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.560[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.570[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.579[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.590[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.599[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.609[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.618[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.628[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.637[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.647[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.656[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.665[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.675[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.685[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.694[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.703[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.713[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.722[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3918 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:28.832[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3953 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 422 | Failed to parse with error:
+[34m2023-10-31 21:06:32.028[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 9978 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 200 | Success
+[34m2023-10-31 21:07:14.245[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3953 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 408 | Timedout after 45.0 seconds.
+[34m2023-10-31 21:07:14.255[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.256[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.256[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.256[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk: Love can be defined as a deep affection, attachment, or care for someone or something. It is a complex and multifaceted emotion that encompasses feelings of warmth, tenderness, compassion, and a desire for the well-being and happiness of the loved one. Love can be experienced in various forms, including romantic love, familial love, platonic love, and self-love. It often involves a strong emotional connection, trust, and a willingness to sacrifice for the happiness and fulfillment of the loved one.
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:14.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:07:17.355[39m | [1m      INFO      [22m | Response from openai: Love can be defined as a deep affection, attachment, or care for someone or something. It is a complex and multifaceted emotion that encompasses feelings of warmth, tenderness, compassion, and a desire for the well-being and happiness of the loved one. Love can be experienced in various forms, including romantic love, familial love, platonic love, and self-love. It often involves a strong emotional connection, trust, and a willingness to sacrifice for the happiness and fulfillment of the loved one.
+[34m2023-10-31 21:07:17.355[39m | [1m      INFO      [22m | Received response: Love can be defined as a deep affection, attachment, or care for someone or something. It is a complex and multifaceted emotion that encompasses feelings of warmth, tenderness, compassion, and a desire for the well-being and happiness of the loved one. Love can be experienced in various forms, including romantic love, familial love, platonic love, and self-love. It often involves a strong emotional connection, trust, and a willingness to sacrifice for the happiness and fulfillment of the loved one. from miner with UID 0. Assigned score: 1.0
+[34m2023-10-31 21:07:17.357[39m | [1m      INFO      [22m | scores = tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+        1., 1., 1., 1., 1., 1., 1., 1.])
+[34m2023-10-31 21:07:17.357[39m | [1m      INFO      [22m | responses_dict is {0: {'response': 'Love can be defined as a deep affection, attachment, or care for someone or something. It is a complex and multifaceted emotion that encompasses feelings of warmth, tenderness, compassion, and a desire for the well-being and happiness of the loved one. Love can be experienced in various forms, including romantic love, familial love, platonic love, and self-love. It often involves a strong emotional connection, trust, and a willingness to sacrifice for the happiness and fulfillment of the loved one.', 'score': 1.0}}
+[34m2023-10-31 21:07:17.358[39m | [1m      INFO      [22m | step = 0
+[34m2023-10-31 21:07:29.369[39m | [1m      INFO      [22m | Sent query to miner: 'What is your favorite love story?' using gpt-3.5-turbo
+[34m2023-10-31 21:07:29.369[39m | [1m      INFO      [22m | query called in dendrite
+[34m2023-10-31 21:07:29.370[39m | [1m      INFO      [22m | forward_called from forward in dendrite
+[34m2023-10-31 21:07:29.371[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3830 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 0 | Success
+[34m2023-10-31 21:07:29.380[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.390[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.402[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.412[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.421[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.431[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.442[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.453[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3832 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 0 | Success
+[34m2023-10-31 21:07:29.463[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3832 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 0 | Success
+[34m2023-10-31 21:07:29.472[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3832 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 0 | Success
+[34m2023-10-31 21:07:29.484[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3831 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 0 | Success
+[34m2023-10-31 21:07:29.494[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.503[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.513[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.522[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.532[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.542[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.551[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.560[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.570[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.579[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.589[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.598[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.607[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.617[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3796 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:07:29.633[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3988 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 503 | Service at 167.172.100.157:9001/Openai unavailable.
+[34m2023-10-31 21:07:29.643[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3988 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 503 | Service at 167.172.100.157:9002/Openai unavailable.
+[34m2023-10-31 21:07:29.660[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.669[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.678[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.687[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.697[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.706[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.715[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.724[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.733[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.741[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.751[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.760[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.769[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.781[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.795[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.806[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.815[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.826[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.836[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.847[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.857[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3928 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:29.966[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3963 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 422 | Failed to parse with error:
+[34m2023-10-31 21:07:32.331[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 9325 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 200 | Success
+[34m2023-10-31 21:08:15.215[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3963 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 408 | Timedout after 45.0 seconds.
+[34m2023-10-31 21:08:15.225[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.225[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.225[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.226[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.226[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.226[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.226[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk: As an AI language model, I don't have personal preferences or emotions. However, there are many classic and popular love stories that people often enjoy, such as "Romeo and Juliet" by William Shakespeare, "Pride and Prejudice" by Jane Austen, "The Notebook" by Nicholas Sparks, and "Gone with the Wind" by Margaret Mitchell. These stories have captivated readers and viewers with their romantic narratives.
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.227[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.228[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.229[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.229[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.229[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:15.229[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:08:17.810[39m | [1m      INFO      [22m | Response from openai: As an AI language model, I don't have personal preferences or emotions. However, there are many classic and popular love stories that people often enjoy, such as "Romeo and Juliet" by William Shakespeare, "Pride and Prejudice" by Jane Austen, "The Notebook" by Nicholas Sparks, and "Gone with the Wind" by Margaret Mitchell. These stories have captivated readers and viewers with their romantic narratives.
+[34m2023-10-31 21:08:17.811[39m | [1m      INFO      [22m | Received response: As an AI language model, I don't have personal preferences or emotions. However, there are many classic and popular love stories that people often enjoy, such as "Romeo and Juliet" by William Shakespeare, "Pride and Prejudice" by Jane Austen, "The Notebook" by Nicholas Sparks, and "Gone with the Wind" by Margaret Mitchell. These stories have captivated readers and viewers with their romantic narratives. from miner with UID 0. Assigned score: 1.0
+[34m2023-10-31 21:08:17.813[39m | [1m      INFO      [22m | scores = tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+        1., 1., 1., 1., 1., 1., 1., 1.])
+[34m2023-10-31 21:08:17.813[39m | [1m      INFO      [22m | responses_dict is {0: {'response': 'As an AI language model, I don\'t have personal preferences or emotions. However, there are many classic and popular love stories that people often enjoy, such as "Romeo and Juliet" by William Shakespeare, "Pride and Prejudice" by Jane Austen, "The Notebook" by Nicholas Sparks, and "Gone with the Wind" by Margaret Mitchell. These stories have captivated readers and viewers with their romantic narratives.', 'score': 1.0}}
+[34m2023-10-31 21:08:17.814[39m | [1m      INFO      [22m | step = 0
+[34m2023-10-31 21:08:29.815[39m | [1m      INFO      [22m | Sent query to miner: 'What is the best way to maintain a healthy relationship?' using gpt-3.5-turbo
+[34m2023-10-31 21:08:29.816[39m | [1m      INFO      [22m | query called in dendrite
+[34m2023-10-31 21:08:29.816[39m | [1m      INFO      [22m | forward_called from forward in dendrite
+[34m2023-10-31 21:08:29.817[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3853 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 0 | Success
+[34m2023-10-31 21:08:29.830[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.845[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.855[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.864[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.873[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.883[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.893[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.902[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3855 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 0 | Success
+[34m2023-10-31 21:08:29.912[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3855 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 0 | Success
+[34m2023-10-31 21:08:29.922[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3855 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 0 | Success
+[34m2023-10-31 21:08:29.931[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3854 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 0 | Success
+[34m2023-10-31 21:08:29.940[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.949[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.959[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.969[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.979[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.988[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:29.997[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.007[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.016[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.025[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.035[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.044[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.053[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.063[39m | [34m[1m     DEBUG      [39m[22m | dendrite | --> | 3819 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 0 | Success
+[34m2023-10-31 21:08:30.079[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 4011 B | Openai | 5DJe1g7FXa5q7qzRTV5RfkBK5eVtxC3qcyNByJu2zG4htfeZ | 167.172.100.157:9001 | 503 | Service at 167.172.100.157:9001/Openai unavailable.
+[34m2023-10-31 21:08:30.088[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 4011 B | Openai | 5CkPk7G5tyL4TuPBr5J2HtiacmYk3r5AdUuvxN2fc71SYYCX | 167.172.100.157:9002 | 503 | Service at 167.172.100.157:9002/Openai unavailable.
+[34m2023-10-31 21:08:30.106[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.115[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.125[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5Ehv5XMriPZwNBtYHdQV7VrdbN8MBTDTmQhWprZJXxSiMapR | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.135[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5GcBK8PDrVifV1xAf4Qkkk6KsbsmhDdX9atvk8vyKU8xdU63 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.144[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5CQBJ5q1TXhEue3GprnKZiqPzs3og9ES1w5kNuH82QU51F7C | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.153[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5Gjk2tHMPAov4J9jeCXuHE8TRis2y7teCoUViEUPNjopHg3M | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.162[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5CsvRJXuR955WojnGMdok1hbhffZyB4N5ocrv82f3p5A2zVp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.171[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5F9jkka5jVkhJakLpUFM7HDLNMW6L2AVqdXjnVkGtPQ2b5H7 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.180[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.189[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5ExmGKJcGNkz7YjtUGkdtRJwxxzbE54T9RNJDs56i739QUYe | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.199[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5Ca7YzuPX2WxRzdgET6xnLdYodUyq2TKxp9LVuKAajiYvD7n | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.207[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5FcYPfTqHkEydeN3YcGGaBFiZMERVMP5H7p8zGDj35Pc1acB | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.216[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5DkH7nPxeSQMCb9CResVYnZy16tkMJvjS6H3mBg5yNE6EBkk | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.224[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5F1tFZXS1RUc6goGgcELvy2ebb5BP7mZkqak2MSt5BVDfwd3 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.234[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5FnJn5VcjyrvP87JtHsYBJMPfhwVRShLufdyT9SxGHEvsnm9 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.243[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5DXMdGKcP3CgxijrnBshriYkpZ3jPSPRtgg15tndq875xEtd | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.252[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5HY3iBivUFi2kLCq7FYbiPiStuf6TWodTFp2RnQe3KDeyV9z | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.262[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5HgDHEagoe5SA4iGwJ1nYDom3wyFe5TUQdYmubLb7gs4xWJp | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.270[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5GYqe6adSFLHX7A4Xfr8YUHcV8PD1QjNRwNJaedX5VFcXCxC | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.279[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5GUD1hHj3xPHDRUN8sfvLJMQXdFEMmWGKtR1vZRRKr13hYg2 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.288[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3951 B | Openai | 5EPe2yWwM6nnYzT2rQZhyDUDxP3jj2o4jhjaaVZvnPV42xY6 | 0.0.0.0:0 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:30.395[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3986 B | Openai | 5FyEpSkw2v7Za87pziURZQkuhXcUyn2aF6zxfYX8a8fQcUue | 15.223.134.146:9003 | 422 | Failed to parse with error:
+[34m2023-10-31 21:08:38.507[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 28612 B | Openai | 5HRNcsPbUE2RRGN2DRy6vM8b9yE3gw4yVHciKx5PiGHHUe6A | 167.172.100.157:15000 | 200 | Success
+[34m2023-10-31 21:09:15.245[39m | [34m[1m     DEBUG      [39m[22m | dendrite | <-- | 3986 B | Openai | 5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8 | 64.227.114.35:8091 | 408 | Timedout after 45.0 seconds.
+[34m2023-10-31 21:09:15.256[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.257[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk: Maintaining a healthy relationship requires effort and commitment from both partners. Here are some key ways to foster a healthy relationship:
+1. Effective communication: Open and honest communication is crucial. Listen actively, express your feelings and needs, and be willing to compromise. Avoid assumptions and address issues promptly.
+2. Trust and respect: Trust is the foundation of any healthy relationship. Be reliable, keep your promises, and avoid betraying your partner's trust. Respect each other's boundaries, opinions, and individuality.
+3. Quality time together: Spend quality time together regularly, engaging in activities you both enjoy. This helps strengthen your bond and create shared experiences.
+4. Emotional support: Be there for each other during both good and challenging times. Offer emotional support, empathy, and understanding. Celebrate each other's successes and provide comfort during difficult moments.
+5. Maintain independence: While it's important to spend time together, it's equally crucial to maintain individual interests, hobbies, and friendships. Encourage each other's personal growth and give each other space when needed.
+6. Show appreciation and affection: Express gratitude and appreciation for your partner regularly. Show affection through physical touch, kind gestures, and words of love and affirmation.
+7. Resolve conflicts constructively: Conflicts are inevitable in any relationship. Learn to address them calmly and constructively. Practice active listening, compromise, and find solutions that work for both of you.
+8. Keep the romance alive: Continue to nurture the romance in your relationship. Surprise each other, plan date nights, and keep the spark alive through small gestures of love and affection.
+9. Practice forgiveness: No one is perfect, and mistakes happen. Learn to forgive each other and let go of grudges. Holding onto resentment can damage the relationship in the long run.
+10. Seek professional help if needed: If you're facing significant challenges or struggling to maintain a healthy relationship, don't hesitate to seek the help of a couples therapist or relationship counselor. They can provide guidance and support to navigate difficult situations.
+Remember, every relationship is unique, and it's important to find what works best for you and your partner.
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.258[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.259[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.260[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.260[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.260[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.260[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:15.260[39m | [1m      INFO      [22m | Received chunk:
+[34m2023-10-31 21:09:24.406[39m | [1m      INFO      [22m | Response from openai: Maintaining a healthy relationship requires effort and commitment from both partners. Here are some key ways to foster a healthy relationship:
+1. Effective communication: Open and honest communication is crucial. Listen actively, express your feelings and needs, and be willing to compromise. Avoid assumptions and address issues promptly.
+2. Trust and respect: Trust is the foundation of any healthy relationship. Be reliable, keep your promises, and avoid betraying your partner's trust. Respect each other's boundaries, opinions, and individuality.
+3. Quality time together: Spend quality time together regularly, engaging in activities you both enjoy. This helps strengthen your bond and create shared experiences.
+4. Emotional support: Be there for each other during both good and challenging times. Offer emotional support, empathy, and understanding. Celebrate each other's successes and provide comfort during difficult moments.
+5. Maintain independence: While it's important to spend time together, it's equally crucial to maintain individual interests, hobbies, and friendships. Encourage each other's personal growth and give each other space when needed.
+6. Show appreciation and affection: Express gratitude and appreciation for your partner regularly. Show affection through physical touch, kind gestures, and words of love and affirmation.
+7. Resolve conflicts constructively: Conflicts are inevitable in any relationship. Learn to address them calmly and constructively. Practice active listening, compromise, and find solutions that work for both of you.
+8. Keep the romance alive: Continue to nurture the romance in your relationship. Surprise each other, plan date nights, and keep the spark alive through small gestures of love and affection.
+9. Practice forgiveness: No one is perfect, and mistakes happen. Learn to forgive each other and let go of grudges. Holding onto resentment can damage the relationship in the long run.
+10. Seek professional help if needed: If you're facing significant challenges or struggling to maintain a healthy relationship, don't hesitate to seek the help of a couples therapist or relationship counselor. They can provide guidance and support to navigate difficult situations.
+Remember, every relationship is unique, and it's important to find what works best for you and your partner.
+[34m2023-10-31 21:09:24.406[39m | [1m      INFO      [22m | Received response: Maintaining a healthy relationship requires effort and commitment from both partners. Here are some key ways to foster a healthy relationship:
+1. Effective communication: Open and honest communication is crucial. Listen actively, express your feelings and needs, and be willing to compromise. Avoid assumptions and address issues promptly.
+2. Trust and respect: Trust is the foundation of any healthy relationship. Be reliable, keep your promises, and avoid betraying your partner's trust. Respect each other's boundaries, opinions, and individuality.
+3. Quality time together: Spend quality time together regularly, engaging in activities you both enjoy. This helps strengthen your bond and create shared experiences.
+4. Emotional support: Be there for each other during both good and challenging times. Offer emotional support, empathy, and understanding. Celebrate each other's successes and provide comfort during difficult moments.
+5. Maintain independence: While it's important to spend time together, it's equally crucial to maintain individual interests, hobbies, and friendships. Encourage each other's personal growth and give each other space when needed.
+6. Show appreciation and affection: Express gratitude and appreciation for your partner regularly. Show affection through physical touch, kind gestures, and words of love and affirmation.
+7. Resolve conflicts constructively: Conflicts are inevitable in any relationship. Learn to address them calmly and constructively. Practice active listening, compromise, and find solutions that work for both of you.
+8. Keep the romance alive: Continue to nurture the romance in your relationship. Surprise each other, plan date nights, and keep the spark alive through small gestures of love and affection.
+9. Practice forgiveness: No one is perfect, and mistakes happen. Learn to forgive each other and let go of grudges. Holding onto resentment can damage the relationship in the long run.
+10. Seek professional help if needed: If you're facing significant challenges or struggling to maintain a healthy relationship, don't hesitate to seek the help of a couples therapist or relationship counselor. They can provide guidance and support to navigate difficult situations.
+Remember, every relationship is unique, and it's important to find what works best for you and your partner. from miner with UID 0. Assigned score: 1.0
+[34m2023-10-31 21:09:24.408[39m | [1m      INFO      [22m | scores = tensor([1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1., 1.,
+        1., 1., 1., 1., 1., 1., 1., 1.])
+[34m2023-10-31 21:09:24.408[39m | [1m      INFO      [22m | responses_dict is {0: {'response': "Maintaining a healthy relationship requires effort and commitment from both partners. Here are some key ways to foster a healthy relationship:\n\n1. Effective communication: Open and honest communication is crucial. Listen actively, express your feelings and needs, and be willing to compromise. Avoid assumptions and address issues promptly.\n\n2. Trust and respect: Trust is the foundation of any healthy relationship. Be reliable, keep your promises, and avoid betraying your partner's trust. Respect each other's boundaries, opinions, and individuality.\n\n3. Quality time together: Spend quality time together regularly, engaging in activities you both enjoy. This helps strengthen your bond and create shared experiences.\n\n4. Emotional support: Be there for each other during both good and challenging times. Offer emotional support, empathy, and understanding. Celebrate each other's successes and provide comfort during difficult moments.\n\n5. Maintain independence: While it's important to spend time together, it's equally crucial to maintain individual interests, hobbies, and friendships. Encourage each other's personal growth and give each other space when needed.\n\n6. Show appreciation and affection: Express gratitude and appreciation for your partner regularly. Show affection through physical touch, kind gestures, and words of love and affirmation.\n\n7. Resolve conflicts constructively: Conflicts are inevitable in any relationship. Learn to address them calmly and constructively. Practice active listening, compromise, and find solutions that work for both of you.\n\n8. Keep the romance alive: Continue to nurture the romance in your relationship. Surprise each other, plan date nights, and keep the spark alive through small gestures of love and affection.\n\n9. Practice forgiveness: No one is perfect, and mistakes happen. Learn to forgive each other and let go of grudges. Holding onto resentment can damage the relationship in the long run.\n\n10. Seek professional help if needed: If you're facing significant challenges or struggling to maintain a healthy relationship, don't hesitate to seek the help of a couples therapist or relationship counselor. They can provide guidance and support to navigate difficult situations.\n\nRemember, every relationship is unique, and it's important to find what works best for you and your partner.", 'score': 1.0}}
+[34m2023-10-31 21:09:24.409[39m | [1m      INFO      [22m | step = 0

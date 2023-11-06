@@ -1,0 +1,5 @@
+[default]
+entity = surcyf2
+project = openai_qa
+base_url = https://api.wandb.ai
+

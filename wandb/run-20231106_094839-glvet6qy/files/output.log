@@ -1,0 +1,160 @@
+
+[34m2023-11-06 09:48:41.416[39m | [1m      INFO      [22m | Running validator for subnet: 18 on network: wss://entrypoint-finney.opentensor.ai:443
+Traceback (most recent call last):
+  File "/root/subnets/exploitproof-net/bittensor-subnet-template/neurons/validator.py", line 237, in <module>
+    main(get_config())
+  File "/root/subnets/exploitproof-net/bittensor-subnet-template/neurons/validator.py", line 229, in main
+    wallet, subtensor, dendrite, metagraph = initialize_components(config)
+  File "/root/subnets/exploitproof-net/bittensor-subnet-template/neurons/validator.py", line 42, in initialize_components
+    subtensor = bt.subtensor(config=config)
+  File "/root/.bittensor/bittensor/bittensor/subtensor.py", line 280, in __init__
+    self.substrate = SubstrateInterface(
+  File "/usr/local/lib/python3.10/dist-packages/substrateinterface/base.py", line 627, in __init__
+    self.connect_websocket()
+  File "/usr/local/lib/python3.10/dist-packages/substrateinterface/base.py", line 663, in connect_websocket
+    self.websocket = create_connection(
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_core.py", line 610, in create_connection
+    websock.connect(url, **options)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_core.py", line 255, in connect
+    self.handshake_response = handshake(self.sock, url, *addrs, **options)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_handshake.py", line 57, in handshake
+    status, resp = _get_resp_headers(sock)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_handshake.py", line 143, in _get_resp_headers
+    status, resp_headers, status_message = read_headers(sock)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_http.py", line 316, in read_headers
+    line = recv_line(sock)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_socket.py", line 133, in recv_line
+    c = recv(sock, 1)
+  File "/usr/local/lib/python3.10/dist-packages/websocket/_socket.py", line 124, in recv
+    raise WebSocketConnectionClosedException(
+websocket._exceptions.WebSocketConnectionClosedException: Connection to remote host was lost.
+[31m╭─────────────────────────────── [39m[1mTraceback (most recent call last)[31m[22m ────────────────────────────────╮
+[31m│[39m /root/subnets/exploitproof-net/bittensor-subnet-template/neurons/[1mvalidator.py[22m:[94m237[39m in [92m<module>[39m    [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   234 │   run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores)             [31m│
+[31m│[39m   235                                                                                            [31m│
+[31m│[39m   236 [94mif[39m [91m__name__[39m == [33m"__main__"[39m:                                                                 [31m│
+[31m│[39m [31m❱ [39m237 │   main(get_config())                                                                     [31m│
+[31m│[39m   238                                                                                            [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /root/subnets/exploitproof-net/bittensor-subnet-template/neurons/[1mvalidator.py[22m:[94m229[39m in [92mmain[39m        [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   226                                                                                            [31m│
+[31m│[39m   227                                                                                            [31m│
+[31m│[39m   228 [94mdef[39m [92mmain[39m(config):                                                                          [31m│
+[31m│[39m [31m❱ [39m229 │   wallet, subtensor, dendrite, metagraph = initialize_components(config)                 [31m│
+[31m│[39m   230 │   check_validator_registration(wallet, subtensor, metagraph)                             [31m│
+[31m│[39m   231 │   my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)                    [31m│
+[31m│[39m   232 │   scores = torch.ones_like(metagraph.S, dtype=torch.float32)                             [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /root/subnets/exploitproof-net/bittensor-subnet-template/neurons/[1mvalidator.py[22m:[94m42[39m in              [31m│
+[31m│[39m [92minitialize_components[39m                                                                            [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m    39 │   bt.logging(config=config, logging_dir=config.full_path)                                [31m│
+[31m│[39m    40 │   bt.logging.info([33mf"Running validator for subnet: {[39mconfig.netuid[33m} on network: {[39mconfig.   [31m│
+[31m│[39m    41 │   wallet = bt.wallet(config=config)                                                      [31m│
+[31m│[39m [31m❱ [39m 42 │   subtensor = bt.subtensor(config=config)                                                [31m│
+[31m│[39m    43 │   dendrite = bt.dendrite(wallet=wallet)                                                  [31m│
+[31m│[39m    44 │   metagraph = subtensor.metagraph(config.netuid)                                         [31m│
+[31m│[39m    45 │   [94mreturn[39m wallet, subtensor, dendrite, metagraph                                          [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /root/.bittensor/bittensor/bittensor/[1msubtensor.py[22m:[94m280[39m in [92m__init__[39m                                [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m    277 │   │   │   [94mreturn[39m bittensor.subtensor_mock.MockSubtensor()                               [31m│
+[31m│[39m    278 │   │                                                                                     [31m│
+[31m│[39m    279 │   │   # Set up params.                                                                  [31m│
+[31m│[39m [31m❱ [39m 280 │   │   [96mself[39m.substrate = SubstrateInterface(                                              [31m│
+[31m│[39m    281 │   │   │   ss58_format=bittensor.__ss58_format__,                                        [31m│
+[31m│[39m    282 │   │   │   use_remote_preset=[94mTrue[39m,                                                       [31m│
+[31m│[39m    283 │   │   │   url=[96mself[39m.chain_endpoint,                                                      [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/substrateinterface/[1mbase.py[22m:[94m627[39m in [92m__init__[39m               [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m    624 │   │   [96mself[39m.__rpc_message_queue = []                                                     [31m│
+[31m│[39m    625 │   │                                                                                     [31m│
+[31m│[39m    626 │   │   [94mif[39m [96mself[39m.url [95mand[39m ([96mself[39m.url[[94m0[39m:[94m6[39m] == [33m'wss://'[39m [95mor[39m [96mself[39m.url[[94m0[39m:[94m5[39m] == [33m'ws://'[39m):          [31m│
+[31m│[39m [31m❱ [39m 627 │   │   │   [96mself[39m.connect_websocket()                                                      [31m│
+[31m│[39m    628 │   │                                                                                     [31m│
+[31m│[39m    629 │   │   [94melif[39m websocket:                                                                   [31m│
+[31m│[39m    630 │   │   │   [96mself[39m.websocket = websocket                                                    [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/substrateinterface/[1mbase.py[22m:[94m663[39m in [92mconnect_websocket[39m      [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m    660 │   │                                                                                     [31m│
+[31m│[39m    661 │   │   [94mif[39m [96mself[39m.url [95mand[39m ([96mself[39m.url[[94m0[39m:[94m6[39m] == [33m'wss://'[39m [95mor[39m [96mself[39m.url[[94m0[39m:[94m5[39m] == [33m'ws://'[39m):          [31m│
+[31m│[39m    662 │   │   │   [96mself[39m.debug_message([33m"Connecting to {} ..."[39m.format([96mself[39m.url))                   [31m│
+[31m│[39m [31m❱ [39m 663 │   │   │   [96mself[39m.websocket = create_connection(                                           [31m│
+[31m│[39m    664 │   │   │   │   [96mself[39m.url,                                                                 [31m│
+[31m│[39m    665 │   │   │   │   **[96mself[39m.ws_options                                                         [31m│
+[31m│[39m    666 │   │   │   )                                                                             [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_core.py[22m:[94m610[39m in [92mcreate_connection[39m              [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   607 │   │   │   │   │    enable_multithread=enable_multithread,                                [31m│
+[31m│[39m   608 │   │   │   │   │    skip_utf8_validation=skip_utf8_validation, **options)                 [31m│
+[31m│[39m   609 │   websock.settimeout(timeout [94mif[39m timeout [95mis[39m [95mnot[39m [94mNone[39m [94melse[39m getdefaulttimeout())            [31m│
+[31m│[39m [31m❱ [39m610 │   websock.connect(url, **options)                                                        [31m│
+[31m│[39m   611 │   [94mreturn[39m websock                                                                         [31m│
+[31m│[39m   612                                                                                            [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_core.py[22m:[94m255[39m in [92mconnect[39m                        [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   252 │   │   │   │   │   │   │   │      options.pop([33m'socket'[39m, [94mNone[39m))                            [31m│
+[31m│[39m   253 │   │                                                                                      [31m│
+[31m│[39m   254 │   │   [94mtry[39m:                                                                               [31m│
+[31m│[39m [31m❱ [39m255 │   │   │   [96mself[39m.handshake_response = handshake([96mself[39m.sock, url, *addrs, **options)         [31m│
+[31m│[39m   256 │   │   │   [94mfor[39m attempt [95min[39m [96mrange[39m(options.pop([33m'redirect_limit'[39m, [94m3[39m)):                        [31m│
+[31m│[39m   257 │   │   │   │   [94mif[39m [96mself[39m.handshake_response.status [95min[39m SUPPORTED_REDIRECT_STATUSES:          [31m│
+[31m│[39m   258 │   │   │   │   │   url = [96mself[39m.handshake_response.headers[[33m'location'[39m]                      [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_handshake.py[22m:[94m57[39m in [92mhandshake[39m                  [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m    54 │   send(sock, header_str)                                                                 [31m│
+[31m│[39m    55 │   dump([33m"request header"[39m, header_str)                                                     [31m│
+[31m│[39m    56 │                                                                                          [31m│
+[31m│[39m [31m❱ [39m 57 │   status, resp = _get_resp_headers(sock)                                                 [31m│
+[31m│[39m    58 │   [94mif[39m status [95min[39m SUPPORTED_REDIRECT_STATUSES:                                              [31m│
+[31m│[39m    59 │   │   [94mreturn[39m handshake_response(status, resp, [94mNone[39m)                                      [31m│
+[31m│[39m    60 │   success, subproto = _validate(resp, key, options.get([33m"subprotocols"[39m))                  [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_handshake.py[22m:[94m143[39m in [92m_get_resp_headers[39m         [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   140                                                                                            [31m│
+[31m│[39m   141                                                                                            [31m│
+[31m│[39m   142 [94mdef[39m [92m_get_resp_headers[39m(sock, success_statuses: [96mtuple[39m = SUCCESS_STATUSES) -> [96mtuple[39m:          [31m│
+[31m│[39m [31m❱ [39m143 │   status, resp_headers, status_message = read_headers(sock)                              [31m│
+[31m│[39m   144 │   [94mif[39m status [95mnot[39m [95min[39m success_statuses:                                                     [31m│
+[31m│[39m   145 │   │   content_len = resp_headers.get([33m'content-length'[39m)                                   [31m│
+[31m│[39m   146 │   │   [94mif[39m content_len:                                                                    [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_http.py[22m:[94m316[39m in [92mread_headers[39m                   [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   313 │   trace([33m"--- response header ---"[39m)                                                       [31m│
+[31m│[39m   314 │                                                                                          [31m│
+[31m│[39m   315 │   [94mwhile[39m [94mTrue[39m:                                                                            [31m│
+[31m│[39m [31m❱ [39m316 │   │   line = recv_line(sock)                                                             [31m│
+[31m│[39m   317 │   │   line = line.decode([33m'utf-8'[39m).strip()                                                [31m│
+[31m│[39m   318 │   │   [94mif[39m [95mnot[39m line:                                                                       [31m│
+[31m│[39m   319 │   │   │   [94mbreak[39m                                                                          [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_socket.py[22m:[94m133[39m in [92mrecv_line[39m                    [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   130 [94mdef[39m [92mrecv_line[39m(sock: socket.socket) -> [96mbytes[39m:                                               [31m│
+[31m│[39m   131 │   line = []                                                                              [31m│
+[31m│[39m   132 │   [94mwhile[39m [94mTrue[39m:                                                                            [31m│
+[31m│[39m [31m❱ [39m133 │   │   c = recv(sock, [94m1[39m)                                                                  [31m│
+[31m│[39m   134 │   │   line.append(c)                                                                     [31m│
+[31m│[39m   135 │   │   [94mif[39m c == [33mb'\n'[39m:                                                                     [31m│
+[31m│[39m   136 │   │   │   [94mbreak[39m                                                                          [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m /usr/local/lib/python3.10/dist-packages/websocket/[1m_socket.py[22m:[94m124[39m in [92mrecv[39m                         [31m│
+[31m│[39m                                                                                                  [31m│
+[31m│[39m   121 │   │   │   [94mraise[39m                                                                          [31m│
+[31m│[39m   122 │                                                                                          [31m│
+[31m│[39m   123 │   [94mif[39m [95mnot[39m bytes_:                                                                         [31m│
+[31m│[39m [31m❱ [39m124 │   │   [94mraise[39m WebSocketConnectionClosedException(                                          [31m│
+[31m│[39m   125 │   │   │   [33m"Connection to remote host was lost."[39m)                                         [31m│
+[31m│[39m   126 │                                                                                          [31m│
+[31m│[39m   127 │   [94mreturn[39m bytes_                                                                          [31m│
+[31m╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+[1mWebSocketConnectionClosedException: [22mConnection to remote host was lost.
