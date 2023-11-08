@@ -106,6 +106,7 @@ def extract_python_list(text):
             return evaluated
         return None
     except Exception as e:
+        bt.logging.info(text)
         bt.logging.error(f"Error when extracting list: {e}")
         return None
 
@@ -195,49 +196,17 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 
     wandb.log(data)
 
-async def score_responses(query, engine, response_generators, config, scores):
-    responses_dict = {}
-    for i, synapse in enumerate(response_generators):
-        full_response = []
-        try:
-            # Get the iterator from the synapse object
-            chunks_iterator = synapse.stream_output_iter.__aiter__()
+async def score_responses(synapse, config, openai_answer, full_response):
+    try:
+        score = template.reward.openai_score(openai_answer, full_response)
+        response_dict = {}
+        responses_dict['response'] = full_response
+        responses_dict['score'] = score
+        # scores = config.alpha * scores + (1 - config.alpha) * score
 
-            # Wait for the first chunk with a timeout
-            try:
-                first_chunk = await asyncio.wait_for(chunks_iterator.__anext__(), timeout=0.2)
-                full_response.append(first_chunk)
-                async for chunk in chunks_iterator:
-                    full_response.append(chunk)
-            except asyncio.TimeoutError:
-                bt.logging.warning(f"Timeout while waiting for the first chunk from miner with UID {i}.")
-                scores[i] = 0  # Assign a score of 0 due to timeout
-                full_response = []
+    except Exception as e:
+        bt.logging.error(f"Error while scoring: {traceback.format_exc()}")
 
-        except Exception as e:
-            bt.logging.error(f"Error while processing chunks for miner with UID {i}: {traceback.print_exc()}")
-
-        full_response_str = ''.join(full_response)
-        response_data = {"message": full_response_str}
-        # openai_answer = get_openai_answer(query, engine)
-        openai_answer = "yes"
-        if openai_answer:
-            score = template.reward.openai_score(openai_answer, full_response_str)
-            responses_dict[i] = {
-                'response': full_response_str,
-                'score': score
-            }
-            scores[i] = config.alpha * scores[i] + (1 - config.alpha) * score
-        else:
-            bt.logging.warning(f"No openai answer")
-            score = 0
-            responses_dict[i] = {
-                'response': full_response_str,
-                'score': score
-            }
-            scores[i] = 0
-
-    bt.logging.info(f"scores = {scores}")
     return responses_dict
 
 async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores):
@@ -249,23 +218,30 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             probability = random.random()
             engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
             bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
+            synapse = template.protocol.StreamPrompting(messages=[query], engine=engine)
+            bt.logging.debug(f"synapse: {synapse}")
+            responses = await dendrite(metagraph.axons, synapse, deserialize=False, streaming=True)
+
+            async for resp in responses:
+                i = 0
+                async for chunk in resp:
+                    i += 1
+                    if i % 2 == 0:
+                        bt.logging.info(chunk)
+                    if isinstance(chunk, list):
+                        print(chunk[0], end="", flush=True)
+                    else:
+                        synapse = chunk
+                break
             
-            # Create an empty list to store all chunks
-            all_chunks = []
-            
-            # Query the dendrite and process the chunks as they arrive
-            for chunk in dendrite.query(metagraph.axons, template.protocol.Openai(openai_input=query, openai_engine=engine), deserialize=True):
-                all_chunks.append(chunk)
-            
-            # After processing all chunks, concatenate to get the full response
-            full_response = ''.join(all_chunks)
-            
+            # Now that the streaming is done, process the response
             openai_answer = get_openai_answer(query, engine)
             if openai_answer:
-                bt.logging.info 
-                responses_dict = await score_responses(openai_answer, engine, [full_response], config, scores)
-                bt.logging.info(f"responses_dict is {responses_dict}")
-                if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
+                for res in responses:
+                    responses_dict = await score_responses(synapse, config, openai_answer, resp)
+            
+            bt.logging.info(f"responses_dict is {responses_dict}")
+            if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
 
             if (step + 1) % 25 == 0:  
                 set_weights(step, scores, config, subtensor, wallet, metagraph)
@@ -278,7 +254,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError at step {step}: {e}")
         except Exception as e:
-            logging.exception(f"General exception at step {step}: {e}")
+            bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
             if config.wandb.on: wandb_run.finish()

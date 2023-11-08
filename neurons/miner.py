@@ -8,6 +8,8 @@ import template
 import openai
 from fastapi.responses import StreamingResponse
 from fastapi import FastAPI
+from starlette.types import Send
+from functools import partial
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
@@ -51,7 +53,7 @@ class Miner:
     def initialize_axon(self):
         axon = bt.axon(wallet=self.wallet, config=self.config)
         axon.attach(
-            forward_fn=self.process_question_endpoint,
+            forward_fn=self.process_question,
             blacklist_fn=self.blacklist_fn,
             priority_fn=self.priority_fn
         )
@@ -59,66 +61,44 @@ class Miner:
         axon.start()
         return axon
 
-    def blacklist_fn(self, synapse: template.protocol.StreamingSynapse) -> Tuple[bool, str]:
+    def blacklist_fn(self, synapse: template.protocol.StreamPrompting) -> Tuple[bool, str]:
         if synapse.dendrite.hotkey not in self.metagraph.hotkeys:
             return True, "Unrecognized hotkey"
         return False, "Hotkey recognized!"
 
-    def priority_fn(self, synapse: template.protocol.StreamingSynapse) -> float:
+    def priority_fn(self, synapse: template.protocol.StreamPrompting) -> float:
         caller_uid = self.metagraph.hotkeys.index(synapse.dendrite.hotkey)
         return float(self.metagraph.S[caller_uid])
 
-    async def token_streamer(self, send: template.protocol.Send, chunks_gen: AsyncGenerator[str, None], synapse: template.protocol.StreamingSynapse):
-        try:
-            async for chunk in chunks_gen:
-                # bt.logging.info(f"Sending chunk to client: {chunk}")
-                await synapse.stream_output.put(chunk)  # Add chunk to the queue
-                
-                # Logging the chunk as it's added to the stream_output
-                bt.logging.info(f"Added chunk to stream_output: {chunk}")
-                
-                await send({"type": "http.response.body", "body": chunk.encode('utf-8'), "more_body": True})
+    async def process_question(self, synapse: template.protocol.StreamPrompting) -> template.protocol.StreamPrompting:
+        bt.logging.info(f"Received synapse: {synapse}")
+        prompt = synapse.messages[0]  # If messages is a list of strings
+        engine = synapse.engine
+        bt.logging.info(f"Processing query from validator: '{prompt}' using {engine}")
+
+        async def _prompt(openai_stream, send: Send):
+            async for message in openai_stream:
+                if 'choices' in message and message['choices']:
+                    chunk_message = message['choices'][0]['message']['content']
+                    bt.logging.debug(f"Sending chunk: {chunk_message}")
+                    await send(
+                        {
+                            "type": "http.response.body",
+                            "body": chunk_message.encode("utf-8"),
+                            "more_body": True,
+                        }
+                    )
+                    bt.logging.trace(f"Streamed chunk: {chunk_message}")
+
             await send({"type": "http.response.body", "body": b"", "more_body": False})
-            await synapse.stream_output.put(None)  # Signal end of streaming
-        except Exception as e:
-            bt.logging.error(f"Error while streaming chunks: {e}")
-            raise
 
-
-    async def send_openai_request(self, prompt, engine) -> Generator[str, None, None]:
-        try:
-            bt.logging.info(f"sending openai request of {prompt} to {engine}")
-            response = openai.ChatCompletion.create(
-                model=engine,
-                messages=[{'role': 'user', 'content': prompt}],
-                temperature=0,
-                stream=True
-            )
-            for chunk in response:
-                delta = chunk['choices'][0]['delta']
-                if 'content' in delta:
-                    chunk_message = str(delta['content'])
-                    # bt.logging.info(f"Yielding chunk from OpenAI: {chunk_message}")
-                    yield chunk_message
-        except Exception as e:
-            bt.logging.error(f"Got exception when calling openai {e}")
-            traceback.print_exc()
-            yield "Error calling model"
-
-        def process_question_endpoint(self, synapse: StreamPrompting) -> StreamPrompting:
-            try:
-            bt.logging.info(f"Received synapse: {synapse}")
-            prompt = synapse.streaming_input
-            engine = synapse.streaming_engine
-            bt.logging.info(f"Processing query from validator: '{prompt}' using {engine}")
-
-            # Create the streaming response using the token_streamer function.
-            chunks_gen = self.send_openai_request(prompt, engine)
-            response = synapse.create_streaming_response(lambda send: self.token_streamer(send, chunks_gen, synapse))
-            return response
-        except Exception as e:
-            bt.logging.error(f"Error in process_question_endpoint: {e}")
-            raise e
+        response = await openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{'role': 'user', 'content': prompt}],
+            temperature=0,
+            stream=True
+        )
+        return synapse.completion(partial(_prompt, response))
 
     def run(self):
         step = 0
