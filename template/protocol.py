@@ -18,6 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 import pydantic
+from pydantic import BaseModel, Field
 import time
 import torch
 from typing import List
@@ -25,33 +26,10 @@ import bittensor as bt
 from starlette.responses import StreamingResponse
 
 class StreamPrompting(bt.StreamingSynapse):
-
-    roles: List[str] = pydantic.Field(
-        ...,
-        title="Roles",
-        description="A list of roles in the Prompting scenario. Immuatable.",
-        allow_mutation=False,
-    )
-
-    messages: List[str] = pydantic.Field(
-        ...,
-        title="Messages",
-        description="A list of messages in the Prompting scenario. Immutable.",
-        allow_mutation=False,
-    )
-
-    required_hash_fields: List[str] = pydantic.Field(
-        ["messages"],
-        title="Required Hash Fields",
-        description="A list of required fields for the hash.",
-        allow_mutation=False,
-    )
-
-    completion: str = pydantic.Field(
-        "",
-        title="Completion",
-        description="Completion status of the current Prompting object. This attribute is mutable and can be updated.",
-    )
+    engine: str = pydantic.Field("", allow_mutation=False)
+    messages: List[str] = pydantic.Field(..., allow_mutation=False)
+    required_hash_fields: List[str] = pydantic.Field(["messages"], allow_mutation=False)
+    completion: str = pydantic.Field("", title="Completion")
 
     async def process_streaming_response(self, response: StreamingResponse):
         if self.completion is None:
@@ -67,18 +45,9 @@ class StreamPrompting(bt.StreamingSynapse):
         return self.completion
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
-        headers = {
-            k.decode("utf-8"): v.decode("utf-8")
-            for k, v in response.__dict__["_raw_headers"]
-        }
-
+        headers = {k.decode("utf-8"): v.decode("utf-8") for k, v in response.__dict__["_raw_headers"]}
         def extract_info(prefix):
-            return {
-                key.split("_")[-1]: value
-                for key, value in headers.items()
-                if key.startswith(prefix)
-            }
-
+            return {key.split("_")[-1]: value for key, value in headers.items() if key.startswith(prefix)}
         return {
             "name": headers.get("name", ""),
             "timeout": float(headers.get("timeout", 0)),
