@@ -105,8 +105,8 @@ class Miner:
             traceback.print_exc()
             yield "Error calling model"
 
-    def process_question_endpoint(self, synapse: template.protocol.StreamingSynapse) -> template.protocol.StreamingSynapse.BTStreamingResponse:
-        try:
+        def process_question_endpoint(self, synapse: StreamPrompting) -> StreamPrompting:
+            try:
             bt.logging.info(f"Received synapse: {synapse}")
             prompt = synapse.streaming_input
             engine = synapse.streaming_engine

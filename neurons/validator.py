@@ -262,6 +262,7 @@ async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, sco
             
             openai_answer = get_openai_answer(query, engine)
             if openai_answer:
+                bt.logging.info 
                 responses_dict = await score_responses(openai_answer, engine, [full_response], config, scores)
                 bt.logging.info(f"responses_dict is {responses_dict}")
                 if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
