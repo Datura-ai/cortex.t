@@ -17,86 +17,76 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import typing
+import pydantic
+import time
+import torch
+from typing import List
 import bittensor as bt
-from starlette.responses import StreamingResponse as _StreamingResponse
-from starlette.responses import Response
-from starlette.types import Send, Receive, Scope
-from typing import Callable, Awaitable, List
-from pydantic import BaseModel
-from abc import ABC, abstractmethod
-import asyncio
+from starlette.responses import StreamingResponse
 
-# Class for sending and returning openai inputs, outputs, and engine strings across the bittensor network
-class Openai(bt.Synapse):
-    openai_input: str
-    openai_engine: str
-    openai_output_stream: typing.List[str] = []
+class StreamPrompting(bt.StreamingSynapse):
+
+    roles: List[str] = pydantic.Field(
+        ...,
+        title="Roles",
+        description="A list of roles in the Prompting scenario. Immuatable.",
+        allow_mutation=False,
+    )
+
+    messages: List[str] = pydantic.Field(
+        ...,
+        title="Messages",
+        description="A list of messages in the Prompting scenario. Immutable.",
+        allow_mutation=False,
+    )
+
+    required_hash_fields: List[str] = pydantic.Field(
+        ["messages"],
+        title="Required Hash Fields",
+        description="A list of required fields for the hash.",
+        allow_mutation=False,
+    )
+
+    completion: str = pydantic.Field(
+        "",
+        title="Completion",
+        description="Completion status of the current Prompting object. This attribute is mutable and can be updated.",
+    )
+
+    async def process_streaming_response(self, response: StreamingResponse):
+        if self.completion is None:
+            self.completion = ""
+        async for chunk in response.content.iter_any():
+            tokens = chunk.decode("utf-8").split("\n")
+            for token in tokens:
+                if token:
+                    self.completion += token
+            yield tokens
 
     def deserialize(self) -> str:
-        return "".join(self.openai_output_stream)
+        return self.completion
 
-class BTStreamingResponseModel(BaseModel):
-    token_streamer: Callable[[Send], Awaitable[None]]
+    def extract_response_json(self, response: StreamingResponse) -> dict:
+        headers = {
+            k.decode("utf-8"): v.decode("utf-8")
+            for k, v in response.__dict__["_raw_headers"]
+        }
 
-class AsyncQueueIterator:
-    def __init__(self, queue):
-        self.queue = queue
+        def extract_info(prefix):
+            return {
+                key.split("_")[-1]: value
+                for key, value in headers.items()
+                if key.startswith(prefix)
+            }
 
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        item = await self.queue.get()
-        if item is None:  # Using None as a sentinel value
-            raise StopAsyncIteration
-        return item
-
-class StreamingSynapse(bt.Synapse, ABC):
-    streaming_input: str
-    streaming_engine: str
-
-    class Config:
-        extra = "allow"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.stream_output = asyncio.Queue()
-
-    async def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        if not self.stream_output.empty():
-            return await self.stream_output.get()
-        else:
-            raise StopAsyncIteration
-    
-    @property
-    def stream_output_iter(self):
-        return AsyncQueueIterator(self.stream_output)
-
-    class BTStreamingResponse(_StreamingResponse):
-        def __init__(self, model: BTStreamingResponseModel, **kwargs):
-            super().__init__(content=iter(()), **kwargs)
-            self.token_streamer = model.token_streamer
-
-        async def stream_response(self, send: Send):
-            headers = [(b"content-type", b"text/event-stream")] + self.raw_headers
-            await send({"type": "http.response.start", "status": 200, "headers": headers})
-            await self.token_streamer(send)
-            await send({"type": "http.response.body", "body": b"", "more_body": False})
-
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            await self.stream_response(send)
-        
-    def create_streaming_response(self, token_streamer: Callable[[Send], Awaitable[None]]) -> BTStreamingResponse:
-        model_instance = BTStreamingResponseModel(token_streamer=token_streamer)
-        return self.BTStreamingResponse(model_instance)
-
-    async def process_streaming_response(self, response: Response):
-        for chunk in response.streaming_output_stream:
-            yield chunk
-
-    def extract_response_json(self, response: Response) -> dict:
-        return {"message": "".join(response.streaming_output_stream)}
+        return {
+            "name": headers.get("name", ""),
+            "timeout": float(headers.get("timeout", 0)),
+            "total_size": int(headers.get("total_size", 0)),
+            "header_size": int(headers.get("header_size", 0)),
+            "dendrite": extract_info("bt_header_dendrite"),
+            "axon": extract_info("bt_header_axon"),
+            "roles": self.roles,
+            "messages": self.messages,
+            "completion": self.completion,
+        }
