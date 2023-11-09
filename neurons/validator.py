@@ -11,7 +11,7 @@ import re
 import random
 import ast
 import asyncio
-from template.protocol import StreamPrompting
+from template.protocol import StreamPrompting, IsAlive
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
@@ -216,56 +216,58 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 async def query_synapse(dendrite, metagraph):
     step = 0
     while True:
-        try:
-            bt.logging.info(f"Starting validator loop iteration {step}.")
-            query = get_question()
-            # probability = random.random()
-            # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
-            engine = "gpt-3.5-turbo"        
-            bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
-            syn = StreamPrompting(
-                roles=["user"],
-                messages=[query],
-                engine = engine,
-            )
-            axon = metagraph.axons[9]
+        available_uids = [ uid.item() for uid in metagraph.uids ]
+        for uid in available_uids:
+            try:
+                axon = metagraph.axons[uid]
+                response = dendrite.query(axon, IsAlive(), timeout = .5)
+                if not response.is_success:
+                    bt.logging.info(f"failed response from uid {uid}")
+                    time.sleep (.1)
+                    continue
 
-            async def main():
-                full_response = ""
-                responses = await dendrite([axon], syn, deserialize=False, streaming=True)
-                for resp in responses:
-                    i = 0
-                    async for chunk in resp:
-                        i += 1
-                        if isinstance(chunk, list):
-                            print(chunk[0], end="", flush=True)
-                            full_response += chunk[0]
-                        else:
-                            synapse = chunk
-                    break
-                print("\n")
-                return full_response
-            full_response = await main()
-            openai_answer = get_openai_answer(query, engine)
-            score = template.reward.openai_score(openai_answer, full_response)
-            
-            bt.logging.info(f"score is {score}")
-            # log_wandb(query, engine, responses_dict, step, time.time())
+                bt.logging.info(f"Starting validator loop iteration {step}.")
+                query = get_question()
+                # probability = random.random()
+                # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
+                engine = "gpt-3.5-turbo"        
+                bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
+                syn = StreamPrompting(roles=["user"], messages=[query], engine = engine)
 
-            if (step + 1) % 25 == 0:  
-                set_weights(step, scores, config, subtensor, wallet, metagraph)
+                async def main():
+                    full_response = ""
+                    responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+                    for resp in responses:
+                        i = 0
+                        async for chunk in resp:
+                            i += 1
+                            if isinstance(chunk, list):
+                                print(chunk[0], end="", flush=True)
+                                full_response += chunk[0]
+                            else:
+                                synapse = chunk
+                        break
+                    print("\n")
+                    return full_response
+                full_response = await main()
+                openai_answer = get_openai_answer(query, engine)
+                score = template.reward.openai_score(openai_answer, full_response)
+                
+                bt.logging.info(f"score is {score}")
+                # log_wandb(query, engine, responses_dict, step, time.time())
 
-            bt.logging.info(f"step = {step}")
-            step += 1
+                if (step + 1) % 25 == 0:  
+                    set_weights(step, scores, config, subtensor, wallet, metagraph)
+                step += 1
 
-        except RuntimeError as e:
-            bt.logging.error(f"RuntimeError at step {step}: {e}")
-        except Exception as e:
-            bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
-        except KeyboardInterrupt:
-            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            if config.wandb.on: wandb_run.finish()
-            exit()
+            except RuntimeError as e:
+                bt.logging.error(f"RuntimeError at step {step}: {e}")
+            except Exception as e:
+                bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
+            except KeyboardInterrupt:
+                bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+                if config.wandb.on: wandb_run.finish()
+                exit()
 
 def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)

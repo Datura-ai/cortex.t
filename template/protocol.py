@@ -1,10 +1,13 @@
 import pydantic
 import bittensor as bt
-
+import typing
 from abc import ABC, abstractmethod
 from typing import List, Union, Callable, Awaitable
 from starlette.responses import StreamingResponse
 
+
+class IsAlive( bt.Synapse ):        
+    answer: typing.Optional[ str ] = None
 
 class StreamPrompting(bt.StreamingSynapse):
     """
