@@ -230,7 +230,7 @@ class StreamingTemplateMiner(StreamMiner):
                                 "more_body": True,
                             }
                         )
-                        bt.logging.debug(f"Streamed tokens: {joined_buffer}")
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
                         buffer = []
 
                 if buffer:
@@ -242,7 +242,7 @@ class StreamingTemplateMiner(StreamMiner):
                             "more_body": False,
                         }
                     )
-                    bt.logging.debug(f"Streamed tokens: {joined_buffer}")
+                    bt.logging.info(f"Streamed tokens: {joined_buffer}")
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
