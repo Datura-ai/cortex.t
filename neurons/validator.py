@@ -220,7 +220,7 @@ async def query_synapse(dendrite, metagraph):
         for uid in available_uids:
             try:
                 axon = metagraph.axons[uid]
-                response = dendrite.query(axon, IsAlive(), timeout = .5)
+                response = dendrite.query(axon, IsAlive(), timeout = .2)
                 if not response.is_success:
                     bt.logging.info(f"failed response from uid {uid}")
                     time.sleep (.1)
