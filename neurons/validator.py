@@ -211,7 +211,7 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
     wandb.log(data)
 
 
-async def query_synapse(dendrite, metagraph):
+async def query_synapse(dendrite, metagraph, subtensor):
     step = 0
     while True:
         metagraph = subtensor.metagraph( 18 )
@@ -273,7 +273,7 @@ def main(config):
     check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     scores = torch.zeros_like(metagraph.S, dtype=torch.float32)
-    asyncio.run(query_synapse(dendrite, metagraph))
+    asyncio.run(query_synapse(dendrite, metagraph, subtensor))
 
 if __name__ == "__main__":
     main(get_config())
