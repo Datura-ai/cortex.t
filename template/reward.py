@@ -37,8 +37,6 @@ def compare_texts(openai, response):
 
 # Give a perfect score as long as the miner's response is at least 90% similar to openai's response. Otherwise, give 0
 def openai_score(openai_answer: str, response: str) -> str:
-    bt.logging.info(f"openai_answer = {openai_answer}")
-    bt.logging.info(f"response = {response}\n")
     stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
     stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
 

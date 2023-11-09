@@ -12,7 +12,7 @@ import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
 
-from template.protocol import StreamPrompting
+from template.protocol import StreamPrompting, IsAlive
 from config import get_config, check_config
 
 
@@ -66,6 +66,8 @@ class StreamMiner(ABC):
         print(f"Attaching forward function to axon. {self._prompt}")
         self.axon.attach(
             forward_fn=self._prompt,
+        ).attach(
+            forward_fn=self.is_alive,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -87,6 +89,11 @@ class StreamMiner(ABC):
 
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
+
+    def is_alive(self, synapse: IsAlive) -> IsAlive:
+        bt.logging.info("answered to be active")
+        synapse.answer = "True"
+        return synapse
 
     @abstractmethod
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
