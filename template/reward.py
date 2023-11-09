@@ -19,9 +19,30 @@
 
 import typing
 import openai
+import bittensor as bt
+import difflib
 
+def compare_texts(openai, response):
+    # Tokenize the texts into words
+    openai = openai.split()
+    response = response.split()
+
+    # Initialize the SequenceMatcher
+    matcher = difflib.SequenceMatcher(None, openai, response)
+
+    # Get ratio of similarity considering the order
+    similarity_ratio = matcher.ratio()
+
+    return similarity_ratio
+
+# Give a perfect score as long as the miner's response is at least 90% similar to openai's response. Otherwise, give 0
 def openai_score(openai_answer: str, response: str) -> str:
+    stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
+    stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
 
-    return 1.0 if openai_answer == response else 0
+    similarity = compare_texts(stripped_openai, stripped_response)
+    bt.logging.info(f"similarity is {similarity}")
+
+    return 1.0 if similarity > .90 else 0
 
     
