@@ -1,8 +1,4 @@
-import sys
-sys.path.insert(0, '/root/bittensor/bittensor')
-
 import bittensor as bt
-from dendrite import * 
 import os
 import time
 import torch
@@ -15,7 +11,7 @@ import re
 import random
 import ast
 import asyncio
-import logging
+from protocol import StreamPrompting
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
@@ -26,16 +22,34 @@ question_counter = 0
 themes = None
 questions_list = None
 
+
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--custom", default="my_custom_value")
-    parser.add_argument("--netuid", type=int, default=1)
+    parser.add_argument("--netuid", type=int, default=24)
     parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
+
+    # parser.add_argument(
+    #     "--my_uid", type=int, required=False, help="Your unique miner ID on the chain"
+    # )
+    # parser.add_argument(
+    #     "--wallet_name", type=str, default="default", help="Name of the wallet"
+    # )
+    # parser.add_argument(
+    #     "--hotkey", type=str, default="default", help="Hotkey for the wallet"
+    # )
+    # parser.add_argument(
+    #     "--network",
+    #     type=str,
+    #     default="test",
+    #     help='Network type, e.g., "test" or "mainnet"',
+    # )
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
     config = bt.config(parser)
+    args = parser.parse_args()
     config.full_path = os.path.expanduser(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator")
     if not os.path.exists(config.full_path):
         os.makedirs(config.full_path, exist_ok=True)
@@ -196,77 +210,45 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 
     wandb.log(data)
 
-async def score_responses(synapse, config, openai_answer, full_response):
-    try:
-        score = template.reward.openai_score(openai_answer, full_response)
-        response_dict = {}
-        responses_dict['response'] = full_response
-        responses_dict['score'] = score
-        # scores = config.alpha * scores + (1 - config.alpha) * score
 
-    except Exception as e:
-        bt.logging.error(f"Error while scoring: {traceback.format_exc()}")
-
-    return responses_dict
-
-async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores):
+async def query_synapse(dendrite, metagraph):
     step = 0
-    while True:
-        try:
-            bt.logging.info(f"Starting validator loop iteration {step}.")
-            query = get_question()
-            probability = random.random()
-            engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
-            bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
-            synapse = template.protocol.StreamPrompting(messages=[query], engine=engine)
-            bt.logging.debug(f"synapse: {synapse}")
-            responses = await dendrite(metagraph.axons, synapse, deserialize=False, streaming=True)
+    bt.logging.info(f"Starting validator loop iteration {step}.")
+    query = get_question()
+    probability = random.random()
+    # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
+    bt.logging.info(f"Sent query to miner: '{query}' using")
+    syn = StreamPrompting(
+        roles=["user"],
+        messages=[
+            query
+        ],
+    )
+    axon = metagraph.axons[2]
 
-            async for resp in responses:
-                i = 0
-                async for chunk in resp:
-                    i += 1
-                    if i % 2 == 0:
-                        bt.logging.info(chunk)
-                    if isinstance(chunk, list):
-                        print(chunk[0], end="", flush=True)
-                    else:
-                        synapse = chunk
-                break
-            
-            # Now that the streaming is done, process the response
-            openai_answer = get_openai_answer(query, engine)
-            if openai_answer:
-                for res in responses:
-                    responses_dict = await score_responses(synapse, config, openai_answer, resp)
-            
-            bt.logging.info(f"responses_dict is {responses_dict}")
-            if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
+    async def main():
+        print("main called")
+        responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+        print(responses)
+        for resp in responses:
+            i = 0
+            async for chunk in resp:
+                i += 1
+                if isinstance(chunk, list):
+                    print(chunk[0], end="", flush=True)
+                    pass
+                else:
+                    synapse = chunk
+            break
 
-            if (step + 1) % 25 == 0:  
-                set_weights(step, scores, config, subtensor, wallet, metagraph)
-
-            bt.logging.info(f"step = {step}")
-            step += 1
-            metagraph = subtensor.metagraph(config.netuid)
-            await asyncio.sleep(bt.__blocktime__ - 4)
-
-        except RuntimeError as e:
-            bt.logging.error(f"RuntimeError at step {step}: {e}")
-        except Exception as e:
-            bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
-        except KeyboardInterrupt:
-            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            if config.wandb.on: wandb_run.finish()
-            exit()
+    await main()
 
 def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     scores = torch.zeros_like(metagraph.S, dtype=torch.float32)
-    
-    asyncio.run(run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores))
+    asyncio.run(query_synapse(dendrite, metagraph))
 
 if __name__ == "__main__":
     main(get_config())
