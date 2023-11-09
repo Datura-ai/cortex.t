@@ -101,7 +101,7 @@ def call_openai(prompt, temperature, engine="gpt-3.5-turbo"):
 def get_openai_answer(query, engine):
     temperature = 0
     answer = call_openai(query, temperature, engine)
-    bt.logging.info(f"Response from validator openai: {answer}")
+    # bt.logging.info(f"Response from validator openai: {answer}")
     return answer
 
 def extract_python_list(text):
@@ -142,14 +142,16 @@ def get_list_from_openai(prompt, default_list, max_retries=5):
 def get_themes(num_themes=50):
     default_themes = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
     prompt = f"Give me a python list of {num_themes} different creative themes of which one could ask meaningful questions. Max four words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete list."
-    themes = get_list_from_openai(prompt, default_themes)
+    # themes = get_list_from_openai(prompt, default_themes)
+    themes = default_themes
     bt.logging.info(f"using themes of {themes}")
     return themes
 
 def get_questions_list(theme):
     default_questions = ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is the most romantic gesture you have ever received?', 'What is your favorite love song and why?', 'What is the key to a successful long-term relationship?', 'What is your idea of a perfect date?', 'What is the best piece of relationship advice you have ever received?', 'What is the most memorable love story you have heard?', 'What is the biggest challenge in maintaining a healthy relationship?', 'What is your favorite way to show someone you love them?']
     prompt = f"Give me a python list of 10 different creative questions based off of the theme of {theme}. Max 15 words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete python list."
-    questions = get_list_from_openai(prompt, [])
+    # questions = get_list_from_openai(prompt, [])
+    questions = default_questions
     return questions
 
 def get_question():
@@ -217,18 +219,19 @@ async def query_synapse(dendrite, metagraph):
         try:
             bt.logging.info(f"Starting validator loop iteration {step}.")
             query = get_question()
-            probability = random.random()
-            # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
-            bt.logging.info(f"Sent query to miner: '{query}' using")
+            # probability = random.random()
+            # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
+            engine = "gpt-3.5-turbo"        
+            bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
             syn = StreamPrompting(
                 roles=["user"],
-                messages=[
-                    query
-                ],
+                messages=[query],
+                engine = engine,
             )
             axon = metagraph.axons[9]
 
             async def main():
+                full_response = ""
                 responses = await dendrite([axon], syn, deserialize=False, streaming=True)
                 for resp in responses:
                     i = 0
@@ -236,14 +239,33 @@ async def query_synapse(dendrite, metagraph):
                         i += 1
                         if isinstance(chunk, list):
                             print(chunk[0], end="", flush=True)
-                            pass
+                            full_response += chunk[0]
                         else:
                             synapse = chunk
                     break
+                print("\n")
+                return full_response
+            full_response = await main()
+            openai_answer = get_openai_answer(query, engine)
+            score = template.reward.openai_score(openai_answer, full_response)
+            
+            bt.logging.info(f"score is {score}")
+            # log_wandb(query, engine, responses_dict, step, time.time())
 
-            await main()
+            if (step + 1) % 25 == 0:  
+                set_weights(step, scores, config, subtensor, wallet, metagraph)
+
+            bt.logging.info(f"step = {step}")
+            step += 1
+
+        except RuntimeError as e:
+            bt.logging.error(f"RuntimeError at step {step}: {e}")
         except Exception as e:
-            bt.logging.error(f"exception in query_synapse {e}\n{traceback.format_exc()}")
+            bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
+        except KeyboardInterrupt:
+            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            if config.wandb.on: wandb_run.finish()
+            exit()
 
 def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)

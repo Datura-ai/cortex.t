@@ -69,6 +69,12 @@ class StreamPrompting(bt.StreamingSynapse):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
+    engine: str = pydantic.Field(
+        "",
+        title="engine",
+        description="The engine that which to use when calling openai for your response.",
+    )
+
     async def process_streaming_response(self, response: StreamingResponse):
         """
         `process_streaming_response` is an asynchronous method designed to process the incoming streaming response from the
