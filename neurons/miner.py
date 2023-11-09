@@ -12,7 +12,7 @@ import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
 
-from protocol import StreamPrompting
+from template.protocol import StreamPrompting
 from config import get_config, check_config
 
 

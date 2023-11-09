@@ -11,7 +11,7 @@ import re
 import random
 import ast
 import asyncio
-from protocol import StreamPrompting
+from template.protocol import StreamPrompting
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
@@ -27,7 +27,7 @@ def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--custom", default="my_custom_value")
-    parser.add_argument("--netuid", type=int, default=24)
+    parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
 
     # parser.add_argument(
@@ -213,35 +213,37 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 
 async def query_synapse(dendrite, metagraph):
     step = 0
-    bt.logging.info(f"Starting validator loop iteration {step}.")
-    query = get_question()
-    probability = random.random()
-    # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
-    bt.logging.info(f"Sent query to miner: '{query}' using")
-    syn = StreamPrompting(
-        roles=["user"],
-        messages=[
-            query
-        ],
-    )
-    axon = metagraph.axons[2]
+    while True:
+        try:
+            bt.logging.info(f"Starting validator loop iteration {step}.")
+            query = get_question()
+            probability = random.random()
+            # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
+            bt.logging.info(f"Sent query to miner: '{query}' using")
+            syn = StreamPrompting(
+                roles=["user"],
+                messages=[
+                    query
+                ],
+            )
+            axon = metagraph.axons[9]
 
-    async def main():
-        print("main called")
-        responses = await dendrite([axon], syn, deserialize=False, streaming=True)
-        print(responses)
-        for resp in responses:
-            i = 0
-            async for chunk in resp:
-                i += 1
-                if isinstance(chunk, list):
-                    print(chunk[0], end="", flush=True)
-                    pass
-                else:
-                    synapse = chunk
-            break
+            async def main():
+                responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+                for resp in responses:
+                    i = 0
+                    async for chunk in resp:
+                        i += 1
+                        if isinstance(chunk, list):
+                            print(chunk[0], end="", flush=True)
+                            pass
+                        else:
+                            synapse = chunk
+                    break
 
-    await main()
+            await main()
+        except Exception as e:
+            bt.logging.error(f"exception in query_synapse {e}\n{traceback.format_exc()}")
 
 def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
