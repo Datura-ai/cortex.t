@@ -19,8 +19,11 @@
 
 import typing
 import openai
+import bittensor as bt
 
 def openai_score(openai_answer: str, response: str) -> str:
+    bt.logging.info(f"openai_answer = {openai_answer}")
+    bt.logging.info(f"response = {response}\n")
 
     return 1.0 if openai_answer == response else 0
 
