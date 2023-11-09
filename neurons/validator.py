@@ -1,8 +1,4 @@
-import sys
-sys.path.insert(0, '/root/bittensor/bittensor')
-
 import bittensor as bt
-from dendrite import * 
 import os
 import time
 import torch
@@ -15,7 +11,7 @@ import re
 import random
 import ast
 import asyncio
-import logging
+from template.protocol import StreamPrompting, IsAlive
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
 if not openai.api_key:
@@ -26,16 +22,34 @@ question_counter = 0
 themes = None
 questions_list = None
 
+
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--custom", default="my_custom_value")
-    parser.add_argument("--netuid", type=int, default=1)
+    parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
+
+    # parser.add_argument(
+    #     "--my_uid", type=int, required=False, help="Your unique miner ID on the chain"
+    # )
+    # parser.add_argument(
+    #     "--wallet_name", type=str, default="default", help="Name of the wallet"
+    # )
+    # parser.add_argument(
+    #     "--hotkey", type=str, default="default", help="Hotkey for the wallet"
+    # )
+    # parser.add_argument(
+    #     "--network",
+    #     type=str,
+    #     default="test",
+    #     help='Network type, e.g., "test" or "mainnet"',
+    # )
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
     config = bt.config(parser)
+    args = parser.parse_args()
     config.full_path = os.path.expanduser(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator")
     if not os.path.exists(config.full_path):
         os.makedirs(config.full_path, exist_ok=True)
@@ -87,7 +101,7 @@ def call_openai(prompt, temperature, engine="gpt-3.5-turbo"):
 def get_openai_answer(query, engine):
     temperature = 0
     answer = call_openai(query, temperature, engine)
-    bt.logging.info(f"Response from validator openai: {answer}")
+    # bt.logging.info(f"Response from validator openai: {answer}")
     return answer
 
 def extract_python_list(text):
@@ -128,14 +142,16 @@ def get_list_from_openai(prompt, default_list, max_retries=5):
 def get_themes(num_themes=50):
     default_themes = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
     prompt = f"Give me a python list of {num_themes} different creative themes of which one could ask meaningful questions. Max four words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete list."
-    themes = get_list_from_openai(prompt, default_themes)
+    # themes = get_list_from_openai(prompt, default_themes)
+    themes = default_themes
     bt.logging.info(f"using themes of {themes}")
     return themes
 
 def get_questions_list(theme):
     default_questions = ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is the most romantic gesture you have ever received?', 'What is your favorite love song and why?', 'What is the key to a successful long-term relationship?', 'What is your idea of a perfect date?', 'What is the best piece of relationship advice you have ever received?', 'What is the most memorable love story you have heard?', 'What is the biggest challenge in maintaining a healthy relationship?', 'What is your favorite way to show someone you love them?']
     prompt = f"Give me a python list of 10 different creative questions based off of the theme of {theme}. Max 15 words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete python list."
-    questions = get_list_from_openai(prompt, [])
+    # questions = get_list_from_openai(prompt, [])
+    questions = default_questions
     return questions
 
 def get_question():
@@ -196,77 +212,69 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 
     wandb.log(data)
 
-async def score_responses(synapse, config, openai_answer, full_response):
-    try:
-        score = template.reward.openai_score(openai_answer, full_response)
-        response_dict = {}
-        responses_dict['response'] = full_response
-        responses_dict['score'] = score
-        # scores = config.alpha * scores + (1 - config.alpha) * score
 
-    except Exception as e:
-        bt.logging.error(f"Error while scoring: {traceback.format_exc()}")
-
-    return responses_dict
-
-async def run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores):
+async def query_synapse(dendrite, metagraph):
     step = 0
     while True:
-        try:
-            bt.logging.info(f"Starting validator loop iteration {step}.")
-            query = get_question()
-            probability = random.random()
-            engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"            
-            bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
-            synapse = template.protocol.StreamPrompting(messages=[query], engine=engine)
-            bt.logging.debug(f"synapse: {synapse}")
-            responses = await dendrite(metagraph.axons, synapse, deserialize=False, streaming=True)
+        available_uids = [ uid.item() for uid in metagraph.uids ]
+        for uid in available_uids:
+            try:
+                axon = metagraph.axons[uid]
+                response = dendrite.query(axon, IsAlive(), timeout = .2)
+                if not response.is_success:
+                    bt.logging.info(f"failed response from uid {uid}")
+                    time.sleep (.1)
+                    continue
 
-            async for resp in responses:
-                i = 0
-                async for chunk in resp:
-                    i += 1
-                    if i % 2 == 0:
-                        bt.logging.info(chunk)
-                    if isinstance(chunk, list):
-                        print(chunk[0], end="", flush=True)
-                    else:
-                        synapse = chunk
-                break
-            
-            # Now that the streaming is done, process the response
-            openai_answer = get_openai_answer(query, engine)
-            if openai_answer:
-                for res in responses:
-                    responses_dict = await score_responses(synapse, config, openai_answer, resp)
-            
-            bt.logging.info(f"responses_dict is {responses_dict}")
-            if config.wandb.on: log_wandb(query, engine, responses_dict, step, time.time())
+                bt.logging.info(f"Starting validator loop iteration {step}.")
+                query = get_question()
+                # probability = random.random()
+                # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
+                engine = "gpt-3.5-turbo"        
+                bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
+                syn = StreamPrompting(roles=["user"], messages=[query], engine = engine)
 
-            if (step + 1) % 25 == 0:  
-                set_weights(step, scores, config, subtensor, wallet, metagraph)
+                async def main():
+                    full_response = ""
+                    responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+                    for resp in responses:
+                        i = 0
+                        async for chunk in resp:
+                            i += 1
+                            if isinstance(chunk, list):
+                                print(chunk[0], end="", flush=True)
+                                full_response += chunk[0]
+                            else:
+                                synapse = chunk
+                        break
+                    print("\n")
+                    return full_response
+                full_response = await main()
+                openai_answer = get_openai_answer(query, engine)
+                score = template.reward.openai_score(openai_answer, full_response)
+                
+                bt.logging.info(f"score is {score}")
+                # log_wandb(query, engine, responses_dict, step, time.time())
 
-            bt.logging.info(f"step = {step}")
-            step += 1
-            metagraph = subtensor.metagraph(config.netuid)
-            await asyncio.sleep(bt.__blocktime__ - 4)
+                if (step + 1) % 25 == 0:  
+                    set_weights(step, scores, config, subtensor, wallet, metagraph)
+                step += 1
 
-        except RuntimeError as e:
-            bt.logging.error(f"RuntimeError at step {step}: {e}")
-        except Exception as e:
-            bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
-        except KeyboardInterrupt:
-            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            if config.wandb.on: wandb_run.finish()
-            exit()
+            except RuntimeError as e:
+                bt.logging.error(f"RuntimeError at step {step}: {e}")
+            except Exception as e:
+                bt.logging.info(f"General exception at step {step}: {e}\n{traceback.format_exc()}")
+            except KeyboardInterrupt:
+                bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+                if config.wandb.on: wandb_run.finish()
+                exit()
 
 def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     scores = torch.zeros_like(metagraph.S, dtype=torch.float32)
-    
-    asyncio.run(run_validator_loop(wallet, subtensor, dendrite, metagraph, config, scores))
+    asyncio.run(query_synapse(dendrite, metagraph))
 
 if __name__ == "__main__":
     main(get_config())
