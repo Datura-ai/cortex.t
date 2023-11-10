@@ -1,4 +1,5 @@
 bittensor
 torch
 wandb
-openai
+transformers
+openai==0.28
