@@ -46,6 +46,6 @@ def openai_score(openai_answer: str, response: str) -> str:
     similarity = calculate_cosine_similarity(openai_answer, response)
     bt.logging.info(f"similarity is {similarity}")
 
-    return 1.0 if similarity > .80 else 0
+    return 1.0 if similarity > .75 else 0
 
     
