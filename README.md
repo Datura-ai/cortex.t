@@ -11,15 +11,17 @@
 - [Validating](#validating)
 - [License](#license)
 
+
 ## Introduction
 
 **IMPORTANT**: If you are new to Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
 
-The Bittensor Subnet 18 (cortex.t) is designed to provide reliable consistent quality responses for  app developemnt via API usage through the bittensor protocol [BitAPAI](https://bitapai.io). It is also designed to provide an accessible, fair and manipulation free landscape to the incentivised production of data (mining) and reward production of organic user prompts. 
+The Bittensor Subnet 18 (cortex.t) is designed to provide reliable consistent quality responses for  app developemnt via API usage through the bittensor protocol or using [BitAPAI](https://bitapai.io). It is also designed to provide an accessible, fair and manipulation free landscape to the incentivised production of data (mining) and reward production of organic user prompts. 
 
 This initiative takes the first steps in simplifying and re-imagining how text-prompting can be rewarded and is a push to provide stability and reassurance to developers of API-related apps and products allowing them to prioritise the provision of value to their clients without the worry of data inconsistencies. 
 
-"Why is it not as good as ChatGPT?" was the often made comparison. Now it is. Now you can rely on the quality of GPT within the Bittensor network and pair it with other subnets and modalities using a single API key from [BitAPAI](https://bitapai.io).
+"Why is it not as good as ChatGPT?" was the often made comparison. Now it is. Now you can rely on the quality of GPT within the Bittensor network and pair it with other subnets and modalities using a single API key from any validator, [BitAPAI](https://bitapai.io), or by building directly on an existing validator.
+
 
 ## Setup
 
@@ -35,6 +37,7 @@ After exporting your OpenAI API key to your bash profile, test the streaming ser
 **IMPORTANT:** Make sure you are aware of the minimum compute requirements for cortex.t. See the [Minimum compute YAML configuration](./min_compute.yml).
 Note that this subnet requires very little compute. The main functionality is api calls, so we outsource the compute to openai. The cost for mining and validating on this subnet comes from api calls, not from compute. Please be aware of your API costs and monitor accordingly.
 
+
 ### Installation
 
 Download the repository, navigate to the folder and then install the necessary requirements with the following chained command.
@@ -48,22 +51,23 @@ In order to run a miner or validator you bust first set your OpenAI key to your 
 ```echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc```
 
 
+## Mining
 
-### Mining
+You can launch your miners via pm2 using the following command. 
 
-You can launch your miners via pm2 but we have created an additonal bash [alias](./alias.sh) to allow you to easily manage multiple miners. 
+`pm2 start ./neurons/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
 
-#### pm2
 
-The basic pm2 launch script is 
+## Validating
 
-`pm2 start ./neurons/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT> --logging.info`
+You can launch your validator via pm2 using the following command.
 
-In order to start miners easily with pm2, we have made a bash [alias](./alias.sh) for 10 miners and a validator. Note that for mining this script assumes your hotkeys are named 01-09. If you don't follow this naming convention, make sure to update the `hotkey` variable in the `start_miner` function. Ensure all other preferences align with the other variables within that file. After that, just run `source alias.sh` and then you can run the commands `start_miner[n]` with n being hotkey number or `start_vali` to launch a pm2 process that should score perfectly on the network.
+`pm2 start ./neurons/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
 
-### Validating
 
-Similarly to the miner, just fix the variable names in the [alias](./alias.sh) script, source it, and then launch by running `start_vali` in your terminal. Simple as that!
+## Logging
+
+As cortex.t supports streaming natively, you do not (and should not) enable `logging.trace` or `logging.debug` as all of the important information is already output to `logging.info` which is set as default.
 
 ---
 
