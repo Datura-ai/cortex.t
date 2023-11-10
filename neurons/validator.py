@@ -234,12 +234,6 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 bt.logging.info(f"score is {score}")
                 # log_wandb(query, engine, responses_dict, step, time.time())
 
-            if (step + 1) % 3 == 0:  
-                set_weights(scores, config, subtensor, wallet, metagraph)
-            else: 
-                continue
-            step += 1
-
             except RuntimeError as e:
                 bt.logging.error(f"RuntimeError at step {step}: {e}")
             except Exception as e:
@@ -248,6 +242,10 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 bt.logging.success("Keyboard interrupt detected. Exiting validator.")
                 if config.wandb.on: wandb_run.finish()
                 exit()
+
+        if (step + 1) % 3 == 0:  
+            set_weights(scores, config, subtensor, wallet, metagraph)
+        step += 1
 
 def main(config):
     config = get_config()
