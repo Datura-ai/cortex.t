@@ -206,14 +206,16 @@ class StreamingTemplateMiner(StreamMiner):
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"starting processing for synapse {synapse}")
         
-        async def _prompt(text: str, send: Send):
+        async def _prompt(synapse, send: Send):
             try:
-                bt.logging.info(f"question is {text}")
+                text = synapse.messages[0]
+                engine = synapse.engine
+                bt.logging.info(f"question is {text} with engine {engine}")
                 response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo", #engine,
-                    messages=[{'role': 'user', 'content': text}],
-                    temperature=0,
-                    stream=True
+                    model= engine,
+                    messages= [{'role': 'user', 'content': text}],
+                    temperature= 0,
+                    stream= True
                 )
                 buffer = []
                 N=1
@@ -246,8 +248,7 @@ class StreamingTemplateMiner(StreamMiner):
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
-        message = synapse.messages[0]
-        token_streamer = partial(_prompt, message)
+        token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
 
