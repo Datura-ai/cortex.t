@@ -242,10 +242,10 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 bt.logging.success("Keyboard interrupt detected. Exiting validator.")
                 if config.wandb.on: wandb_run.finish()
                 exit()
-                
+
         if (step + 1) % 3 == 0:  
             set_weights(scores, config, subtensor, wallet, metagraph)
-            step += 1
+        step += 1
 
 def main(config):
     config = get_config()
