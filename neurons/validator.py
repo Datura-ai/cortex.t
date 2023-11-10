@@ -206,9 +206,8 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
                 bt.logging.info(f"Starting validator loop iteration {step}.")
                 query = get_question()
-                # probability = random.random()
-                # engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
-                engine = "gpt-3.5-turbo"        
+                probability = random.random()
+                engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
                 bt.logging.info(f"Sent query to miner: '{query}' using {engine}")
                 syn = StreamPrompting(roles=["user"], messages=[query], engine = engine)
 
