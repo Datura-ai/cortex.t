@@ -26,25 +26,8 @@ questions_list = None
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", default=0.9, type=float)
-    parser.add_argument("--custom", default="my_custom_value")
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
-
-    # parser.add_argument(
-    #     "--my_uid", type=int, required=False, help="Your unique miner ID on the chain"
-    # )
-    # parser.add_argument(
-    #     "--wallet_name", type=str, default="default", help="Name of the wallet"
-    # )
-    # parser.add_argument(
-    #     "--hotkey", type=str, default="default", help="Hotkey for the wallet"
-    # )
-    # parser.add_argument(
-    #     "--network",
-    #     type=str,
-    #     default="test",
-    #     help='Network type, e.g., "test" or "mainnet"',
-    # )
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
@@ -180,15 +163,10 @@ def get_question():
     return question
 
 
-def set_weights(step, scores, config, subtensor, wallet, metagraph):
-    weights = torch.nn.functional.normalize(scores, p=1.0, dim=0)
-    bt.logging.info(f"weights is {weights}")
-
-    result = subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=weights, wait_for_inclusion=True)
-    if result:
-        bt.logging.success("Successfully set weights.")
-    else:
-        bt.logging.error("Failed to set weights.")
+def set_weights(scores, config, subtensor, wallet, metagraph):
+    bt.logging.info(f"weights is {scores}")
+    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=scores, wait_for_inclusion=False)
+    bt.logging.success("Successfully set weights.")
 
 def log_wandb(query, engine, responses_dict, step, timestamp):
     data = {
@@ -211,11 +189,12 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
     wandb.log(data)
 
 
-async def query_synapse(dendrite, metagraph, subtensor):
+async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step = 0
     while True:
         metagraph = subtensor.metagraph( 18 )
         available_uids = [ uid.item() for uid in metagraph.uids ]
+        scores = torch.zeros( len(metagraph.hotkeys) )
         for uid in available_uids:
             try:
                 axon = metagraph.axons[uid]
@@ -251,13 +230,13 @@ async def query_synapse(dendrite, metagraph, subtensor):
                 full_response = await main()
                 openai_answer = get_openai_answer(query, engine)
                 score = template.reward.openai_score(openai_answer, full_response)
-                
+                scores[uid] = score
                 bt.logging.info(f"score is {score}")
                 # log_wandb(query, engine, responses_dict, step, time.time())
 
-                if (step + 1) % 25 == 0:  
-                    set_weights(step, scores, config, subtensor, wallet, metagraph)
-                step += 1
+            if (step + 1) % 3 == 0:  
+                set_weights(scores, config, subtensor, wallet, metagraph)
+            step += 1
 
             except RuntimeError as e:
                 bt.logging.error(f"RuntimeError at step {step}: {e}")
@@ -269,11 +248,12 @@ async def query_synapse(dendrite, metagraph, subtensor):
                 exit()
 
 def main(config):
+    config = get_config()
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     scores = torch.zeros_like(metagraph.S, dtype=torch.float32)
-    asyncio.run(query_synapse(dendrite, metagraph, subtensor))
+    asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
 if __name__ == "__main__":
     main(get_config())

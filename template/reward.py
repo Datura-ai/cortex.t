@@ -22,27 +22,30 @@ import openai
 import bittensor as bt
 import difflib
 
-def compare_texts(openai, response):
-    # Tokenize the texts into words
-    openai = openai.split()
-    response = response.split()
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-    # Initialize the SequenceMatcher
-    matcher = difflib.SequenceMatcher(None, openai, response)
+def calculate_cosine_similarity(text1, text2):
+    # Initialize the TF-IDF Vectorizer
+    vectorizer = TfidfVectorizer()
 
-    # Get ratio of similarity considering the order
-    similarity_ratio = matcher.ratio()
+    # Vectorize the texts
+    tfidf_matrix = vectorizer.fit_transform([text1, text2])
 
-    return similarity_ratio
+    # Calculate the Cosine Similarity
+    similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
+
+    return similarity
+
 
 # Give a perfect score as long as the miner's response is at least 90% similar to openai's response. Otherwise, give 0
 def openai_score(openai_answer: str, response: str) -> str:
-    stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
-    stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
+    # stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
+    # stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
 
-    similarity = compare_texts(stripped_openai, stripped_response)
+    similarity = calculate_cosine_similarity(openai_answer, response)
     bt.logging.info(f"similarity is {similarity}")
 
-    return 1.0 if similarity > .90 else 0
+    return 1.0 if similarity > .80 else 0
 
     
