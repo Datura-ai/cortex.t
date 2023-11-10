@@ -16,7 +16,7 @@
 
 **IMPORTANT**: If you are new to Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
 
-The Bittensor Subnet 18 (cortex.t) is designed to provide reliable consistent quality responses for  app developemnt via API usage through the bittensor protocol or using [BitAPAI](https://bitapai.io). It is also designed to provide an accessible, fair and manipulation free landscape to the incentivised production of data (mining) and reward production of organic user prompts. 
+The Bittensor Subnet 18 (cortex.t) is designed to provide reliable consistent quality responses for app developemnt via API usage through the bittensor protocol. It is also designed to provide an accessible, fair and manipulation free landscape to the incentivised production of data (mining) and reward production of organic user prompts. 
 
 This initiative takes the first steps in simplifying and re-imagining how text-prompting can be rewarded and is a push to provide stability and reassurance to developers of API-related apps and products allowing them to prioritise the provision of value to their clients without the worry of data inconsistencies. 
 
