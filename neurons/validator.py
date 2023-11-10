@@ -236,7 +236,9 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             if (step + 1) % 3 == 0:  
                 set_weights(scores, config, subtensor, wallet, metagraph)
-            step += 1
+            else: 
+                continue
+            step += 1l
 
             except RuntimeError as e:
                 bt.logging.error(f"RuntimeError at step {step}: {e}")
