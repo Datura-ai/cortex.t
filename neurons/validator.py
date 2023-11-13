@@ -160,12 +160,6 @@ def get_question():
 
     return question
 
-
-def set_weights(scores, config, subtensor, wallet, metagraph):
-    bt.logging.info(f"weights is {scores}")
-    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=scores, wait_for_inclusion=False)
-    bt.logging.success("Successfully set weights.")
-
 def log_wandb(query, engine, responses):
     data = {
         '_timestamp': time.time(),
@@ -180,13 +174,13 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
         bt.logging.info(f"Sent query to uid: {uid}, '{syn.messages}' using {syn.engine}")
         full_response = ""
-        responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 5)
         for resp in responses:
             i = 0
             async for chunk in resp:
                 i += 1
                 if isinstance(chunk, list):
-                    bt.logging.info(chunk[0], flush=True)
+                    print(chunk[0], end="", flush=True)
                     full_response += chunk[0]
                 else:
                     synapse = chunk
@@ -207,52 +201,78 @@ def get_available_uids(dendrite, metagraph):
             available_uids.append(uid.item())
         else:
             bt.logging.info(f"UID {uid.item()} is not active")
+
     return available_uids
 
+
+def set_weights(scores, config, subtensor, wallet, metagraph):
+    bt.logging.info(f"weights is {scores}")
+    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=scores, wait_for_inclusion=False)
+    bt.logging.success("Successfully set weights.")
+
+    
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
-    try:
-        metagraph = subtensor.metagraph(18)
-        scores = torch.zeros(len(metagraph.hotkeys))
-        
-        # Get the available UIDs
-        available_uids = get_available_uids(dendrite, metagraph)
-        bt.logging.info(f"available_uids is {available_uids}")
+    engine_counter = 0  # Counter to track when to switch engines
+    while True:
+        try:
+            # Determine the engine based on the counter
+            if engine_counter % 5 == 4:  # Use gpt-4 every fourth iteration
+                engine = "gpt-4"
+                weight = 1
+            else:
+                engine = "gpt-3.5-turbo"
+                weight = 0.7
 
-        # Get the question and openai answer once
-        query = get_question()
-        role = "user"
-        messages=[{'role': role, 'content': query}]
-        probability = random.random()
-        engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo" 
-        syn = StreamPrompting(messages=messages, engine=engine)
+            metagraph = subtensor.metagraph(18)
+            scores = torch.zeros(len(metagraph.hotkeys))
+            
+            # Get the available UIDs
+            available_uids = get_available_uids(dendrite, metagraph)
+            bt.logging.info(f"available_uids is {available_uids}")
 
-        # Query up to 10 miners that passed the IsAlive check
-        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in available_uids[:10]]
-        responses = await asyncio.gather(*tasks)
-        bt.logging.info(f"responses are {responses}")
-        if config.wandb.on: log_wandb(query, engine, responses)
+            # Process in batches of 10 UIDs
+            batch_size = 10
+            for i in range(0, len(available_uids), batch_size):
+                current_batch = available_uids[i:i+batch_size]
 
-        # Calculate scores for each response
-        if syn.engine == "gpt-3.5-turbo":
-            weight = .7
-        elif syn.engine == "gpt-4":
-            weight = 1
-        else:
-            weight = 0
-        openai_answer = call_openai(messages, 0, engine)
-        if openai_answer:
-            scores = [template.reward.openai_score(openai_answer, response, weight) for response in responses if response is not None]
-            bt.logging.info(f"scores are {scores}")
-        set_weights(scores, config, subtensor, wallet, metagraph)
+                # Get a new question for each batch
+                query = get_question()
+                role = "user"
+                messages = [{'role': role, 'content': query}]
 
-    except RuntimeError as e:
-        bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
-    except Exception as e:
-        bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
-    except KeyboardInterrupt:
-        bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-        if config.wandb.on: wandb_run.finish()
-        exit()
+                # Create StreamPrompting object with the selected engine
+                syn = StreamPrompting(messages=messages, engine=engine)
+
+                # Query miners
+                tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in current_batch]
+                responses = await asyncio.gather(*tasks)
+
+                # Get OpenAI answer for the current batch
+                openai_answer = call_openai(messages, 0, engine)
+
+                # Calculate scores for each response in the current batch
+                if openai_answer:
+                    batch_scores = [template.reward.openai_score(openai_answer, response, weight) for response in responses]
+                    # Update the scores array with batch scores at the correct indices
+                    for uid, score in zip(current_batch, batch_scores):
+                        scores[uid] = score
+
+                    # Optional: Log to wandb, if configured
+                    if config.wandb.on:
+                        log_wandb(query, engine, responses)
+
+            # Update weights after processing all batches
+            set_weights(scores, config, subtensor, wallet, metagraph)
+            engine_counter += 1
+
+        except RuntimeError as e:
+            bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
+        except Exception as e:
+            bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
+        except KeyboardInterrupt:
+            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            if config.wandb.on: wandb_run.finish()
+            exit()
 
 
 def main(config):
