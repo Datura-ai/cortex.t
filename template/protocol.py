@@ -2,12 +2,17 @@ import pydantic
 import bittensor as bt
 import typing
 from abc import ABC, abstractmethod
-from typing import List, Union, Callable, Awaitable
+from typing import List, Union, Callable, Awaitable, Dict
 from starlette.responses import StreamingResponse
 
 
 class IsAlive( bt.Synapse ):        
     answer: typing.Optional[ str ] = None
+    completion: str = pydantic.Field(
+        "",
+        title="Completion",
+        description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
+    )
 
 class StreamPrompting(bt.StreamingSynapse):
     """
@@ -45,17 +50,17 @@ class StreamPrompting(bt.StreamingSynapse):
     subclasses to further customize behavior for specific prompting scenarios or requirements.
     """
 
-    roles: List[str] = pydantic.Field(
-        ...,
-        title="Roles",
-        description="A list of roles in the StreamPrompting scenario. Immuatable.",
-        allow_mutation=False,
-    )
+    # roles: List[str] = pydantic.Field(
+    #     ...,
+    #     title="Roles",
+    #     description="A list of roles in the StreamPrompting scenario. Immuatable.",
+    #     allow_mutation=False,
+    # )
 
-    messages: List[str] = pydantic.Field(
+    messages: List[Dict[str, str]] = pydantic.Field(
         ...,
         title="Messages",
-        description="A list of messages in the StreamPrompting scenario. Immutable.",
+        description="A list of messages in the StreamPrompting scenario, each containing a role and content. Immutable.",
         allow_mutation=False,
     )
 
@@ -155,7 +160,6 @@ class StreamPrompting(bt.StreamingSynapse):
             "header_size": int(headers.get("header_size", 0)),
             "dendrite": extract_info("bt_header_dendrite"),
             "axon": extract_info("bt_header_axon"),
-            "roles": self.roles,
             "messages": self.messages,
             "completion": self.completion,
         }

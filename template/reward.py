@@ -39,13 +39,13 @@ def calculate_cosine_similarity(text1, text2):
 
 
 # Give a perfect score as long as the miner's response is at least 90% similar to openai's response. Otherwise, give 0
-def openai_score(openai_answer: str, response: str) -> str:
+def openai_score(openai_answer: str, response: str, weight: float) -> str:
     # stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
     # stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
 
     similarity = calculate_cosine_similarity(openai_answer, response)
-    bt.logging.info(f"similarity is {similarity}")
+    bt.logging.debug(f"similarity is {similarity}")
 
-    return 1.0 if similarity > .75 else 0
+    return weight if similarity > .75 else 0
 
     
