@@ -208,12 +208,12 @@ class StreamingTemplateMiner(StreamMiner):
         
         async def _prompt(synapse, send: Send):
             try:
-                text = synapse.messages[0]
                 engine = synapse.engine
-                bt.logging.info(f"question is {text} with engine {engine}")
+                messages = synapse.messages
+                bt.logging.info(f"question is {messages} with engine {engine}")
                 response = openai.ChatCompletion.create(
                     model= engine,
-                    messages= [{'role': 'user', 'content': text}],
+                    messages= messages,
                     temperature= 0,
                     stream= True
                 )
