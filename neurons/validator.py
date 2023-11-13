@@ -192,47 +192,47 @@ def log_wandb(query, engine, responses_dict, step, timestamp):
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step = 0
     while True:
-        metagraph = subtensor.metagraph( 18 )
-        available_uids = [ uid.item() for uid in metagraph.uids ]
-        bt.logging.info(available_uids)
-        uid = available_uids[169]
-        scores = torch.zeros( len(metagraph.hotkeys) )
-        # for uid in available_uids:
         try:
-            axon = metagraph.axons[uid]
-            response = dendrite.query(axon, IsAlive(), timeout = .5)
-            if not response.is_success:
-                bt.logging.info(f"failed response from uid: {uid}, axon: {axon}")
-                time.sleep (.1)
-                continue
+            metagraph = subtensor.metagraph( 18 )
+            available_uids = [ uid.item() for uid in metagraph.uids ]
+            scores = torch.zeros( len(metagraph.hotkeys) )
+            for uid in available_uids:
+                axon = metagraph.axons[uid]
+                response = dendrite.query(axon, IsAlive(), timeout = .1)
+                if not response.is_success:
+                    bt.logging.info(f"failed response from uid: {uid}, axon: {axon}")
+                    time.sleep (.1)
+                    continue
 
-            query = get_question()
-            probability = random.random()
-            engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
-            bt.logging.info(f"Sent query to uid: {uid}, axon: {axon}, '{query}' using {engine}")
-            syn = StreamPrompting(roles=["user"], messages=[query], engine = engine)
+                query = get_question()
+                probability = random.random()
+                engine = "gpt-4" if probability < 0.05 else "gpt-3.5-turbo"    
+                bt.logging.info(f"Sent query to uid: {uid}, axon: {axon}, '{query}' using {engine}")
+                syn = StreamPrompting(roles=["user"], messages=[query], engine = engine)
 
-            async def main():
-                full_response = ""
-                responses = await dendrite([axon], syn, deserialize=False, streaming=True)
-                for resp in responses:
-                    i = 0
-                    async for chunk in resp:
-                        i += 1
-                        if isinstance(chunk, list):
-                            print(chunk[0], end="", flush=True)
-                            full_response += chunk[0]
-                        else:
-                            synapse = chunk
-                    break
-                print("\n")
-                return full_response
-            full_response = await main()
-            openai_answer = get_openai_answer(query, engine)
-            score = template.reward.openai_score(openai_answer, full_response)
-            scores[uid] = score
-            bt.logging.info(f"score is {score}")
-            # log_wandb(query, engine, responses_dict, step, time.time())
+                async def main():
+                    full_response = ""
+                    responses = await dendrite([axon], syn, deserialize=False, streaming=True)
+                    for resp in responses:
+                        i = 0
+                        async for chunk in resp:
+                            i += 1
+                            if isinstance(chunk, list):
+                                print(chunk[0], end="", flush=True)
+                                full_response += chunk[0]
+                            else:
+                                synapse = chunk
+                        break
+                    print("\n")
+                    return full_response
+                full_response = await main()
+                openai_answer = get_openai_answer(query, engine)
+                score = template.reward.openai_score(openai_answer, full_response)
+                scores[uid] = score
+                bt.logging.info(f"score is {score}")
+                # log_wandb(query, engine, responses_dict, step, time.time())
+
+            set_weights(scores, config, subtensor, wallet, metagraph)
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError at step {step}: {e}")
@@ -243,9 +243,6 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             if config.wandb.on: wandb_run.finish()
             exit()
 
-    if (step + 1) % 3 == 0:  
-        set_weights(scores, config, subtensor, wallet, metagraph)
-    step += 1
 
 def main(config):
     config = get_config()
