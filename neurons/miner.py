@@ -92,7 +92,7 @@ class StreamMiner(ABC):
 
     def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
-        synapse.answer = "True"
+        synapse.completion = "True"
         return synapse
 
     @abstractmethod
