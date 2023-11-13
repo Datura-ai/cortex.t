@@ -212,11 +212,11 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
 
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
-    engine_counter = 0  # Counter to track when to switch engines
+    step_counter = 0  # Counter to track when to switch engines
     while True:
         try:
             # Determine the engine based on the counter
-            if engine_counter % 5 == 4:  # Use gpt-4 every fourth iteration
+            if step_counter % 5 == 4:  # Use gpt-4 every fourth iteration
                 engine = "gpt-4"
                 weight = 1
             else:
@@ -262,8 +262,10 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                         log_wandb(query, engine, responses)
 
             # Update weights after processing all batches
-            set_weights(scores, config, subtensor, wallet, metagraph)
-            engine_counter += 1
+            bt.logging.info(scores is {scores})
+            if step_counter % 3 == 2:
+                set_weights(scores, config, subtensor, wallet, metagraph)
+            step_counter += 1
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
