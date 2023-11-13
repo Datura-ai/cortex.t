@@ -26,7 +26,6 @@ moving_average_scores = None
 
 def get_config():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument('--wandb_off', action='store_false', dest='wandb_on', help='Turn off wandb logging.')
     parser.set_defaults(wandb_on=True)
@@ -206,8 +205,9 @@ def get_available_uids(dendrite, metagraph):
 
     return available_uids
 
-def set_weights(scores, config, subtensor, wallet, metagraph, alpha=0.9):
+def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
+    alpha = .85
 
     # First time, initialize the moving average scores with the current scores
     if moving_average_scores is None:
@@ -238,6 +238,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             metagraph = subtensor.metagraph(18)
             scores = torch.zeros(len(metagraph.hotkeys))
+            uid_scores_dict = {}
             
             # Get the available UIDs
             available_uids = get_available_uids(dendrite, metagraph)
@@ -269,22 +270,22 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                     # Update the scores array with batch scores at the correct indices
                     for uid, score in zip(current_batch, batch_scores):
                         scores[uid] = score
+                        uid_scores_dict[uid] = score
 
-                    # Optional: Log to wandb, if configured
-                    bt.logging.info(f"scores = {scores}")
-
+                    bt.logging.info(f"scores = {uid_scores_dict}")
                     total_scores += scores
                     steps_passed = 1
+
                     if config.wandb_on:
                         log_wandb(query, engine, responses)
 
             # Update weights after processing all batches
             if step_counter % 3 == 2:
                 avg_scores = total_scores / steps_passed
-                bt.logging.info(f"avg scores is {scores}")
+                bt.logging.info(f"avg scores is {avg_scores}")
                 total_scores = torch.zeros_like(scores)
                 steps_passed = 0
-                set_weights(scores, config, subtensor, wallet, metagraph)
+                set_weights(avg_scores, config, subtensor, wallet, metagraph)
             step_counter += 1
 
         except RuntimeError as e:
@@ -302,7 +303,6 @@ def main(config):
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
-    scores = torch.zeros_like(metagraph.S, dtype=torch.float32)
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
 if __name__ == "__main__":
