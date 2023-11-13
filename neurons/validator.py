@@ -226,6 +226,7 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step_counter = 0  # Counter to track when to switch engines
     total_scores = torch.zeros(len(metagraph.hotkeys))
+    steps_passed = 0
     while True:
         try:
             # Determine the engine based on the counter
@@ -272,9 +273,9 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                         scores[uid] = score
                         uid_scores_dict[uid] = score
 
-                    bt.logging.info(f"scores = {uid_scores_dict}")
                     total_scores += scores
-                    steps_passed = 1
+                    steps_passed += 1
+                    bt.logging.info(f"scores = {uid_scores_dict}, {3 - steps_passed} iterations until set weights")
 
                     if config.wandb_on:
                         log_wandb(query, engine, responses)
