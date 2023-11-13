@@ -44,8 +44,8 @@ def get_config():
             name = run_name,
             anonymous = "allow",
             reinit = False,
-            project = 'opentext_qa',
-            entity = 'opentensor-dev',
+            project = 'synthetic-QA',
+            entity = 'cortex-t',
             config = config,
             dir = config.full_path,
         )
@@ -106,7 +106,7 @@ def extract_python_list(text):
 def get_list_from_openai(prompt, default_list, max_retries=5):
     for retry_count in range(max_retries):
         try:
-            answer = call_openai(prompt, .33).replace("\n", " ")
+            answer = call_openai(prompt, .33, "gpt-3.5-turbo").replace("\n", " ")
             extracted_list = extract_python_list(answer)
             if extracted_list:
                 return extracted_list
@@ -121,14 +121,16 @@ def get_list_from_openai(prompt, default_list, max_retries=5):
 def get_themes(num_themes=50):
     default_themes = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
     prompt = f"Give me a python list of {num_themes} different creative themes of which one could ask meaningful questions. Max four words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete list."
-    themes = get_list_from_openai(prompt, default_themes)
+    messages = [{'role': "user", 'content': prompt}]
+    themes = get_list_from_openai(messages, default_themes)
     bt.logging.info(f"using themes of {themes}")
     return themes
 
 def get_questions_list(theme):
     default_questions = ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is the most romantic gesture you have ever received?', 'What is your favorite love song and why?', 'What is the key to a successful long-term relationship?', 'What is your idea of a perfect date?', 'What is the best piece of relationship advice you have ever received?', 'What is the most memorable love story you have heard?', 'What is the biggest challenge in maintaining a healthy relationship?', 'What is your favorite way to show someone you love them?']
     prompt = f"Give me a python list of 10 different creative questions based off of the theme of {theme}. Max 15 words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete python list."
-    questions = get_list_from_openai(prompt, [])
+    messages = [{'role': "user", 'content': prompt}]
+    questions = get_list_from_openai(messages, default_questions)
     return questions
 
 def get_question():
@@ -176,7 +178,7 @@ def log_wandb(query, engine, responses):
 
 async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
-        bt.logging.info(f"Sent query to uid: {uid}, axon: {axon}, '{syn.messages}' using {syn.engine}")
+        bt.logging.info(f"Sent query to uid: {uid}, '{syn.messages}' using {syn.engine}")
         full_response = ""
         responses = await dendrite([axon], syn, deserialize=False, streaming=True)
         for resp in responses:
@@ -184,7 +186,7 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
             async for chunk in resp:
                 i += 1
                 if isinstance(chunk, list):
-                    bt.logging.info(chunk[0], end="", flush=True)
+                    bt.logging.info(chunk[0], flush=True)
                     full_response += chunk[0]
                 else:
                     synapse = chunk
@@ -228,7 +230,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in available_uids[:10]]
         responses = await asyncio.gather(*tasks)
         bt.logging.info(f"responses are {responses}")
-        log_wandb(query, engine, responses)
+        if config.wandb.on: log_wandb(query, engine, responses)
 
         # Calculate scores for each response
         if syn.engine == "gpt-3.5-turbo":
