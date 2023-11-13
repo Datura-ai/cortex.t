@@ -44,7 +44,7 @@ def openai_score(openai_answer: str, response: str, weight: float) -> str:
     # stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
 
     similarity = calculate_cosine_similarity(openai_answer, response)
-    bt.logging.info(f"similarity is {similarity}")
+    bt.logging.debug(f"similarity is {similarity}")
 
     return weight if similarity > .75 else 0
 

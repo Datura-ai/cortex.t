@@ -22,13 +22,14 @@ theme_counter = 0
 question_counter = 0
 themes = None
 questions_list = None
-
+moving_average_scores = None
 
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--alpha", default=0.9, type=float)
     parser.add_argument("--netuid", type=int, default=18)
-    parser.add_argument( '--wandb.on', action='store_true', help='Turn on wandb logging.')
+    parser.add_argument('--wandb_off', action='store_false', dest='wandb_on', help='Turn off wandb logging.')
+    parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
@@ -37,19 +38,19 @@ def get_config():
     config.full_path = os.path.expanduser(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator")
     if not os.path.exists(config.full_path):
         os.makedirs(config.full_path, exist_ok=True)
-    if config.wandb.on:
-        run_name = f'validator-' + ''.join(random.choice( string.ascii_uppercase + string.digits ) for i in range(7))
+    if config.wandb_on:
+        run_name = f'validator-' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
         config.run_name = run_name
-        wandb_run =  wandb.init(
-            name = run_name,
-            anonymous = "allow",
-            reinit = False,
-            project = 'synthetic-QA',
-            entity = 'cortex-t',
-            config = config,
-            dir = config.full_path,
+        wandb_run = wandb.init(
+            name=run_name,
+            anonymous="allow",
+            reinit=False,
+            project='synthetic-QA',
+            entity='cortex-t',
+            config=config,
+            dir=config.full_path,
         )
-        bt.logging.success( f'Started wandb run' )
+        bt.logging.success('Started wandb run')
     return config
 
 def initialize_components(config):
@@ -69,6 +70,7 @@ def check_validator_registration(wallet, subtensor, metagraph):
 def call_openai(messages, temperature, engine):
     max_retries = 5
     for attempt in range(max_retries):
+        bt.logging.info("Calling Openai")
         try:
             response = openai.ChatCompletion.create(
                 model=engine,
@@ -204,15 +206,26 @@ def get_available_uids(dendrite, metagraph):
 
     return available_uids
 
+def set_weights(scores, config, subtensor, wallet, metagraph, alpha=0.9):
+    global moving_average_scores
 
-def set_weights(scores, config, subtensor, wallet, metagraph):
-    bt.logging.info(f"weights is {scores}")
-    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=scores, wait_for_inclusion=False)
-    bt.logging.success("Successfully set weights.")
+    # First time, initialize the moving average scores with the current scores
+    if moving_average_scores is None:
+        moving_average_scores = scores.clone()
 
+    # Update the moving average scores
+    moving_average_scores = alpha * scores + (1 - alpha) * moving_average_scores
+
+    # Logging the updated moving average
+    bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
+
+    # Set the weights based on the moving average
+    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
+    bt.logging.success("Successfully set weights based on moving average.")
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step_counter = 0  # Counter to track when to switch engines
+    total_scores = torch.zeros(len(metagraph.hotkeys))
     while True:
         try:
             # Determine the engine based on the counter
@@ -258,12 +271,19 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                         scores[uid] = score
 
                     # Optional: Log to wandb, if configured
-                    if config.wandb.on:
+                    bt.logging.info(f"scores = {scores}")
+
+                    total_scores += scores
+                    steps_passed = 1
+                    if config.wandb_on:
                         log_wandb(query, engine, responses)
 
             # Update weights after processing all batches
-            bt.logging.info(scores is {scores})
             if step_counter % 3 == 2:
+                avg_scores = total_scores / steps_passed
+                bt.logging.info(f"avg scores is {scores}")
+                total_scores = torch.zeros_like(scores)
+                steps_passed = 0
                 set_weights(scores, config, subtensor, wallet, metagraph)
             step_counter += 1
 
@@ -273,7 +293,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            if config.wandb.on: wandb_run.finish()
+            if config.wandb_on: wandb_run.finish()
             exit()
 
 
