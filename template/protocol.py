@@ -160,7 +160,6 @@ class StreamPrompting(bt.StreamingSynapse):
             "header_size": int(headers.get("header_size", 0)),
             "dendrite": extract_info("bt_header_dendrite"),
             "axon": extract_info("bt_header_axon"),
-            "roles": self.roles,
             "messages": self.messages,
             "completion": self.completion,
         }
