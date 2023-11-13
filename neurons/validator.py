@@ -40,6 +40,7 @@ def get_config():
     if config.wandb_on:
         run_name = f'validator-' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
         config.run_name = run_name
+        global wandb_run
         wandb_run = wandb.init(
             name=run_name,
             anonymous="allow",
@@ -273,11 +274,11 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                         scores[uid] = score
                         uid_scores_dict[uid] = score
 
-                    total_scores += scores
-                    bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed} iterations until set weights")
-
                     if config.wandb_on:
                         log_wandb(query, engine, responses)
+
+            total_scores += scores
+            bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed} iterations until set weights")
 
             steps_passed += 1
             # Update weights after processing all batches
@@ -295,7 +296,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            if config.wandb_on: wandb_run.finish()
+            if config.wandb_on: wandb.finish()
             exit()
 
 
