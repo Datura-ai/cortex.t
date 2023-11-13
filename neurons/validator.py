@@ -274,12 +274,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                         uid_scores_dict[uid] = score
 
                     total_scores += scores
-                    steps_passed += 1
-                    bt.logging.info(f"scores = {uid_scores_dict}, {3 - steps_passed} iterations until set weights")
+                    bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed} iterations until set weights")
 
                     if config.wandb_on:
                         log_wandb(query, engine, responses)
 
+            steps_passed += 1
             # Update weights after processing all batches
             if step_counter % 3 == 2:
                 avg_scores = total_scores / steps_passed
