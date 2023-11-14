@@ -46,7 +46,7 @@ Download the repository, navigate to the folder and then install the necessary r
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
 
-In order to run a miner or validator you bust first set your OpenAI key to your profile with the following command.
+In order to run a miner or validator you must first set your OpenAI key to your profile with the following command.
 
 ```echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc```
 
