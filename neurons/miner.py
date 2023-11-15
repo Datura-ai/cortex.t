@@ -7,13 +7,19 @@ import traceback
 from abc import ABC, abstractmethod
 from functools import partial
 from starlette.types import Send
-import openai
+from openai import OpenAI
+from openai import AsyncOpenAI
 import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
-
 from template.protocol import StreamPrompting, IsAlive
 from config import get_config, check_config
+
+OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not OpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+client = AsyncOpenAI()
 
 
 class StreamMiner(ABC):
@@ -203,7 +209,7 @@ class StreamingTemplateMiner(StreamMiner):
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
 
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+    async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"starting processing for synapse {synapse}")
         
         async def _prompt(synapse, send: Send):
@@ -211,16 +217,16 @@ class StreamingTemplateMiner(StreamMiner):
                 engine = synapse.engine
                 messages = synapse.messages
                 bt.logging.info(f"question is {messages} with engine {engine}")
-                response = openai.ChatCompletion.create(
-                    model= engine,
-                    messages= messages,
-                    temperature= 0,
-                    stream= True
+                stream = await client.chat.completions.create(
+                    messages=messages,
+                    stream=True,
+                    model=engine,
                 )
+
                 buffer = []
                 N=1
-                for chunk in response:
-                    try: token = str(chunk['choices'][0]['delta']['content'])
+                async for part in stream:
+                    try: token = str(part['choices'][0]['delta']['content'])
                     except: continue
                     buffer.append(token)
                     if len(buffer) == N:

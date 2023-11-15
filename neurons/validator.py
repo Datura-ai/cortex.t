@@ -218,14 +218,9 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
-def get_and_score_text(step_counter):
-    # Determine the engine based on the counter
-    if step_counter % 5 == 4:  # Use gpt-4 every fifth iteration
-        engine = "gpt-4"
-        weight = 1
-    else:
-        engine = "gpt-3.5-turbo"
-        weight = 0.7
+def get_and_score_text():
+    engine = "gpt-4-1106-preview"
+    weight = 1
     
     # Get the available UIDs
     available_uids = get_available_uids(dendrite, metagraph)
@@ -261,6 +256,8 @@ def get_and_score_text(step_counter):
 
             if config.wandb_on:
                 log_wandb(query, engine, responses)
+
+    return scores, uid_scores_dict
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step_counter = 0  # Counter to track when to switch engines
@@ -273,10 +270,10 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             uid_scores_dict = {}
 
             # use text synapse 2/3 times
-            if counter % 3 != 2:
-                get_and_score_text(step_counter)
+            if counter % 4 != 3:
+                scores, uid_scores_dict = get_and_score_text(scores, uid_scores_dict)
 
-            elif counter % 3 == 2:
+            elif counter % 4 == 3:
                 get_and_score_image()
 
             total_scores += scores
