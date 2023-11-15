@@ -28,7 +28,7 @@ async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
 
     except Exception as e:
         print(f"Got exception when calling openai {e}")
-        traceback.print_exc()  # This will print the full traceback
+        traceback.print_exc()
         return "Error calling model"
 
 async def main():
