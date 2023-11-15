@@ -209,73 +209,75 @@ def get_available_uids(dendrite, metagraph):
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
     alpha = .85
-
-    # First time, initialize the moving average scores with the current scores
     if moving_average_scores is None:
         moving_average_scores = scores.clone()
 
     # Update the moving average scores
     moving_average_scores = alpha * scores + (1 - alpha) * moving_average_scores
-
-    # Logging the updated moving average
     bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
-
-    # Set the weights based on the moving average
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
+
+def get_and_score_text(step_counter):
+    # Determine the engine based on the counter
+    if step_counter % 5 == 4:  # Use gpt-4 every fifth iteration
+        engine = "gpt-4"
+        weight = 1
+    else:
+        engine = "gpt-3.5-turbo"
+        weight = 0.7
+    
+    # Get the available UIDs
+    available_uids = get_available_uids(dendrite, metagraph)
+    bt.logging.info(f"available_uids is {available_uids}")
+
+    # Process in batches of 10 UIDs
+    batch_size = 10
+    for i in range(0, len(available_uids), batch_size):
+        current_batch = available_uids[i:i+batch_size]
+
+        # Get a new question for each batch
+        query = get_question()
+        role = "user"
+        messages = [{'role': role, 'content': query}]
+
+        # Create StreamPrompting object with the selected engine
+        syn = StreamPrompting(messages=messages, engine=engine)
+
+        # Query miners
+        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in current_batch]
+        responses = await asyncio.gather(*tasks)
+
+        # Get OpenAI answer for the current batch
+        openai_answer = call_openai(messages, 0, engine)
+
+        # Calculate scores for each response in the current batch
+        if openai_answer:
+            batch_scores = [template.reward.openai_score(openai_answer, response, weight) for response in responses]
+            # Update the scores array with batch scores at the correct indices
+            for uid, score in zip(current_batch, batch_scores):
+                scores[uid] = score
+                uid_scores_dict[uid] = score
+
+            if config.wandb_on:
+                log_wandb(query, engine, responses)
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step_counter = 0  # Counter to track when to switch engines
-    total_scores = torch.zeros(len(metagraph.hotkeys))
     steps_passed = 0
     while True:
         try:
-            # Determine the engine based on the counter
-            if step_counter % 5 == 4:  # Use gpt-4 every fourth iteration
-                engine = "gpt-4"
-                weight = 1
-            else:
-                engine = "gpt-3.5-turbo"
-                weight = 0.7
-
             metagraph = subtensor.metagraph(18)
+            total_scores = torch.zeros(len(metagraph.hotkeys))
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
-            
-            # Get the available UIDs
-            available_uids = get_available_uids(dendrite, metagraph)
-            bt.logging.info(f"available_uids is {available_uids}")
 
-            # Process in batches of 10 UIDs
-            batch_size = 10
-            for i in range(0, len(available_uids), batch_size):
-                current_batch = available_uids[i:i+batch_size]
+            # use text synapse 2/3 times
+            if counter % 3 != 2:
+                get_and_score_text(step_counter)
 
-                # Get a new question for each batch
-                query = get_question()
-                role = "user"
-                messages = [{'role': role, 'content': query}]
-
-                # Create StreamPrompting object with the selected engine
-                syn = StreamPrompting(messages=messages, engine=engine)
-
-                # Query miners
-                tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in current_batch]
-                responses = await asyncio.gather(*tasks)
-
-                # Get OpenAI answer for the current batch
-                openai_answer = call_openai(messages, 0, engine)
-
-                # Calculate scores for each response in the current batch
-                if openai_answer:
-                    batch_scores = [template.reward.openai_score(openai_answer, response, weight) for response in responses]
-                    # Update the scores array with batch scores at the correct indices
-                    for uid, score in zip(current_batch, batch_scores):
-                        scores[uid] = score
-                        uid_scores_dict[uid] = score
-
-                    if config.wandb_on:
-                        log_wandb(query, engine, responses)
+            elif counter % 3 == 2:
+                get_and_score_image()
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed} iterations until set weights")
@@ -285,7 +287,6 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             if step_counter % 3 == 2:
                 avg_scores = total_scores / steps_passed
                 bt.logging.info(f"avg scores is {avg_scores}")
-                total_scores = torch.zeros_like(scores)
                 steps_passed = 0
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
             step_counter += 1
