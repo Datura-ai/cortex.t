@@ -218,13 +218,14 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
+def get_and_score_image():
+    engine = "dall-e-3"
+    weight = 1
+    
+
 def get_and_score_text():
     engine = "gpt-4-1106-preview"
     weight = 1
-    
-    # Get the available UIDs
-    available_uids = get_available_uids(dendrite, metagraph)
-    bt.logging.info(f"available_uids is {available_uids}")
 
     # Process in batches of 10 UIDs
     batch_size = 10
@@ -268,6 +269,10 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             total_scores = torch.zeros(len(metagraph.hotkeys))
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
+
+            # Get the available UIDs
+            available_uids = get_available_uids(dendrite, metagraph)
+            bt.logging.info(f"available_uids is {available_uids}")
 
             # use text synapse 2/3 times
             if counter % 4 != 3:
