@@ -88,9 +88,15 @@ def call_openai(messages, temperature, engine):
     
     return None
 
-def extract_python_list(text):
+def extract_python_list(text: str) -> Optional[List]:
+    """
+    Extracts a Python list from a given string.
+    Args:
+        text (str): The string containing the Python list.
+    Returns:
+        Optional[List]: The extracted list if found and valid, otherwise None.
+    """
     try:
-        # Find the first open bracket and the last closing bracket
         start_idx = text.find('[')
         end_idx = text.rfind(']')
 
@@ -100,27 +106,30 @@ def extract_python_list(text):
         list_str = text[start_idx:end_idx+1]
         evaluated = ast.literal_eval(list_str)
 
-        if isinstance(evaluated, list):
-            return evaluated
-        return None
+        return evaluated if isinstance(evaluated, list) else None
     except Exception as e:
         bt.logging.info(text)
         bt.logging.error(f"Error when extracting list: {e}")
         return None
 
 def get_list(list_type, theme=None):
+
+    if list_type == "question_themes":
+        default = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
+        prompt = "Create a Python list of 50 unique and thought-provoking themes, each suitable for generating meaningful text-based questions. Limit each theme to a maximum of four words. The themes should be diverse and encompass a range of topics, including technology, philosophy, society, history, science, and art. Format the themes as elements in a Python list, and provide only the list without any additional text or explanations."    
+    
+    elif list_type == "image_themes":
+        default = ["Urban Echoes", "Nature's Whispers", "Futuristic Visions", "Emotional Abstracts", "Memory Fragments", "Mythical Echoes", "Underwater Mysteries", "Cosmic Wonders", "Ancient Secrets", "Cultural Tapestries", "Wild Motion", "Dreamlike States", "Seasonal Shifts", "Nature's Canvas", "Night Lights", "Historical Shadows", "Miniature Worlds", "Desert Dreams", "Robotic Integrations", "Fairy Enchantments", "Timeless Moments", "Dystopian Echoes", "Animal Perspectives", "Urban Canvas", "Enchanted Realms", "Retro Futures", "Emotive Rhythms", "Human Mosaics", "Undersea Unknowns", "Mystical Peaks", "Folklore Reimagined", "Outer Realms", "Vintage Styles", "Urban Wilderness", "Mythical Retellings", "Colorful Breezes", "Forgotten Places", "Festive Illuminations", "Masked Realities", "Oceanic Legends", "Digital Detachments", "Past Reverberations", "Shadow Dances", "Future Glimpses", "Wild Forces", "Steampunk Realms", "Reflective Journeys", "Aerial Grace", "Microscopic Worlds", "Forest Spirits"]
+        prompt = "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
+    
     if list_type == "questions":
         default = ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is the most romantic gesture you have ever received?', 'What is your favorite love song and why?', 'What is the key to a successful long-term relationship?', 'What is your idea of a perfect date?', 'What is the best piece of relationship advice you have ever received?', 'What is the most memorable love story you have heard?', 'What is the biggest challenge in maintaining a healthy relationship?', 'What is your favorite way to show someone you love them?']
-        prompt = f"Give me a python list of 10 different creative questions based off of the theme of {theme}. Max 15 words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete python list."}]
+        prompt = f"Generate a Python list of 10 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
 
-    elif list_type == "themes":
-        default = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
-        prompt = f"Give me a python list of {num_themes} different creative themes of which one could ask meaningful questions. Max four words each. Provide it in python list structure and don't write anything extra, just provide exclusively the complete list."}]
-    
     elif list_type == "images":
         default = ['A majestic golden eagle soaring high above a mountain range, its powerful wings spread wide against a clear blue sky.', 'A bustling medieval marketplace, full of colorful stalls, various goods, and people dressed in period attire, with a castle in the background.', 'An underwater scene showcasing a vibrant coral reef teeming with diverse marine life, including fish, sea turtles, and starfish.', 'A serene Zen garden with neatly raked sand, smooth stones, and a small, gently babbling brook surrounded by lush green foliage.', 'A futuristic cityscape at night, illuminated by neon lights, with flying cars zooming between towering skyscrapers.', 'A cozy cabin in a snowy forest at twilight, with warm light glowing from the windows and smoke rising from the chimney.', 'A surreal landscape with floating islands, cascading waterfalls, and a path leading to a castle in the sky, set against a sunset backdrop.', 'An astronaut exploring the surface of Mars, with a detailed spacesuit, the red Martian terrain around, and Earth visible in the sky.', 'A lively carnival scene with a Ferris wheel, colorful tents, crowds of happy people, and the air filled with the smell of popcorn and cotton candy.', 'A majestic lion resting on a savanna, with the African sunset in the background, highlighting its powerful mane and serene expression.']
-        prompt = "Provide a list of 10 creative and detailed scenarios for image generation, formatted as elements in a Python list. The scenarios should be diverse, encompassing themes such as natural landscapes, historical settings, futuristic scenes, and other imaginative contexts. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Provide exclusively the python list."
-
+        prompt = f"Provide a list of 10 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+    
     else:
         bt.logging.error("no valid list_type provided")
 
@@ -198,16 +207,12 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
         bt.logging.info(f"Sent query to uid: {uid}, '{syn.messages}' using {syn.engine}")
         full_response = ""
         responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 5)
-        for resp in responses:
-            i = 0
-            async for chunk in resp:
-                i += 1
-                if isinstance(chunk, list):
-                    print(chunk[0], end="", flush=True)
-                    full_response += chunk[0]
-                else:
-                    synapse = chunk
-            break
+        async for chunk in resp:
+            if isinstance(chunk, list):
+                print(chunk[0], end="", flush=True)
+                full_response += chunk[0]
+            else:
+                synapse = chunk
         print("\n")
         return full_response
     
@@ -239,30 +244,39 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
-def get_and_score_image(dendrite, metagraph, config, subtensor, wallet):
+async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "dall-e-3"
     weight = 1
     size = "1024x1024"
     quality = "standard"
     style = "vivid"
 
-    for i in range(len(available_uids):
+    for i in range(len(available_uids)):
         uid = available_uids[i]
 
         # Get new questions
         messages = get_question("images")
-        syn = ImageResponse(messages=messages, engine=engine weight=weight, size=size, quality=quality, style=style)
+        syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
 
         # Query miners
-        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
-        responses = await asyncio.gather(*tasks)
-    
+        task = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
+        response = await asyncio.gather(*task)
 
-def get_and_score_text(dendrite, metagraph, config, subtensor, wallet):
+        score = [template.reward.openai_score(openai_answer, response, weight)]
+            # Update the scores array with batch scores at the correct indices
+            scores[uid] = score
+            uid_scores_dict[uid] = score
+
+            if config.wandb_on:
+                log_wandb(query, engine, responses)
+
+    return scores, uid_scores_dict
+    
+async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "gpt-4-1106-preview"
     weight = 1
 
-    for i in range(len(available_uids):
+    for i in range(len(available_uids)):
         uid = available_uids[i]
 
         # Get new questions
@@ -271,34 +285,27 @@ def get_and_score_text(dendrite, metagraph, config, subtensor, wallet):
         syn = StreamPrompting(messages=messages, engine=engine)
 
         # Query miners
-        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
-        responses = await asyncio.gather(*tasks)
+        task = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
+        response = await asyncio.gather(*task)
 
         # Get OpenAI answer for the current batch
         openai_answer = call_openai(messages, 0, engine)
 
         # Calculate scores for each response in the current batch
         if openai_answer:
-            batch_scores = [template.reward.openai_score(openai_answer, response, weight) for response in responses]
+            score = [template.reward.openai_score(openai_answer, response, weight)]
             # Update the scores array with batch scores at the correct indices
-            for uid, score in zip(current_batch, batch_scores):
-                scores[uid] = score
-                uid_scores_dict[uid] = score
+            scores[uid] = score
+            uid_scores_dict[uid] = score
 
             if config.wandb_on:
                 log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
-
-def get_and_score_text():
-    engine = "dall-e-3"
-    weight = 1
-
-
-
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     step_counter = 0
+    steps_passed = 0
     while True:
         try:
             metagraph = subtensor.metagraph(18)
@@ -311,21 +318,22 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"available_uids is {available_uids}")
 
             # use text synapse 3/4 times
-            if counter % 4 != 3:
-                scores, uid_scores_dict = get_and_score_text(scores, uid_scores_dict)
+            if step_counter % 4 != 3:
+                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dic, available_uids)
 
-            elif counter % 4 == 3:
-                get_and_score_image()
+            else:
+                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
-            bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed} iterations until set weights")
+            bt.logging.info(f"scores = {uid_scores_dict}, {step_counter % 3} iterations until set weights")
 
             # Update weights after processing all batches
-            if step_counter % 3 == 2:
+            if steps_passed % 3 == 2:
                 avg_scores = total_scores / steps_passed
                 bt.logging.info(f"avg scores is {avg_scores}")
                 steps_passed = 0
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
+
             step_counter += 1
 
         except RuntimeError as e:
@@ -346,4 +354,4 @@ def main(config):
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
 if __name__ == "__main__":
-    main(get_config())
+    main()
