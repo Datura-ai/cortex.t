@@ -8,7 +8,7 @@ OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI()
+client = AsyncOpenAI(timeout=30)
 
 async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
     try:
@@ -16,6 +16,8 @@ async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
             messages=[{"role": "user", "content": prompt}],
             stream=True,
             model=engine,
+            seed=1234,
+            temperature=0.0001,
         )
         collected_messages = []
 
