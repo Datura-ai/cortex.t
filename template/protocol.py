@@ -14,6 +14,32 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
+class ImageResponse( bt.Synapse ):
+
+    class Image(BaseModel):
+        b64_json: Optional[str] = None
+        revised_prompt: str
+        url: str
+
+    class ImagesResponse(BaseModel):
+        created: int
+        data: List[Image]
+
+    completion: ImagesResponse = Field(...)
+    messages: str = pydantic.Field()
+    engine: str = pydantic.Field()
+    style = str = pydantic.Field()
+    size = str = pydantic.Field()
+    quality = str = pydantic.Field()
+
+
+    required_hash_fields: List[str] = pydantic.Field(
+        ["messages"],
+        title="Required Hash Fields",
+        description="A list of required fields for the hash.",
+        allow_mutation=False,
+    )
+
 class StreamPrompting(bt.StreamingSynapse):
     """
     StreamPrompting is a specialized implementation of the `StreamingSynapse` tailored for prompting functionalities within
