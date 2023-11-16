@@ -19,7 +19,7 @@ OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI()
+client = AsyncOpenAI(timeout=30.0)
 
 
 class StreamMiner(ABC):
@@ -221,6 +221,8 @@ class StreamingTemplateMiner(StreamMiner):
                     messages=messages,
                     stream=True,
                     model=engine,
+                    temperature=0.0001,
+                    seed=1234,
                 )
 
                 buffer = []
