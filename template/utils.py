@@ -64,7 +64,7 @@ def initialize_components(config):
 
 def check_validator_registration(wallet, subtensor, metagraph):
     if wallet.hotkey.ss58_address not in metagraph.hotkeys:
-        bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
+        bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register and try again.")
         exit()
 
 def call_openai(messages, temperature, engine):
