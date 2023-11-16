@@ -20,11 +20,10 @@ if not OpenAI.api_key:
 
 client = OpenAI(timeout=30.0)
 
-theme_counter = 0
-question_counter = 0
-themes = None
-questions_list = None
-moving_average_scores = None
+state = {
+    "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
+    "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
+}
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -141,30 +140,46 @@ def get_list(list_type, theme=None):
         bt.logging.error(f"No list found after {max_retries} retries, using default list.")
         return default
 
-def get_question():
-    global theme_counter, question_counter, themes, questions_list
+def update_counters_and_get_new_list(category, item_type):
+    themes = state[category]["themes"]
+    questions = state[category]["questions"]
+    theme_counter = state[category]["theme_counter"]
+    question_counter = state[category]["question_counter"]
 
-    if not themes:
-        themes = get_list("themes")
-        theme_counter = len(themes) - 1  # Start at the end of the themes list
+    # Choose the appropriate counter and list based on item_type
+    counter = theme_counter if item_type == "themes" else question_counter
+    items = themes if item_type == "themes" else questions
 
-    theme = themes[theme_counter]
+    # Logic for updating counters and getting new list
+    if not items:
+        items = get_list(item_type, theme, category)
+        counter = len(items) - 1  # Start at the end of the list
 
-    if not questions_list:
-        questions_list = get_list("questions", theme)
-        question_counter = len(questions_list) - 1  # Start at the end of the questions list
-        bt.logging.info(f"retrieved new questions: {questions_list}")
+    item = items[counter]
+    counter -= 1  # Move backwards in the list
 
-    question = questions_list[question_counter]
-
-    # Move backwards in the questions list
-    question_counter -= 1
-    if question_counter < 0:  # If we reach the front, get new questions
-        questions_list = None
-        theme_counter -= 1  # Move to the previous theme
-
-        if theme_counter < 0:  # If we reach the front of themes, start over
+    # Reset if we reach the front of the list
+    if counter < 0:
+        if item_type == "questions":
+            questions = None
+        else:  # item_type == "themes"
             themes = None
+            theme_counter -= 1  # Move to the previous theme
+
+    # Update the state
+    state[category]["themes"] = themes
+    state[category]["questions"] = questions
+    state[category]["theme_counter"] = theme_counter
+    state[category]["question_counter"] = question_counter
+
+    return item
+
+def get_question(category):
+    if category not in ["text", "images"]:
+        raise ValueError("Invalid category. Must be 'text' or 'images'.")
+
+    theme = update_counters_and_get_new_list(category, "themes")
+    question = update_counters_and_get_new_list(category, "questions")
 
     return question
 
@@ -224,27 +239,39 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
-def get_and_score_image():
+def get_and_score_image(dendrite, metagraph, config, subtensor, wallet):
     engine = "dall-e-3"
     weight = 1
+    size = "1024x1024"
+    quality = "standard"
+    style = "vivid"
+
+    for i in range(len(available_uids):
+        uid = available_uids[i]
+
+        # Get new questions
+        messages = get_question("images")
+        syn = ImageResponse(messages=messages, engine=engine weight=weight, size=size, quality=quality, style=style)
+
+        # Query miners
+        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
+        responses = await asyncio.gather(*tasks)
     
 
-def get_and_score_text():
+def get_and_score_text(dendrite, metagraph, config, subtensor, wallet):
     engine = "gpt-4-1106-preview"
     weight = 1
 
-    # Process in batches of 10 UIDs
-    batch_size = 10
-    for i in range(0, len(available_uids), batch_size):
-        current_batch = available_uids[i:i+batch_size]
+    for i in range(len(available_uids):
+        uid = available_uids[i]
 
-        # Get a new question for each batch
-        query = get_question()
-        messages = [{'role': 'user', 'content': query}]
+        # Get new questions
+        prompt = get_question("text")
+        messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine)
 
         # Query miners
-        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet) for uid in current_batch]
+        tasks = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
         responses = await asyncio.gather(*tasks)
 
         # Get OpenAI answer for the current batch
