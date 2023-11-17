@@ -217,19 +217,19 @@ class StreamingTemplateMiner(StreamMiner):
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
 
-    def images(self, synapse: ImageResponse) -> ImageResponse:
+    async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"called image axon {synapse}")
         try:
             engine = synapse.engine
-            messages = synapse=messages
-            model = synapse.model
+            messages = synapse.messages
+            engine = synapse.engine
             size = synapse.size
             quality =synapse.quality
             style = synapse.style
 
-            response = client.images.generate(
-                model=model,
-                prompt=prompt,
+            response = await client.images.generate(
+                model=engine,
+                prompt=messages,
                 size=size,
                 quality=quality,
                 style=style,
@@ -239,7 +239,7 @@ class StreamingTemplateMiner(StreamMiner):
             return response
 
         except Exception as e:
-            bt.logging.error(f"error in images: {e}\n{tracebackformat_exc()}")
+            bt.logging.error(f"error in images: {e}\n{traceback.format_exc()}")
 
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
