@@ -97,8 +97,8 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
-    def _images(self, synapse: ImageResponse) -> ImageResponse:
-        return self.images(synapse)
+    async def _images(self, synapse: ImageResponse) -> ImageResponse:
+        return await self.images(synapse)
 
     def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
@@ -146,7 +146,6 @@ class StreamMiner(ABC):
                     # --- Wait for next bloc.
                     time.sleep(1)
                     current_block = self.subtensor.get_current_block()
-
                     # --- Check if we should exit.
                     if self.should_exit:
                         break
@@ -228,17 +227,29 @@ class StreamingTemplateMiner(StreamMiner):
             style = synapse.style
 
             # Await the response from the asynchronous function
-            response = await client.images.generate(
+            meta = await client.images.generate(
                 model=engine,
                 prompt=messages,
                 size=size,
                 quality=quality,
                 style=style,
-            )
+                )
 
-            # Process and return the complete response
-            bt.logging.info(f"returning image response of {response}")
-            return response
+            image_created = meta.created
+            image_url = meta.data[0].url
+            image_revised_prompt = meta.data[0].revised_prompt
+            image_b64 = meta.data[0].revised_prompt
+
+            image_data = {
+                "created_at": image_created,
+                "url": image_url,
+                "revised_prompt": image_revised_prompt,
+                "b64": image_b64
+            }
+
+            synapse.completion = image_data
+            bt.logging.info(f"returning image response of {synapse.completion}")
+            return synapse
 
         except Exception as e:
             bt.logging.error(f"error in images: {e}\n{traceback.format_exc()}")
