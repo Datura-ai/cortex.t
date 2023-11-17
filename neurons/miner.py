@@ -70,12 +70,12 @@ class StreamMiner(ABC):
         bt.logging.info(f"Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self._prompt}")
         self.axon.attach(
-        #     forward_fn=self._prompt,
-        # ).attach(
-            forward_fn=self.is_alive,)
-        # ).attach(
-        #     forward_fn=self._images,
-        # )
+            forward_fn=self._prompt,
+        ).attach(
+            forward_fn=self.is_alive,
+        ).attach(
+            forward_fn=self._images,
+        )
         bt.logging.info(f"Axon created: {self.axon}")
 
         # Instantiate runners

@@ -347,14 +347,14 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     while True:
         try:
-            metagraph = subtensor.metagraph(18)
+            metagraph = subtensor.metagraph(24)
             total_scores = torch.zeros(len(metagraph.hotkeys))
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
             
             # Get the available UIDs
-            # available_uids = get_available_uids(dendrite, metagraph)
-            available_uids = [2]
+            available_uids = get_available_uids(dendrite, metagraph)
+            # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
             # use text synapse 3/4 times
