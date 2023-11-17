@@ -253,7 +253,8 @@ class StreamingTemplateMiner(StreamMiner):
                 engine = synapse.engine
                 messages = synapse.messages
                 seed=synapse.seed
-                bt.logging.info(f"question is {messages} with engine {engine}")
+                bt.logging.info(synapse)
+                bt.logging.info(f"question is {messages} with engine {engine}, seed: {seed}")
                 response = await client.chat.completions.create(
                     model= engine,
                     messages= messages,
@@ -288,6 +289,7 @@ class StreamingTemplateMiner(StreamMiner):
                         }
                     )
                     bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                    print(f"response is {response}")
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 

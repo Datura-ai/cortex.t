@@ -310,7 +310,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     return scores, uid_scores_dict
     
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    engine = "gpt-4-1106-preview"
+    # engine = "gpt-4-1106-preview"
+    engine = "gpt-3.5-turbo"
     weight = 1
     seed=1234
     for i in range(len(available_uids)):
