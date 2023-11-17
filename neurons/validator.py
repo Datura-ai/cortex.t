@@ -281,6 +281,17 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
+async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
+    try:
+        bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages} using {syn.engine}")
+        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False), 50)
+        for resp in responses:
+            print(f"the image response is {resp}")
+    
+    except Exception as e:
+        bt.logging.error(f"Exception during query for uid {uid}: {e}")
+
+
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "dall-e-3"
     weight = 1
@@ -296,16 +307,16 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
 
         # Query miners
-        task = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
-        response = await asyncio.gather(*task)
+        task = [query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
+        completion = await asyncio.gather(*task)
 
-        score = [template.reward.openai_score(openai_answer, response, weight)]
-            # Update the scores array with batch scores at the correct indices
-        scores[uid] = score
-        uid_scores_dict[uid] = score
+        # score = [template.reward.openai_score(openai_answer, response, weight)]
+        #     # Update the scores array with batch scores at the correct indices
+        # scores[uid] = score
+        # uid_scores_dict[uid] = score
 
-        if config.wandb_on:
-            log_wandb(query, engine, responses)
+        # if config.wandb_on:
+        #     log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
     
@@ -358,11 +369,11 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             # # use text synapse 3/4 times
             # if step_counter % 4 != 3:
-            scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             # else:
-            #     scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
-
+            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            time.sleep(8)
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
 

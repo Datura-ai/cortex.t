@@ -15,9 +15,13 @@ response = client.images.generate(
     style="vivid", # or natural
     n=1,
 )
-print(response)
+# print(response)
 # Get image URL
 image_url = response.data[0].url
+image_revised_prompt = response.data[0].revised_prompt
+image_b64 = response.data[0].revised_prompt
+image_created = response.created
+print(f"created at {image_created}, url = {image_url}, revised_prompt = {image_revised_prompt}, b64 = {image_b64}")
 
 # Download the image
 image_response = requests.get(image_url)
