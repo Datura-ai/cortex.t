@@ -284,7 +284,7 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
 async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
         bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages} using {syn.engine}")
-        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False), 50)
+        responses = await dendrite([axon], syn, deserialize=False, timeout=50)
         for resp in responses:
             print(f"the image response is {resp}")
     
@@ -293,10 +293,13 @@ async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
 
 
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
+    # 12 cents per image at this config
+    # 4 cents to lower to 1024x1024
+    # 4 cents to lower quality to standard
     engine = "dall-e-3"
     weight = 1
-    size = "1024x1024"
-    quality = "standard"
+    size = "1792x1024"
+    quality = "hd"
     style = "vivid"
 
     for i in range(len(available_uids)):
