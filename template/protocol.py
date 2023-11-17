@@ -2,9 +2,9 @@ import pydantic
 import bittensor as bt
 import typing
 from abc import ABC, abstractmethod
-from typing import List, Union, Callable, Awaitable, Dict
+from typing import List, Union, Callable, Awaitable, Dict, Optional
 from starlette.responses import StreamingResponse
-
+from pydantic import BaseModel, Field
 
 class IsAlive( bt.Synapse ):        
     answer: typing.Optional[ str ] = None
@@ -14,31 +14,24 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
-class ImageResponse( bt.Synapse ):
+class Image(BaseModel):
+    b64_json: Optional[str] = None
+    revised_prompt: str
+    url: str
 
-    class Image(BaseModel):
-        b64_json: Optional[str] = None
-        revised_prompt: str
-        url: str
+class ImagesResponse(BaseModel):
+    created: int
+    data: List[Image]
 
-    class ImagesResponse(BaseModel):
-        created: int
-        data: List[Image]
+class ImageResponse(bt.Synapse):
+    completion: ImagesResponse
+    messages: str
+    engine: str
+    style: str
+    size: str
+    quality: str
 
-    completion: ImagesResponse = Field(...)
-    messages: str = pydantic.Field()
-    engine: str = pydantic.Field()
-    style = str = pydantic.Field()
-    size = str = pydantic.Field()
-    quality = str = pydantic.Field()
-
-
-    required_hash_fields: List[str] = pydantic.Field(
-        ["messages"],
-        title="Required Hash Fields",
-        description="A list of required fields for the hash.",
-        allow_mutation=False,
-    )
+    required_hash_fields: List[str] = ["messages"] 
 
 class StreamPrompting(bt.StreamingSynapse):
     """

@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import threading
 import traceback
+import os
 from abc import ABC, abstractmethod
 from functools import partial
 from starlette.types import Send
@@ -12,7 +13,7 @@ from openai import AsyncOpenAI
 import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
-from template.protocol import StreamPrompting, IsAlive
+from template.protocol import StreamPrompting, IsAlive, ImageResponse
 from config import get_config, check_config
 
 OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
@@ -74,6 +75,8 @@ class StreamMiner(ABC):
             forward_fn=self._prompt,
         ).attach(
             forward_fn=self.is_alive,
+        ).attach(
+            forward_fn=self._images,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -96,6 +99,9 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
+    def _images(self, synapse: ImageResponse) -> ImageResponse:
+        return self.images(synapse)
+
     def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
         synapse.completion = "True"
@@ -103,6 +109,10 @@ class StreamMiner(ABC):
 
     @abstractmethod
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+        ...
+
+    @abstractmethod
+    def images(self, synapse: ImageResponse) -> ImageResponse:
         ...
 
     def run(self):
@@ -208,6 +218,31 @@ class StreamingTemplateMiner(StreamMiner):
 
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
+
+    def images(self, synapse: ImageResponse) -> ImageResponse:
+        bt.logging.info(f"called image axon {synapse}")
+        try:
+            engine = synapse.engine
+            messages = synapse=messages
+            model = synapse.model
+            size = synapse.size
+            quality =synapse.quality
+            style = synapse.style
+
+            response = client.images.generate(
+                model=model,
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                style=style,
+            )
+
+            bt.logging.info(f"returning image response of {response}")
+            return response
+
+        except Exception as e:
+            bt.logging.error(f"error in images: {e}\n{tracebackformat_exc()}")
+
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"starting processing for synapse {synapse}")
