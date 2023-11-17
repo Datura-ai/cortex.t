@@ -5,7 +5,7 @@ import torch
 import argparse
 import traceback
 import template
-from openai import OpenAI
+# from openai import OpenAI
 import wandb
 from typing import Optional, List
 import random
@@ -15,11 +15,11 @@ import asyncio
 import string
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 
-OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
-if not OpenAI.api_key:
-    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+# OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+# if not OpenAI.api_key:
+#     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = OpenAI(timeout=30.0)
+# client = OpenAI(timeout=30.0)
 
 state = {
     "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
@@ -69,7 +69,7 @@ def check_validator_registration(wallet, subtensor, metagraph):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-def call_openai(messages, temperature, engine):
+def call_openai(messages, temperature, engine, seed=1234):
     for attempt in range(3):
         bt.logging.info("Calling Openai")
         try:
@@ -77,7 +77,7 @@ def call_openai(messages, temperature, engine):
                 model=engine,
                 messages=messages,
                 temperature=temperature,
-                seed=1234,
+                seed=seed,
             )
             response = response.choices[0].message.content
             bt.logging.debug(f"validator response is {response}")
@@ -312,21 +312,21 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "gpt-4-1106-preview"
     weight = 1
-
+    seed=1234
     for i in range(len(available_uids)):
         uid = available_uids[i]
 
         # Get new questions
         prompt = get_question("text")
         messages = [{'role': 'user', 'content': prompt}]
-        syn = StreamPrompting(messages=messages, engine=engine)
+        syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
 
         # Query miners
         task = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
         response = await asyncio.gather(*task)
 
         # Get OpenAI answer for the current batch
-        # openai_answer = call_openai(messages, 0, engine)
+        # openai_answer = call_openai(messages, 0, engine, seed)
 
         # # Calculate scores for each response in the current batch
         # if openai_answer:
@@ -355,12 +355,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # use text synapse 3/4 times
-            if step_counter % 4 != 3:
-                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # # use text synapse 3/4 times
+            # if step_counter % 4 != 3:
+            scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            else:
-                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # else:
+            #     scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
