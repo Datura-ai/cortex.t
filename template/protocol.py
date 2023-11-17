@@ -15,17 +15,8 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
-class Image(BaseModel):
-    b64_json: Optional[str] = None
-    revised_prompt: str
-    url: str
-
-class ImagesResponse(BaseModel):
-    created: int
-    data: List[Image]
-
-class ImageResponse(bt.Synapse):
-    completion: Optional[ImagesResponse] = None
+class ImageResponse( bt.Synapse ):
+    completion: Optional[Dict] = None
     messages: str
     engine: str
     style: str
@@ -33,14 +24,10 @@ class ImageResponse(bt.Synapse):
     quality: str
     required_hash_fields: List[str] = ["messages"] 
 
-class StreamPrompting(bt.StreamingSynapse):
+    def deserialize(self) -> Dict:
+        return self.completion
 
-    # roles: List[str] = pydantic.Field(
-    #     ...,
-    #     title="Roles",
-    #     description="A list of roles in the StreamPrompting scenario. Immuatable.",
-    #     allow_mutation=False,
-    # )
+class StreamPrompting(bt.StreamingSynapse):
 
     messages: List[Dict[str, str]] = pydantic.Field(
         ...,
@@ -55,6 +42,8 @@ class StreamPrompting(bt.StreamingSynapse):
         description="A list of required fields for the hash.",
         allow_mutation=False,
     )
+
+    seed: int
 
     completion: str = pydantic.Field(
         "",
