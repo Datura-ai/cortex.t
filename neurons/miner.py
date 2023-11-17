@@ -25,14 +25,12 @@ client = AsyncOpenAI(timeout=30.0)
 
 class StreamMiner(ABC):
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
-        # Setup base config from Miner.config() and merge with subclassed config.
+        bt.logging.info("starting stream miner")
         base_config = copy.deepcopy(config or get_config())
         self.config = self.config()
         self.config.merge(base_config)
-
         check_config(StreamMiner, self.config)
         bt.logging.info(self.config)  # TODO: duplicate print?
-
         self.prompt_cache: Dict[str, Tuple[str, int]] = {}
 
         # Activating Bittensor's logging with the set configurations.
@@ -72,12 +70,12 @@ class StreamMiner(ABC):
         bt.logging.info(f"Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self._prompt}")
         self.axon.attach(
-            forward_fn=self._prompt,
-        ).attach(
-            forward_fn=self.is_alive,
-        ).attach(
-            forward_fn=self._images,
-        )
+        #     forward_fn=self._prompt,
+        # ).attach(
+            forward_fn=self.is_alive,)
+        # ).attach(
+        #     forward_fn=self._images,
+        # )
         bt.logging.info(f"Axon created: {self.axon}")
 
         # Instantiate runners
@@ -122,7 +120,7 @@ class StreamMiner(ABC):
         ):
             bt.logging.error(
                 f"Wallet: {self.wallet} is not registered on netuid {self.config.netuid}"
-                f"Please register the hotkey using `btcli subnets register` before trying again"
+                f"Please register the hotkey using `btcli s register --netuid 18` before trying again"
             )
             exit()
         bt.logging.info(

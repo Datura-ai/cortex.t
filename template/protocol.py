@@ -6,7 +6,8 @@ from typing import List, Union, Callable, Awaitable, Dict, Optional
 from starlette.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-class IsAlive( bt.Synapse ):        
+class IsAlive( bt.Synapse ):   
+    bt.logging.info("entered IsAlive class")
     answer: typing.Optional[ str ] = None
     completion: str = pydantic.Field(
         "",

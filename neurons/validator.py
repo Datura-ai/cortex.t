@@ -7,8 +7,10 @@ import traceback
 import template
 from openai import OpenAI
 import wandb
+from typing import Optional, List
 import random
 import ast
+import concurrent.futures
 import asyncio
 import string
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
@@ -79,11 +81,13 @@ def call_openai(messages, temperature, engine):
             )
             bt.logging.debug(f"validator response is {response}")
 
-            return response['choices'][0]['message']['content']
+            # Accessing the content of the response
+            if response.choices and len(response.choices) > 0:
+                return response.choices[0].message.content
 
         except Exception as e:
             bt.logging.info(f"Error when calling OpenAI: {e}")
-            time.sleep(.5)
+            time.sleep(0.5)
     
     return None
 
@@ -114,15 +118,15 @@ def extract_python_list(text: str) -> Optional[List]:
 def get_list(list_type, theme=None):
 
     list_type_mapping = {
-        "question_themes": {
+        "text_themes": {
             "default": template.question_themes,
             "prompt": "Create a Python list of 50 unique and thought-provoking themes, each suitable for generating meaningful text-based questions. Limit each theme to a maximum of four words. The themes should be diverse and encompass a range of topics, including technology, philosophy, society, history, science, and art. Format the themes as elements in a Python list, and provide only the list without any additional text or explanations."    
         },
-        "image_themes": {
+        "images_themes": {
             "default": template.image_themes,
             "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
         },
-        "questions": {
+        "text": {
             "default": template.text_questions,
             "prompt": f"Generate a Python list of 10 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
         },
@@ -138,24 +142,24 @@ def get_list(list_type, theme=None):
         return
     
     default = list_type_mapping[list_type]["default"]
-    prompt = list_type_mapping[list_type]["prompt"]
+    # prompt = list_type_mapping[list_type]["prompt"]
 
-    messages = [{'role': "user", 'content': prompt}]
-    max_retries = 3
-    for retry in range(max_retries):
-        try:
-            answer = call_openai(prompt, .33, "gpt-3.5-turbo").replace("\n", " ")
-            extracted_list = extract_python_list(answer)
-            if extracted_list:
-                bt.logging.info(f"Received {list_type}: {extracted_list}")
-                return extracted_list
-            else:
-                bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
-        except Exception as e:
-            retry += 1
-            bt.logging.error(f"Got exception when calling openai {e}")
+    # messages = [{'role': "user", 'content': prompt}]
+    # max_retries = 3
+    # for retry in range(max_retries):
+    #     try:
+    #         answer = call_openai(messages, .33, "gpt-3.5-turbo").replace("\n", " ")
+    #         extracted_list = extract_python_list(answer)
+    #         if extracted_list:
+    #             bt.logging.info(f"Received {list_type}: {extracted_list}")
+    #             return extracted_list
+    #         else:
+    #             bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
+    #     except Exception as e:
+    #         retry += 1
+    #         bt.logging.error(f"Got exception when calling openai {e}")
 
-    bt.logging.error(f"No list found after {max_retries} retries, using default list.")
+    # bt.logging.error(f"No list found after {max_retries} retries, using default list.")
     return default
 
 def update_counters_and_get_new_list(category, item_type, theme=None):
@@ -196,8 +200,8 @@ def get_question(category):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
-    theme = update_counters_and_get_new_list(category, "themes")
-    question = update_counters_and_get_new_list(category, "questions", theme)
+    theme = update_counters_and_get_new_list(category, f"{category}_themes")
+    question = update_counters_and_get_new_list(category, f"{category}", theme)
 
     return question
 
@@ -216,17 +220,43 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
         bt.logging.info(f"Sent query to uid: {uid}, '{syn.messages}' using {syn.engine}")
         full_response = ""
         responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 5)
-        async for chunk in resp:
-            if isinstance(chunk, list):
-                print(chunk[0], end="", flush=True)
-                full_response += chunk[0]
-            else:
-                synapse = chunk
+        for resp in responses:
+            i = 0
+            async for chunk in resp:
+                i += 1
+                if isinstance(chunk, list):
+                    print(chunk[0], end="", flush=True)
+                    full_response += chunk[0]
+                else:
+                    synapse = chunk
+            break
         print("\n")
         return full_response
     
     except Exception as e:
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
+
+# def query_axon(dendrite, axon, uid):
+#     response = dendrite.query(axon, IsAlive(), timeout=1)
+#     if response.is_success:
+#         bt.logging.info(f"UID {uid} is active")
+#         return uid
+#     else:
+#         bt.logging.info(f"UID {uid} is not active")
+#         return None
+
+# def get_available_uids(dendrite, metagraph):
+#     available_uids = []
+#     with concurrent.futures.ThreadPoolExecutor() as executor:
+#         # Create a list of future objects
+#         futures = [executor.submit(query_axon, dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
+        
+#         for future in concurrent.futures.as_completed(futures):
+#             result = future.result()
+#             if result is not None:
+#                 available_uids.append(result)
+
+#     return available_uids
 
 def get_available_uids(dendrite, metagraph):
     available_uids = []
@@ -273,11 +303,11 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
         score = [template.reward.openai_score(openai_answer, response, weight)]
             # Update the scores array with batch scores at the correct indices
-            scores[uid] = score
-            uid_scores_dict[uid] = score
+        scores[uid] = score
+        uid_scores_dict[uid] = score
 
-            if config.wandb_on:
-                log_wandb(query, engine, responses)
+        if config.wandb_on:
+            log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
     
@@ -323,18 +353,19 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             uid_scores_dict = {}
             
             # Get the available UIDs
-            available_uids = get_available_uids(dendrite, metagraph)
+            # available_uids = get_available_uids(dendrite, metagraph)
+            available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
             # use text synapse 3/4 times
             if step_counter % 4 != 3:
-                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dic, available_uids)
+                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             else:
                 scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
-            bt.logging.info(f"scores = {uid_scores_dict}, {step_counter % 3} iterations until set weights")
+            bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
 
             # Update weights after processing all batches
             if steps_passed % 3 == 2:
@@ -355,11 +386,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             exit()
 
 
-def main(config):
+def main():
     config = get_config()
+    bt.logging.debug(f"got config  {config}")
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
+    bt.logging.debug(f"got  {wallet}, {subtensor}, {dendrite}, {metagraph}")
     check_validator_registration(wallet, subtensor, metagraph)
-    my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
 if __name__ == "__main__":
