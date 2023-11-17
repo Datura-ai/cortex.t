@@ -79,11 +79,9 @@ def call_openai(messages, temperature, engine):
                 temperature=temperature,
                 seed=1234,
             )
+            response = response.choices[0].message.content
             bt.logging.debug(f"validator response is {response}")
-
-            # Accessing the content of the response
-            if response.choices and len(response.choices) > 0:
-                return response.choices[0].message.content
+            return response
 
         except Exception as e:
             bt.logging.info(f"Error when calling OpenAI: {e}")
@@ -217,9 +215,9 @@ def log_wandb(query, engine, responses):
 
 async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
-        bt.logging.info(f"Sent query to uid: {uid}, '{syn.messages}' using {syn.engine}")
+        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages} using {syn.engine}")
         full_response = ""
-        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 5)
+        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 50)
         for resp in responses:
             i = 0
             async for chunk in resp:
@@ -328,17 +326,17 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         response = await asyncio.gather(*task)
 
         # Get OpenAI answer for the current batch
-        openai_answer = call_openai(messages, 0, engine)
+        # openai_answer = call_openai(messages, 0, engine)
 
-        # Calculate scores for each response in the current batch
-        if openai_answer:
-            score = [template.reward.openai_score(openai_answer, response, weight)]
-            # Update the scores array with batch scores at the correct indices
-            scores[uid] = score
-            uid_scores_dict[uid] = score
+        # # Calculate scores for each response in the current batch
+        # if openai_answer:
+        #     score = [template.reward.openai_score(openai_answer, response, weight)]
+        #     # Update the scores array with batch scores at the correct indices
+        #     scores[uid] = score
+        #     uid_scores_dict[uid] = score
 
-            if config.wandb_on:
-                log_wandb(query, engine, responses)
+        #     if config.wandb_on:
+        #         log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
     
