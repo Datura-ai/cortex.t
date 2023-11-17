@@ -5,7 +5,7 @@ import torch
 import argparse
 import traceback
 import template
-# from openai import OpenAI
+from openai import OpenAI
 import wandb
 from typing import Optional, List
 import random
@@ -15,11 +15,11 @@ import asyncio
 import string
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 
-# OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
-# if not OpenAI.api_key:
-#     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not OpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-# client = OpenAI(timeout=30.0)
+client = OpenAI(timeout=30.0)
 
 state = {
     "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},

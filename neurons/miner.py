@@ -4,24 +4,23 @@ import asyncio
 import argparse
 import threading
 import traceback
-import openai
 import os
 from abc import ABC, abstractmethod
 from functools import partial
 from starlette.types import Send
-# from openai import OpenAI
-# from openai import AsyncOpenAI
+from openai import OpenAI
+from openai import AsyncOpenAI
 import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 from config import get_config, check_config
 
-# OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
-# if not OpenAI.api_key:
-#     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not OpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-# client = AsyncOpenAI(timeout=30.0)
+client = AsyncOpenAI(timeout=30.0)
 
 
 class StreamMiner(ABC):
@@ -255,7 +254,7 @@ class StreamingTemplateMiner(StreamMiner):
                 messages = synapse.messages
                 seed=synapse.seed
                 bt.logging.info(f"question is {messages} with engine {engine}")
-                response = openai.ChatCompletion.create(
+                response = await client.chat.completions.create(
                     model= engine,
                     messages= messages,
                     temperature= 0.0001,
@@ -264,9 +263,8 @@ class StreamingTemplateMiner(StreamMiner):
                 )
                 buffer = []
                 N=1
-                for chunk in response:
-                    try: token = str(chunk['choices'][0]['delta']['content'])
-                    except: continue
+                async for chunk in response:
+                    token = chunk.choices[0].delta.content or ""
                     buffer.append(token)
                     if len(buffer) == N:
                         joined_buffer = "".join(buffer)
