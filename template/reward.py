@@ -25,6 +25,7 @@ import aiohttp
 import bittensor as bt
 import difflib
 from sklearn.feature_extraction.text import TfidfVectorizer
+import asyncio
 from sklearn.metrics.pairwise import cosine_similarity
 import torch
 from transformers import CLIPProcessor, CLIPModel
@@ -33,7 +34,8 @@ import io
 import requests
 import re
 
-def calculate_cosine_similarity(text1, text2):
+# ==== TEXT ====
+def calculate_text_similarity(text1, text2):
     # Initialize the TF-IDF Vectorizer
     vectorizer = TfidfVectorizer()
 
@@ -45,22 +47,19 @@ def calculate_cosine_similarity(text1, text2):
 
     return similarity
 
-
-# Give a perfect score as long as the miner's response is at least 90% similar to openai's response. Otherwise, give 0
-def openai_score(openai_answer: str, response: str, weight: float) -> str:
-    # stripped_openai = openai_answer.replace(" ", "").replace("\n", "").replace("\t", "")
-    # stripped_response = response.replace(" ", "").replace("\n", "").replace("\t", "")
-
-    similarity = calculate_cosine_similarity(openai_answer, response)
+async def openai_score(openai_answer: str, response: str, weight: float) -> float:
+    loop = asyncio.get_running_loop()
+    similarity = await loop.run_in_executor(None, calculate_text_similarity, openai_answer, response)
     bt.logging.debug(f"similarity is {similarity}")
 
     return weight if similarity > .75 else 0
 
-
+# ==== IMAGES =====
 # Load the CLIP model and processor
 model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
+# Could also verify the date from the url
 url_regex = (
     r'https://oaidalleapiprodscus\.blob\.core\.windows\.net/private/org-[\w-]+/'
     r'user-[\w-]+/img-[\w-]+\.(?:png|jpg)\?'
@@ -108,7 +107,7 @@ def get_image_size(image):
     """Get the size of an image."""
     return image.size  # Returns a tuple (width, height)
 
-def calculate_cosine_similarity(image, description, max_length=77):
+def calculate_image_similarity(image, description, max_length=77):
     """Calculate the cosine similarity between a description and an image."""
     # Truncate the description
     inputs = processor(text=description, images=None, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
@@ -136,17 +135,18 @@ async def image_score(url, desired_size, description, weight, similarity_thresho
         bt.logging.error("Failed to load image from URL.")
         return 0
 
+    size = get_image_size(image)
+    size_str = f"{size[0]}x{size[1]}"
+    if desired_size != size_str:
+        bt.logging.error(f"size does not match: {size_str} != {desired_size} ")
+
     try:
-        similarity = calculate_cosine_similarity(image, description)
-        bt.logging.debug(f"Similarity: {similarity}")
-
-        size = get_image_size(image)
-        bt.logging.debug(f"Image size: {size}")
-
-        if similarity > similarity_threshold and size == desired_size:
+        similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
+        if similarity > similarity_threshold:
+            bt.logging.debug(f"Passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
             return weight
-        else:
-            return 0
+
+        else: return 0
     except Exception as e:
         bt.logging.error(f"Error in image scoring: {e}")
         return 0
