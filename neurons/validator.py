@@ -283,7 +283,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    # bt.logging.info(chunk[0])
+                    bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
@@ -346,7 +346,6 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     return scores, uid_scores_dict
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
-    step_counter = 0
     steps_passed = 0
     while True:
         try:
@@ -362,13 +361,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             # # use text synapse 1/2 times
             # if step_counter % 2 != 1:
-            #     scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             # else:
-            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            #     scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
-            bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
+            bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
 
             # Update weights after processing all batches
             if steps_passed % 3 == 2:
@@ -377,7 +376,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 steps_passed = 0
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
-            step_counter += 1
+            steps_passed += 1
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
