@@ -238,13 +238,13 @@ class StreamingTemplateMiner(StreamMiner):
             image_created = meta.created
             image_url = meta.data[0].url
             image_revised_prompt = meta.data[0].revised_prompt
-            image_b64 = meta.data[0].revised_prompt
+            # image_b64 = meta.data[0].revised_prompt
 
             image_data = {
                 "created_at": image_created,
                 "url": image_url,
                 "revised_prompt": image_revised_prompt,
-                "b64": image_b64
+                # "b64": image_b64
             }
 
             synapse.completion = image_data

@@ -271,43 +271,46 @@ async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
         bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages} using {syn.engine}")
         responses = await dendrite([axon], syn, deserialize=False, timeout=50)
-        for resp in responses:
-            print(f"the image response is {resp}")
-    
+        return uid, responses  # Return a tuple of the UID and the responses
     except Exception as e:
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
+        return uid, None 
 
 
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    # 12 cents per image at this config
-    # 4 cents to lower to 1024x1024
-    # 4 cents to lower quality to standard
     engine = "dall-e-3"
     weight = 1
-    size = "1792x1024"
-    quality = "hd"
+    size = "1024x1024"
+    quality = "standard"
     style = "vivid"
 
-    for i in range(len(available_uids)):
-        uid = available_uids[i]
-
-        # Get new questions
+    tasks = []
+    for uid in available_uids:
         messages = get_question("images")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
+        task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
+        tasks.append(task)
 
-        # Query miners
-        task = [query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
-        completion = await asyncio.gather(*task)
-        bt.logging.info(f"synapse is {syn}")
-        url = syn.completion["url"]
+    responses = await asyncio.gather(*tasks)
 
-        score = [await template.reward.image_score(url, size, messages, weight)]
-        # Update the scores array with batch scores at the correct indices
-        scores[uid] = score
-        uid_scores_dict[uid] = score
+    for uid, response in responses:
+        if response is not None:
+            response = response[0]
+            completion = response.completion
+            bt.logging.info(f"Response for UID {uid}: {completion}")
+            url = completion["url"]
+            created_at = completion['created_at']
 
-        if config.wandb_on:
-            log_wandb(query, engine, responses)
+            score = [await template.reward.image_score(url, size, messages, weight)]
+            # Update the scores array with batch scores at the correct indices
+            scores[uid] = score
+            uid_scores_dict[uid] = score
+
+            if config.wandb_on:
+                log_wandb(query, engine, responses)
+
+        else:
+            bt.logging.info(f"No response or error for UID {uid}")
 
     return scores, uid_scores_dict
     
