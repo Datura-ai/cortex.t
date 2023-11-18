@@ -231,11 +231,13 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
     # Step 1: Query all images concurrently
     query_tasks = []
+    uid_to_messages = {}
     for uid in available_uids:
         messages = await get_question("images")
         # if wanting a specific image, redefine messages here with an image prompt and comment out the above line
         # messages = "aquamarine and pink, religious symbolism, american works on paper 1880–1950, flowerpunk, colorful assemblages"
-        bt.logging.info(f"question is {messages}")
+        uid_to_messages[uid] = messages  # Store messages for each UID
+        bt.logging.info(f"UID {uid} question is {messages}")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -250,7 +252,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
             completion = response.completion
             bt.logging.info(f"UID {uid} response is {completion}")
             url = completion["url"]
-            task = template.reward.image_score(url, size, messages, weight)
+            messages_for_uid = uid_to_messages[uid]  # Get the correct messages for this UID
+            task = template.reward.image_score(uid, url, size, messages_for_uid, weight)
             score_tasks.append((uid, task))
         else:
             bt.logging.info(f"No response for UID {uid}")
@@ -259,6 +262,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
     # Step 3: Run all scoring tasks concurrently
     scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+    bt.logging.info(f"Scoring tasks completed for UIDs: {[uid for uid, _ in score_tasks]}")
 
     # Step 4: Update scores and uid_scores_dict
     for (uid, _), score in zip(score_tasks, scored_responses):

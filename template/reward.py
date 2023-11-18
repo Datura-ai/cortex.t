@@ -120,34 +120,36 @@ def calculate_image_similarity(image, description, max_length=77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def image_score(url, desired_size, description, weight, similarity_threshold=0.24):
+async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.24):
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
-        bt.logging.info("URL does not match the expected format.")
+        bt.logging.info(f"UID {uid} URL does not match the expected format.")
         return 0
 
     if not await is_image_url(url):
-        bt.logging.info("URL does not point to a valid image.")
+        bt.logging.info(f"UID {uid} URL does not point to a valid image.")
         return 0
 
     image = await load_image_from_url(url)
     if image is None:
-        bt.logging.info("Failed to load image from URL.")
+        bt.logging.info(f"UID {uid} failed to load image from URL.")
         return 0
 
     size = get_image_size(image)
     size_str = f"{size[0]}x{size[1]}"
     if desired_size != size_str:
-        bt.logging.info(f"size does not match: {size_str} != {desired_size} ")
+        bt.logging.info(f"UID {uid} size does not match: {size_str} != {desired_size} ")
 
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
         if similarity > similarity_threshold:
-            bt.logging.debug(f"Passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
+            bt.logging.info(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
             return weight
 
-        else: return 0
+        else: 
+             bt.logging.info(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
+             return 0
     except Exception as e:
-        bt.logging.info(f"Error in image scoring: {e}")
+        bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
