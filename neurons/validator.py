@@ -89,25 +89,25 @@ async def call_openai(messages, temperature, engine, seed=1234):
     
     return None
 
-def extract_python_list(text: str) -> Optional[List]:
+def extract_python_list(text: str):
     """
-    Extracts a Python list from a given string.
+    Extracts a Python list from a given string, handling various formats.
     Args:
         text (str): The string containing the Python list.
     Returns:
         Optional[List]: The extracted list if found and valid, otherwise None.
     """
     try:
-        start_idx = text.find('[')
-        end_idx = text.rfind(']')
+        # Use regular expression to find a list-like structure within the text
+        match = re.search(r'\[.*?\]', text, re.DOTALL)
+        if match:
+            list_str = match.group()
+            evaluated = ast.literal_eval(list_str)
 
-        if start_idx == -1 or end_idx == -1:
-            return None
+            if isinstance(evaluated, list):
+                return evaluated
 
-        list_str = text[start_idx:end_idx+1]
-        evaluated = ast.literal_eval(list_str)
-
-        return evaluated if isinstance(evaluated, list) else None
+        return None
     except Exception as e:
         bt.logging.info(text)
         bt.logging.error(f"Error when extracting list: {e}")
@@ -146,8 +146,8 @@ async def get_list(list_type, theme=None):
     max_retries = 3
     for retry in range(max_retries):
         try:
-            random_seed = random.randint(1, 10000)
-            answer = await call_openai(messages, .33, "gpt-3.5-turbo", seed)
+            randomm_seed = random.randint(1, 10000)
+            answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
@@ -291,7 +291,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    bt.logging.info(chunk[0])
+                    # bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
