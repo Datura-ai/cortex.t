@@ -1,6 +1,7 @@
 import bittensor as bt
 import os
 import time
+import re
 import torch
 import argparse
 import traceback
@@ -146,7 +147,7 @@ async def get_list(list_type, theme=None):
     max_retries = 3
     for retry in range(max_retries):
         try:
-            randomm_seed = random.randint(1, 10000)
+            random_seed = random.randint(1, 10000)
             answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
@@ -305,10 +306,12 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     weight = 1
     seed = 1234
 
-    # Step 1: Query all text concurrently
+    # Step 1: Query all text concurrently with associated questions
     query_tasks = []
+    uid_to_question = {}  # Map each uid to its corresponding question
     for uid in available_uids:
         prompt = await get_question("text")
+        uid_to_question[uid] = prompt  # Store the question for each uid
         bt.logging.info(f"prompt is {prompt}")
         messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
@@ -321,7 +324,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     openai_tasks = []
     for uid, response in query_responses:
         if response:
-            # Don't await here, just create the coroutine and add it to the list
+            messages = [{'role': 'user', 'content': uid_to_question[uid]}]  # Use the specific question for each uid
             task = call_openai(messages, 0, engine, seed)
             openai_tasks.append(task)
 
@@ -331,8 +334,9 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     # Step 4: Prepare scoring tasks
     score_tasks = []
     for (uid, response), openai_answer in zip(query_responses, openai_responses):
-        if response and openai_answer:       
-            # Assuming template.reward.openai_score is an asynchronous function
+        if response and openai_answer:
+            # Use the specific question when scoring
+            question = uid_to_question[uid]
             task = template.reward.openai_score(openai_answer, response, weight)
             score_tasks.append((uid, task))
 
