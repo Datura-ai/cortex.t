@@ -24,6 +24,7 @@ client = AsyncOpenAI(timeout=30.0)
 
 global state
 global config
+moving_average_scores = None
 state = template.utils.load_state_from_file()
 
 def get_config():
@@ -185,10 +186,10 @@ async def check_uid(dendrite, axon, uid):
     try:
         response = await dendrite(axon, IsAlive(), deserialize=False, timeout=.1)
         if response.is_success:
-            bt.logging.info(f"UID {uid} is active")
+            bt.logging.debug(f"UID {uid} is active")
             return uid
         else:
-            bt.logging.info(f"UID {uid} is not active")
+            bt.logging.debug(f"UID {uid} is not active")
             return None
     except Exception as e:
         bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
@@ -203,7 +204,7 @@ async def get_available_uids(dendrite, metagraph):
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
-    alpha = .75
+    alpha = .5
     if moving_average_scores is None:
         moving_average_scores = scores.clone()
 
@@ -277,19 +278,19 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
 async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
-        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages} using {syn.engine}")
+        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.engine}")
         full_response = ""
         responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 20)
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    bt.logging.info(chunk[0])
+                    # bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
     
     except Exception as e:
-        bt.logging.error(f"Exception during query for uid {uid}: {e}")
+        bt.logging.error(f"Exception during query for uid {uid}: {e}\n{traceback.format_exc()}")
         return uid, None
 
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
@@ -303,7 +304,6 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     for uid in available_uids:
         prompt = await get_question("text")
         uid_to_question[uid] = prompt  # Store the question for each uid
-        bt.logging.info(f"prompt is {prompt}")
         messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
         task = query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
@@ -347,10 +347,10 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
+    total_scores = torch.zeros(len(metagraph.hotkeys))
     while True:
         try:
             metagraph = subtensor.metagraph(24)
-            total_scores = torch.zeros(len(metagraph.hotkeys))
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
             
@@ -368,13 +368,17 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
+            bt.logging.info(f"total scores until set weights = {total_scores}")
 
             # Update weights after processing all batches
             if steps_passed % 3 == 2:
-                avg_scores = total_scores / steps_passed
+                bt.logging.info(f"total_scores = {total_scores}")
+                avg_scores = total_scores / (steps_passed + 1)
                 bt.logging.info(f"avg scores is {avg_scores}")
                 steps_passed = 0
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
+                total_scores = torch.zeros(len(metagraph.hotkeys))
+
 
             steps_passed += 1
 
@@ -383,9 +387,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
-            bt.logging.info("Attempting to save state due to KeyboardInterrupt")
-            template.utils.save_state_to_file(state)
-            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            bt.logging.success("Keyboard interrupt detected. Exiting validator from query_synapse")
             if config.wandb_on: wandb.finish()
             exit()
 
