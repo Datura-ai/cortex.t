@@ -1,20 +1,19 @@
-import bittensor as bt
 import os
-import time
 import re
+import json
+import time
 import torch
+import wandb
+import random
+import string
+import asyncio
+import template
 import argparse
 import traceback
-import template
-from openai import AsyncOpenAI
-import wandb
-from typing import Optional, List
-import random
-import ast
-import json
+import bittensor as bt
 import concurrent.futures
-import asyncio
-import string
+from openai import AsyncOpenAI
+from typing import List, Optional
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 
 AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
@@ -24,22 +23,7 @@ if not AsyncOpenAI.api_key:
 client = AsyncOpenAI(timeout=30.0)
 
 global state
-state = load_state_from_file()
-
-def save_state_to_file(state, filename="state.json"):
-    with open(filename, "w") as file:
-        json.dump(state, file)
-
-def load_state_from_file(filename="state.json"):
-    if os.path.exists(filename):
-        with open(filename, "r") as file:
-            return json.load(file)
-    else:
-        # Initialize with default state if the file doesn't exist
-        return {
-            "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
-            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
-        }
+state = template.utils.load_state_from_file()
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -85,7 +69,7 @@ def check_validator_registration(wallet, subtensor, metagraph):
         exit()
 
 async def call_openai(messages, temperature, engine, seed=1234):
-    for attempt in range(3):
+    for attempt in range(2):
         bt.logging.info("Calling Openai")
         try:
             response = await client.chat.completions.create(
@@ -103,30 +87,6 @@ async def call_openai(messages, temperature, engine, seed=1234):
             await asyncio.sleep(0.5) 
     
     return None
-
-def extract_python_list(text: str):
-    """
-    Extracts a Python list from a given string, handling various formats.
-    Args:
-        text (str): The string containing the Python list.
-    Returns:
-        Optional[List]: The extracted list if found and valid, otherwise None.
-    """
-    try:
-        # Use regular expression to find a list-like structure within the text
-        match = re.search(r'\[.*?\]', text, re.DOTALL)
-        if match:
-            list_str = match.group()
-            evaluated = ast.literal_eval(list_str)
-
-            if isinstance(evaluated, list):
-                return evaluated
-
-        return None
-    except Exception as e:
-        bt.logging.info(text)
-        bt.logging.error(f"Error when extracting list: {e}")
-        return None
 
 async def get_list(list_type, theme=None):
 
@@ -164,7 +124,7 @@ async def get_list(list_type, theme=None):
             random_seed = random.randint(1, 10000)
             answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
-            extracted_list = extract_python_list(answer)
+            extracted_list = template.utils.extract_python_list(answer)
             if extracted_list:
                 bt.logging.info(f"Received {list_type}: {extracted_list}")
                 return extracted_list
@@ -409,7 +369,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
-            save_state_to_file(state)
+            template.utils.save_state_to_file(state)
             if config.wandb_on: wandb.finish()
             exit()
 
