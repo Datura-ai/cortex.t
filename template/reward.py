@@ -86,7 +86,7 @@ async def is_image_url(url):
             async with session.head(url) as response:
                 return response.status == 200 and 'image' in response.headers.get('Content-Type', '')
     except Exception as e:
-        bt.logging.error(f"Error checking URL: {e}")
+        bt.logging.info(f"Error checking URL: {e}")
         return False
 
 async def load_image_from_url(url):
@@ -100,7 +100,7 @@ async def load_image_from_url(url):
                 image.verify()  # Verify that this is indeed an image
                 return image
     except Exception as e:
-        bt.logging.error(f"Failed to load image: {e}")
+        bt.logging.info(f"Failed to load image: {e}")
         return None
 
 def get_image_size(image):
@@ -122,23 +122,24 @@ def calculate_image_similarity(image, description, max_length=77):
 
 async def image_score(url, desired_size, description, weight, similarity_threshold=0.24):
     """Calculate the image score based on similarity and size asynchronously."""
+
     if not re.match(url_regex, url):
-        bt.logging.error("URL does not match the expected format.")
+        bt.logging.info("URL does not match the expected format.")
         return 0
 
     if not await is_image_url(url):
-        bt.logging.error("URL does not point to a valid image.")
+        bt.logging.info("URL does not point to a valid image.")
         return 0
 
     image = await load_image_from_url(url)
     if image is None:
-        bt.logging.error("Failed to load image from URL.")
+        bt.logging.info("Failed to load image from URL.")
         return 0
 
     size = get_image_size(image)
     size_str = f"{size[0]}x{size[1]}"
     if desired_size != size_str:
-        bt.logging.error(f"size does not match: {size_str} != {desired_size} ")
+        bt.logging.info(f"size does not match: {size_str} != {desired_size} ")
 
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
@@ -148,5 +149,5 @@ async def image_score(url, desired_size, description, weight, similarity_thresho
 
         else: return 0
     except Exception as e:
-        bt.logging.error(f"Error in image scoring: {e}")
+        bt.logging.info(f"Error in image scoring: {e}")
         return 0

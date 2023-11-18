@@ -1,4 +1,4 @@
 alias.sh
 cloudflared.deb
 go1.21.0.linux-amd64.tar.gz
-/template/state.json
+/neurons/state.json
