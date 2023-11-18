@@ -29,7 +29,7 @@ state = {
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--netuid", type=int, default=18)
-    parser.add_argument('--wandb_off', action='store_false', dest='wandb_on', help='Turn off wandb logging.')
+    parser.add_argument('--wandb_off', action='store_false', dest='wandb_on', help='Turn off wandb bt.logging.')
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
@@ -234,40 +234,26 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
     except Exception as e:
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
 
-# def query_axon(dendrite, axon, uid):
-#     response = dendrite.query(axon, IsAlive(), timeout=1)
-#     if response.is_success:
-#         bt.logging.info(f"UID {uid} is active")
-#         return uid
-#     else:
-#         bt.logging.info(f"UID {uid} is not active")
-#         return None
-
-# def get_available_uids(dendrite, metagraph):
-#     available_uids = []
-#     with concurrent.futures.ThreadPoolExecutor() as executor:
-#         # Create a list of future objects
-#         futures = [executor.submit(query_axon, dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
-        
-#         for future in concurrent.futures.as_completed(futures):
-#             result = future.result()
-#             if result is not None:
-#                 available_uids.append(result)
-
-#     return available_uids
-
-def get_available_uids(dendrite, metagraph):
-    available_uids = []
-    for uid in metagraph.uids:
-        axon = metagraph.axons[uid.item()]
-        response = dendrite.query(axon, IsAlive(), timeout=1)
+async def check_uid(dendrite, axon, uid):
+    """Asynchronously check if a UID is available."""
+    try:
+        response = await dendrite.query(axon, IsAlive(), timeout=1)
         if response.is_success:
-            bt.logging.info(f"UID {uid.item()} is active")
-            available_uids.append(uid.item())
+            bt.logging.info(f"UID {uid} is active")
+            return uid
         else:
-            bt.logging.info(f"UID {uid.item()} is not active")
+            bt.logging.info(f"UID {uid} is not active")
+            return None
+    except Exception as e:
+        bt.logging.error(f"Error checking UID {uid}: {e}")
+        return None
 
-    return available_uids
+async def get_available_uids(dendrite, metagraph):
+    """Get a list of available UIDs asynchronously."""
+    tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
+    uids = await asyncio.gather(*tasks)
+    # Filter out None values (inactive UIDs)
+    return [uid for uid in uids if uid is not None]
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
@@ -312,14 +298,16 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         # Query miners
         task = [query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
         completion = await asyncio.gather(*task)
+        bt.logging.info(f"synapse is {synapse}")
+        url = synapse.completion["url"]
 
-        # score = [template.reward.openai_score(openai_answer, response, weight)]
-        #     # Update the scores array with batch scores at the correct indices
-        # scores[uid] = score
-        # uid_scores_dict[uid] = score
+        score = [await template.reward.image_score(url, size, messages, weight)]
+        # Update the scores array with batch scores at the correct indices
+        scores[uid] = score
+        uid_scores_dict[uid] = score
 
-        # if config.wandb_on:
-        #     log_wandb(query, engine, responses)
+        if config.wandb_on:
+            log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
     
@@ -341,17 +329,17 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         response = await asyncio.gather(*task)
 
         # Get OpenAI answer for the current batch
-        # openai_answer = call_openai(messages, 0, engine, seed)
+        openai_answer = call_openai(messages, 0, engine, seed)
 
-        # # Calculate scores for each response in the current batch
-        # if openai_answer:
-        #     score = [template.reward.openai_score(openai_answer, response, weight)]
-        #     # Update the scores array with batch scores at the correct indices
-        #     scores[uid] = score
-        #     uid_scores_dict[uid] = score
+        # Calculate scores for each response in the current batch
+        if openai_answer:
+            score = [template.reward.openai_score(openai_answer, response, weight)]
+            # Update the scores array with batch scores at the correct indices
+            scores[uid] = score
+            uid_scores_dict[uid] = score
 
-        #     if config.wandb_on:
-        #         log_wandb(query, engine, responses)
+            if config.wandb_on:
+                log_wandb(query, engine, responses)
 
     return scores, uid_scores_dict
     
@@ -366,7 +354,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             uid_scores_dict = {}
             
             # Get the available UIDs
-            available_uids = get_available_uids(dendrite, metagraph)
+            available_uids = await get_available_uids(dendrite, metagraph)
             # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
