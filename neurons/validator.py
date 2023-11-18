@@ -11,6 +11,7 @@ import wandb
 from typing import Optional, List
 import random
 import ast
+import json
 import concurrent.futures
 import asyncio
 import string
@@ -22,10 +23,23 @@ if not AsyncOpenAI.api_key:
 
 client = AsyncOpenAI(timeout=30.0)
 
-state = {
-    "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
-    "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
-}
+global state
+state = load_state_from_file()
+
+def save_state_to_file(state, filename="state.json"):
+    with open(filename, "w") as file:
+        json.dump(state, file)
+
+def load_state_from_file(filename="state.json"):
+    if os.path.exists(filename):
+        with open(filename, "r") as file:
+            return json.load(file)
+    else:
+        # Initialize with default state if the file doesn't exist
+        return {
+            "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
+            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
+        }
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -131,7 +145,7 @@ async def get_list(list_type, theme=None):
         },
         "images_questions": {
             "default": template.image_questions,
-            "prompt": f"Provide a list of 10 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+            "prompt": f"Provide a Python list of 10 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
     }
 
@@ -164,9 +178,8 @@ async def get_list(list_type, theme=None):
     return default
 
 async def update_counters_and_get_new_list(category, item_type, theme=None):
-    global state
-    list_type = f"{category}_{item_type}"  # "text_themes" or "text_questions" or "image_themes" or "images_questions"
 
+    list_type = f"{category}_{item_type}"  # "text_themes" or "text_questions" or "image_themes" or "images_questions"
     items = state[category][item_type]  # themes or questions
 
     # Fetch new list if needed
@@ -196,12 +209,12 @@ async def get_question(category):
     return question
 
 
-def log_wandb(query, engine, responses):
+def log_wandb(query, engine, response):
     data = {
         '_timestamp': time.time(),
         'engine': engine,
         'prompt': query,
-        'responses': responses
+        'response': response
     }
 
     wandb.log(data)
@@ -259,6 +272,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     query_tasks = []
     for uid in available_uids:
         messages = await get_question("images")
+        # if wanting a specific image, redefine messages here with an image prompt and comment out the above line
+        # messages = "aquamarine and pink, religious symbolism, american works on paper 1880–1950, flowerpunk, colorful assemblages"
         bt.logging.info(f"question is {messages}")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
@@ -369,12 +384,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # use text synapse 1/2 times
-            if step_counter % 2 != 1:
-                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # # use text synapse 1/2 times
+            # if step_counter % 2 != 1:
+            #     scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            else:
-                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # else:
+            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
@@ -394,6 +409,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
             bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            save_state_to_file(state)
             if config.wandb_on: wandb.finish()
             exit()
 
