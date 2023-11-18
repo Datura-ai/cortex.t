@@ -113,7 +113,7 @@ def extract_python_list(text: str) -> Optional[List]:
         bt.logging.error(f"Error when extracting list: {e}")
         return None
 
-def get_list(list_type, theme=None):
+async def get_list(list_type, theme=None):
 
     list_type_mapping = {
         "text_themes": {
@@ -140,13 +140,14 @@ def get_list(list_type, theme=None):
         return
     
     default = list_type_mapping[list_type]["default"]
-    # prompt = list_type_mapping[list_type]["prompt"]
+    prompt = list_type_mapping[list_type]["prompt"]
 
     messages = [{'role': "user", 'content': prompt}]
     max_retries = 3
     for retry in range(max_retries):
         try:
-            answer = call_openai(messages, .33, "gpt-3.5-turbo").replace("\n", " ")
+            answer = await call_openai(messages, .33, "gpt-3.5-turbo")
+            answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
                 bt.logging.info(f"Received {list_type}: {extracted_list}")
@@ -160,7 +161,7 @@ def get_list(list_type, theme=None):
     bt.logging.error(f"No list found after {max_retries} retries, using default list.")
     return default
 
-def update_counters_and_get_new_list(category, item_type, theme=None):
+async def update_counters_and_get_new_list(category, item_type, theme=None):
     themes = state[category]["themes"]
     questions = state[category]["questions"]
     theme_counter = state[category]["theme_counter"]
@@ -172,7 +173,7 @@ def update_counters_and_get_new_list(category, item_type, theme=None):
 
     # Logic for updating counters and getting new list
     if not items:
-        items = get_list(item_type, theme)
+        items = await get_list(item_type, theme)
         counter = len(items) - 1  # Start at the end of the list
 
     item = items[counter]
@@ -194,12 +195,12 @@ def update_counters_and_get_new_list(category, item_type, theme=None):
 
     return item
 
-def get_question(category):
+async def get_question(category):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
-    theme = update_counters_and_get_new_list(category, f"{category}_themes")
-    question = update_counters_and_get_new_list(category, f"{category}", theme)
+    theme = await update_counters_and_get_new_list(category, f"{category}_themes")
+    question = await update_counters_and_get_new_list(category, f"{category}", theme)
 
     return question
 
@@ -265,7 +266,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     # Step 1: Query all images concurrently
     query_tasks = []
     for uid in available_uids:
-        messages = get_question("images")
+        messages = await get_question("images")
+        bt.logging.info(f"question is {get_question}")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -298,6 +300,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
+                    # bt.logging.info(chunk)
                     full_response += chunk[0]
             break
         return uid, full_response
@@ -314,7 +317,8 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     # Step 1: Query all text concurrently
     query_tasks = []
     for uid in available_uids:
-        prompt = get_question("text")
+        prompt = await get_question("text")
+        bt.logging.info(f"prompt is {prompt}")
         messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
         task = query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
