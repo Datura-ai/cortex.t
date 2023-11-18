@@ -5,7 +5,7 @@ import torch
 import argparse
 import traceback
 import template
-from openai import OpenAI
+from openai import AsyncOpenAI
 import wandb
 from typing import Optional, List
 import random
@@ -15,11 +15,11 @@ import asyncio
 import string
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 
-OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
-if not OpenAI.api_key:
+AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not AsyncOpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = OpenAI(timeout=30.0)
+client = AsyncOpenAI(timeout=30.0)
 
 state = {
     "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
@@ -69,11 +69,11 @@ def check_validator_registration(wallet, subtensor, metagraph):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-def call_openai(messages, temperature, engine, seed=1234):
+async def call_openai(messages, temperature, engine, seed=1234):
     for attempt in range(3):
         bt.logging.info("Calling Openai")
         try:
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=engine,
                 messages=messages,
                 temperature=temperature,
@@ -85,7 +85,7 @@ def call_openai(messages, temperature, engine, seed=1234):
 
         except Exception as e:
             bt.logging.info(f"Error when calling OpenAI: {e}")
-            time.sleep(0.5)
+            await asyncio.sleep(0.5) 
     
     return None
 
@@ -266,7 +266,6 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     query_tasks = []
     for uid in available_uids:
         messages = get_question("images")
-        messages = "aesthetic, painterly style, modern ink, Asian girl, sensual, sultry, dark blouse, expressive pose, urbanpunk, abstract texture multilayer background, neo-expressionist , Russ Mills, Ian Miller"
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -297,50 +296,62 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         full_response = ""
         responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 20)
         for resp in responses:
-            i = 0
             async for chunk in resp:
-                i += 1
                 if isinstance(chunk, list):
-                    print(chunk[0], end="", flush=True)
                     full_response += chunk[0]
-                else:
-                    synapse = chunk
             break
-        print("\n")
-        return full_response
+        return uid, full_response
     
     except Exception as e:
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
-    
+        return uid, None
+
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    # engine = "gpt-4-1106-preview"
     engine = "gpt-3.5-turbo"
     weight = 1
-    seed=1234
-    for i in range(len(available_uids)):
-        uid = available_uids[i]
+    seed = 1234
 
-        # Get new questions
+    # Step 1: Query all text concurrently
+    query_tasks = []
+    for uid in available_uids:
         prompt = get_question("text")
         messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
+        task = query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
+        query_tasks.append(task)
 
-        # Query miners
-        task = [query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
-        response = await asyncio.gather(*task)
+    query_responses = await asyncio.gather(*query_tasks)
 
-        # Get OpenAI answer for the current batch
-        openai_answer = call_openai(messages, 0, engine, seed)
+    # Step 2: Prepare all OpenAI call tasks
+    openai_tasks = []
+    for uid, response in query_responses:
+        if response:
+            # Don't await here, just create the coroutine and add it to the list
+            task = call_openai(messages, 0, engine, seed)
+            openai_tasks.append(task)
 
-        # Calculate scores for each response in the current batch
-        if openai_answer:
-            score = [template.reward.openai_score(openai_answer, response, weight)]
-            # Update the scores array with batch scores at the correct indices
+    # Step 3: Run all OpenAI calls concurrently
+    openai_responses = await asyncio.gather(*openai_tasks)
+
+    # Step 4: Prepare scoring tasks
+    score_tasks = []
+    for (uid, response), openai_answer in zip(query_responses, openai_responses):
+        if response and openai_answer:       
+            # Assuming template.reward.openai_score is an asynchronous function
+            task = template.reward.openai_score(openai_answer, response, weight)
+            score_tasks.append((uid, task))
+
+    # Step 5: Run all scoring tasks concurrently
+    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+
+    # Step 6: Update scores and uid_scores_dict
+    for (uid, _), score in zip(score_tasks, scored_responses):
+        if score is not None:
             scores[uid] = score
             uid_scores_dict[uid] = score
-
-            if config.wandb_on:
-                log_wandb(query, engine, responses)
+        else:
+            scores[uid] = 0  # Assign default score for error cases
+            uid_scores_dict[uid] = 0
 
     return scores, uid_scores_dict
     
@@ -359,13 +370,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # # use text synapse 3/4 times
-            # if step_counter % 4 != 3:
-            # scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # use text synapse 1/2 times
+            if step_counter % 2 != 1:
+                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            # else:
-            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
-            time.sleep(8)
+            else:
+                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {3 - step_counter % 3} iterations until set weights")
 

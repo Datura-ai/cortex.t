@@ -43,7 +43,11 @@ class StreamPrompting(bt.StreamingSynapse):
         allow_mutation=False,
     )
 
-    seed: int
+    seed: int = pydantic.Field(
+        "",
+        title="Seed",
+        description="Seed for text generation. This attribute is immutable and cannot be updated.",
+    )
 
     completion: str = pydantic.Field(
         "",
