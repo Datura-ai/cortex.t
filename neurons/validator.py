@@ -237,7 +237,7 @@ async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
-        response = await dendrite.query(axon, IsAlive(), timeout=1)
+        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=.1)
         if response.is_success:
             bt.logging.info(f"UID {uid} is active")
             return uid
@@ -245,7 +245,7 @@ async def check_uid(dendrite, axon, uid):
             bt.logging.info(f"UID {uid} is not active")
             return None
     except Exception as e:
-        bt.logging.error(f"Error checking UID {uid}: {e}")
+        bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
         return None
 
 async def get_available_uids(dendrite, metagraph):
@@ -298,8 +298,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         # Query miners
         task = [query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
         completion = await asyncio.gather(*task)
-        bt.logging.info(f"synapse is {synapse}")
-        url = synapse.completion["url"]
+        bt.logging.info(f"synapse is {syn}")
+        url = syn.completion["url"]
 
         score = [await template.reward.image_score(url, size, messages, weight)]
         # Update the scores array with batch scores at the correct indices
