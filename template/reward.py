@@ -87,7 +87,7 @@ async def is_image_url(url):
             async with session.head(url) as response:
                 return response.status == 200 and 'image' in response.headers.get('Content-Type', '')
     except Exception as e:
-        logging.error(f"Error checking URL: {e}")
+        bt.logging.error(f"Error checking URL: {e}")
         return False
 
 async def load_image_from_url(url):
@@ -101,7 +101,7 @@ async def load_image_from_url(url):
                 image.verify()  # Verify that this is indeed an image
                 return image
     except Exception as e:
-        logging.error(f"Failed to load image: {e}")
+        bt.logging.error(f"Failed to load image: {e}")
         return None
 
 def get_image_size(image):
@@ -110,34 +110,43 @@ def get_image_size(image):
 
 def calculate_cosine_similarity(image, description, max_length=77):
     """Calculate the cosine similarity between a description and an image."""
-    # ... existing logic ...
+    # Truncate the description
+    inputs = processor(text=description, images=None, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
+    text_embedding = model.get_text_features(**inputs)
 
-async def image_score(url, desired_size, description, weight, similarity_threshold=0.3):
+    # Process the image
+    inputs = processor(text=None, images=image, return_tensors="pt", padding=True, truncation=True)
+    image_embedding = model.get_image_features(**inputs)
+
+    # Calculate cosine similarity
+    return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
+
+async def image_score(url, desired_size, description, weight, similarity_threshold=0.24):
     """Calculate the image score based on similarity and size asynchronously."""
     if not re.match(url_regex, url):
-        logging.error("URL does not match the expected format.")
+        bt.logging.error("URL does not match the expected format.")
         return 0
 
     if not await is_image_url(url):
-        logging.error("URL does not point to a valid image.")
+        bt.logging.error("URL does not point to a valid image.")
         return 0
 
     image = await load_image_from_url(url)
     if image is None:
-        logging.error("Failed to load image from URL.")
+        bt.logging.error("Failed to load image from URL.")
         return 0
 
     try:
         similarity = calculate_cosine_similarity(image, description)
-        logging.debug(f"Similarity: {similarity}")
+        bt.logging.debug(f"Similarity: {similarity}")
 
         size = get_image_size(image)
-        logging.debug(f"Image size: {size}")
+        bt.logging.debug(f"Image size: {size}")
 
         if similarity > similarity_threshold and size == desired_size:
             return weight
         else:
             return 0
     except Exception as e:
-        logging.error(f"Error in image scoring: {e}")
+        bt.logging.error(f"Error in image scoring: {e}")
         return 0

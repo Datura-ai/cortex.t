@@ -284,33 +284,41 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     quality = "standard"
     style = "vivid"
 
-    tasks = []
+    # Step 1: Query all images concurrently
+    query_tasks = []
     for uid in available_uids:
         messages = get_question("images")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
-        tasks.append(task)
+        query_tasks.append(task)
 
-    responses = await asyncio.gather(*tasks)
+    query_responses = await asyncio.gather(*query_tasks)
 
-    for uid, response in responses:
-        if response is not None:
+    # Step 2: Score all images concurrently
+    score_tasks = []
+    for i, (uid, response) in enumerate(query_responses):
+        if response:
             response = response[0]
             completion = response.completion
-            bt.logging.info(f"Response for UID {uid}: {completion}")
+            bt.logging.info(f"response for uid {i} is {completion}")
             url = completion["url"]
-            created_at = completion['created_at']
-
-            score = [await template.reward.image_score(url, size, messages, weight)]
-            # Update the scores array with batch scores at the correct indices
-            scores[uid] = score
+            score = await template.reward.image_score(url, size, messages, weight)
+            scores[i] = score  # Assign score to the tensor
             uid_scores_dict[uid] = score
-
-            if config.wandb_on:
-                log_wandb(query, engine, responses)
-
         else:
-            bt.logging.info(f"No response or error for UID {uid}")
+            # Handle no response
+            scores[i] = 0  # Assign default score to the tensor
+            uid_scores_dict[uid] = 0
+
+    return scores, uid_scores_dict
+
+    scored_responses = await asyncio.gather(*score_tasks)
+
+    # Step 3: Update scores and uid_scores_dict
+    for (uid, _), score in zip(query_responses, scored_responses):
+        if score is not None:
+            scores[i] = score
+            uid_scores_dict[uid] = score
 
     return scores, uid_scores_dict
     
