@@ -213,27 +213,6 @@ def log_wandb(query, engine, responses):
 
     wandb.log(data)
 
-async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet):
-    try:
-        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages} using {syn.engine}")
-        full_response = ""
-        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 50)
-        for resp in responses:
-            i = 0
-            async for chunk in resp:
-                i += 1
-                if isinstance(chunk, list):
-                    print(chunk[0], end="", flush=True)
-                    full_response += chunk[0]
-                else:
-                    synapse = chunk
-            break
-        print("\n")
-        return full_response
-    
-    except Exception as e:
-        bt.logging.error(f"Exception during query for uid {uid}: {e}")
-
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
@@ -276,7 +255,6 @@ async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
         return uid, None 
 
-
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "dall-e-3"
     weight = 1
@@ -288,6 +266,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     query_tasks = []
     for uid in available_uids:
         messages = get_question("images")
+        messages = "aesthetic, painterly style, modern ink, Asian girl, sensual, sultry, dark blouse, expressive pose, urbanpunk, abstract texture multilayer background, neo-expressionist , Russ Mills, Ian Miller"
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -312,15 +291,26 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
     return scores, uid_scores_dict
 
-    scored_responses = await asyncio.gather(*score_tasks)
-
-    # Step 3: Update scores and uid_scores_dict
-    for (uid, _), score in zip(query_responses, scored_responses):
-        if score is not None:
-            scores[i] = score
-            uid_scores_dict[uid] = score
-
-    return scores, uid_scores_dict
+async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
+    try:
+        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages} using {syn.engine}")
+        full_response = ""
+        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 20)
+        for resp in responses:
+            i = 0
+            async for chunk in resp:
+                i += 1
+                if isinstance(chunk, list):
+                    print(chunk[0], end="", flush=True)
+                    full_response += chunk[0]
+                else:
+                    synapse = chunk
+            break
+        print("\n")
+        return full_response
+    
+    except Exception as e:
+        bt.logging.error(f"Exception during query for uid {uid}: {e}")
     
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     # engine = "gpt-4-1106-preview"
@@ -336,7 +326,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
 
         # Query miners
-        task = [query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
+        task = [query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)]
         response = await asyncio.gather(*task)
 
         # Get OpenAI answer for the current batch
