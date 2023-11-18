@@ -17,6 +17,7 @@ response = client.images.generate(
 )
 # print(response)
 # Get image URL
+print(response)
 image_url = response.data[0].url
 image_revised_prompt = response.data[0].revised_prompt
 image_b64 = response.data[0].revised_prompt
