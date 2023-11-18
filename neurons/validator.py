@@ -124,11 +124,11 @@ async def get_list(list_type, theme=None):
             "default": template.image_themes,
             "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
         },
-        "text": {
+        "text_questions": {
             "default": template.text_questions,
             "prompt": f"Generate a Python list of 10 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
         },
-        "images": {
+        "images_questions": {
             "default": template.image_questions,
             "prompt": f"Provide a list of 10 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
@@ -146,7 +146,8 @@ async def get_list(list_type, theme=None):
     max_retries = 3
     for retry in range(max_retries):
         try:
-            answer = await call_openai(messages, .33, "gpt-3.5-turbo")
+            random_seed = random.randint(1, 10000)
+            answer = await call_openai(messages, .33, "gpt-3.5-turbo", seed)
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
@@ -162,36 +163,27 @@ async def get_list(list_type, theme=None):
     return default
 
 async def update_counters_and_get_new_list(category, item_type, theme=None):
-    themes = state[category]["themes"]
-    questions = state[category]["questions"]
-    theme_counter = state[category]["theme_counter"]
-    question_counter = state[category]["question_counter"]
+    global state
+    list_type = f"{category}_{item_type}"  # "text_themes" or "text_questions" or "image_themes" or "images_questions"
 
-    # Choose the appropriate counter and list based on item_type
-    counter = theme_counter if item_type == "themes" else question_counter
-    items = themes if item_type == "themes" else questions
+    items = state[category][item_type]  # themes or questions
 
-    # Logic for updating counters and getting new list
+    # Fetch new list if needed
     if not items:
-        items = await get_list(item_type, theme)
-        counter = len(items) - 1  # Start at the end of the list
+        if item_type == "themes":
+            items = await get_list(list_type)
+        else:  # item_type == "questions"
+            current_theme = await update_counters_and_get_new_list(category, "themes")
+            items = await get_list(list_type, current_theme)
 
-    item = items[counter]
-    counter -= 1  # Move backwards in the list
+        state[category][item_type] = items
 
-    # Reset if we reach the front of the list
-    if counter < 0:
-        if item_type == "questions":
-            questions = None
-        else:  # item_type == "themes"
-            themes = None
-            theme_counter -= 1  # Move to the previous theme
+    # Pop an item from the list
+    item = items.pop() if items else None
 
-    # Update the state
-    state[category]["themes"] = themes
-    state[category]["questions"] = questions
-    state[category]["theme_counter"] = theme_counter
-    state[category]["question_counter"] = question_counter
+    # Reset list to None if it's empty to trigger fetching a new list next time
+    if not items:
+        state[category][item_type] = None
 
     return item
 
@@ -199,10 +191,9 @@ async def get_question(category):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
-    theme = await update_counters_and_get_new_list(category, f"{category}_themes")
-    question = await update_counters_and_get_new_list(category, f"{category}", theme)
-
+    question = await update_counters_and_get_new_list(category, "questions")
     return question
+
 
 def log_wandb(query, engine, responses):
     data = {
@@ -267,7 +258,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     query_tasks = []
     for uid in available_uids:
         messages = await get_question("images")
-        bt.logging.info(f"question is {get_question}")
+        bt.logging.info(f"question is {messages}")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -300,7 +291,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    # bt.logging.info(chunk)
+                    bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
