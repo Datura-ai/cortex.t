@@ -23,6 +23,7 @@ if not AsyncOpenAI.api_key:
 client = AsyncOpenAI(timeout=30.0)
 
 global state
+global config
 state = template.utils.load_state_from_file()
 
 def get_config():
@@ -225,7 +226,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     engine = "dall-e-3"
     weight = 1
     size = "1024x1024"
-    quality = "hd"
+    quality = "standard"
     style = "vivid"
 
     # Step 1: Query all images concurrently
@@ -241,20 +242,31 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
     query_responses = await asyncio.gather(*query_tasks)
 
-    # Step 2: Score all images concurrently
+    # Step 2: Create scoring tasks for all images
     score_tasks = []
-    for i, (uid, response) in enumerate(query_responses):
+    for uid, response in query_responses:
         if response:
-            response = response[0]
+            response = response[0]  # Assuming the response structure
             completion = response.completion
-            bt.logging.info(f"response for uid {i} is {completion}")
+            bt.logging.info(f"UID {uid} response is {completion}")
             url = completion["url"]
-            score = await template.reward.image_score(url, size, messages, weight)
-            scores[i] = score  # Assign score to the tensor
+            task = template.reward.image_score(url, size, messages, weight)
+            score_tasks.append((uid, task))
+        else:
+            bt.logging.info(f"No response for UID {uid}")
+            scores[uid] = 0
+            uid_scores_dict[uid] = 0
+
+    # Step 3: Run all scoring tasks concurrently
+    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+
+    # Step 4: Update scores and uid_scores_dict
+    for (uid, _), score in zip(score_tasks, scored_responses):
+        if score is not None:
+            scores[uid] = score
             uid_scores_dict[uid] = score
         else:
-            # Handle no response
-            scores[i] = 0  # Assign default score to the tensor
+            scores[uid] = 0  # Assign default score for error cases
             uid_scores_dict[uid] = 0
 
     return scores, uid_scores_dict
@@ -368,19 +380,30 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
         except KeyboardInterrupt:
-            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+            bt.logging.info("Attempting to save state due to KeyboardInterrupt")
             template.utils.save_state_to_file(state)
+            bt.logging.success("Keyboard interrupt detected. Exiting validator.")
             if config.wandb_on: wandb.finish()
             exit()
 
-
 def main():
+    global config
     config = get_config()
-    bt.logging.debug(f"got config  {config}")
+    bt.logging.debug(f"got config {config}")
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
-    bt.logging.debug(f"got  {wallet}, {subtensor}, {dendrite}, {metagraph}")
+    bt.logging.debug(f"got {wallet}, {subtensor}, {dendrite}, {metagraph}")
     check_validator_registration(wallet, subtensor, metagraph)
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
+    return config  # Return the config so it can be used elsewhere
 
 if __name__ == "__main__":
-    main()
+    loop = asyncio.get_event_loop()
+    try:
+        config = loop.run_until_complete(main())
+    except KeyboardInterrupt:
+        bt.logging.success("Keyboard interrupt detected. Exiting validator.")
+        template.utils.save_state_to_file(state)
+        if config and config.wandb_on:  # Check if config is not None and then access its attribute
+            wandb.finish()
+    finally:
+        loop.close()

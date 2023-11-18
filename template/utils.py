@@ -1,11 +1,13 @@
 import re
+import os
 import ast
 import json
+import bittensor as bt
 
 
 def save_state_to_file(state, filename="state.json"):
     with open(filename, "w") as file:
-        bt.logging.info(f"saved global state to {filename}")
+        bt.logging.success(f"saved global state to {filename}")
         json.dump(state, file)
 
 def load_state_from_file(filename="state.json"):
