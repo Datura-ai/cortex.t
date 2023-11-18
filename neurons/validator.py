@@ -142,22 +142,22 @@ def get_list(list_type, theme=None):
     default = list_type_mapping[list_type]["default"]
     # prompt = list_type_mapping[list_type]["prompt"]
 
-    # messages = [{'role': "user", 'content': prompt}]
-    # max_retries = 3
-    # for retry in range(max_retries):
-    #     try:
-    #         answer = call_openai(messages, .33, "gpt-3.5-turbo").replace("\n", " ")
-    #         extracted_list = extract_python_list(answer)
-    #         if extracted_list:
-    #             bt.logging.info(f"Received {list_type}: {extracted_list}")
-    #             return extracted_list
-    #         else:
-    #             bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
-    #     except Exception as e:
-    #         retry += 1
-    #         bt.logging.error(f"Got exception when calling openai {e}")
+    messages = [{'role': "user", 'content': prompt}]
+    max_retries = 3
+    for retry in range(max_retries):
+        try:
+            answer = call_openai(messages, .33, "gpt-3.5-turbo").replace("\n", " ")
+            extracted_list = extract_python_list(answer)
+            if extracted_list:
+                bt.logging.info(f"Received {list_type}: {extracted_list}")
+                return extracted_list
+            else:
+                bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
+        except Exception as e:
+            retry += 1
+            bt.logging.error(f"Got exception when calling openai {e}")
 
-    # bt.logging.error(f"No list found after {max_retries} retries, using default list.")
+    bt.logging.error(f"No list found after {max_retries} retries, using default list.")
     return default
 
 def update_counters_and_get_new_list(category, item_type, theme=None):
@@ -259,7 +259,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     engine = "dall-e-3"
     weight = 1
     size = "1024x1024"
-    quality = "standard"
+    quality = "hd"
     style = "vivid"
 
     # Step 1: Query all images concurrently
