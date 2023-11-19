@@ -26,6 +26,8 @@ if not AsyncOpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
 client = AsyncOpenAI(timeout=30.0)
+list_update_lock = asyncio.Lock()
+
 
 global state
 global config
@@ -148,19 +150,22 @@ async def get_list(list_type, theme=None):
     return default
 
 async def update_counters_and_get_new_list(category, item_type, theme=None):
+    global list_update_lock
 
     list_type = f"{category}_{item_type}"  # "text_themes" or "text_questions" or "image_themes" or "images_questions"
     items = state[category][item_type]  # themes or questions
 
     # Fetch new list if needed
-    if not items:
-        if item_type == "themes":
-            items = await get_list(list_type)
-        else:  # item_type == "questions"
-            current_theme = await update_counters_and_get_new_list(category, "themes")
-            items = await get_list(list_type, current_theme)
+    async with list_update_lock:  # Acquire lock here
+        # Fetch new list if needed
+        if not items:
+            if item_type == "themes":
+                items = await get_list(list_type)
+            else:  # item_type == "questions"
+                current_theme = await update_counters_and_get_new_list(category, "themes")
+                items = await get_list(list_type, current_theme)
 
-        state[category][item_type] = items
+            state[category][item_type] = items
 
     item = items.pop() if items else None
     if not items:
@@ -198,7 +203,7 @@ async def get_available_uids(dendrite, metagraph):
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
-    alpha = .5
+    alpha = .3
     if moving_average_scores is None:
         moving_average_scores = scores.clone()
 
