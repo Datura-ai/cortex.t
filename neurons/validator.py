@@ -35,7 +35,7 @@ state = template.utils.load_state_from_file()
 def get_config():
     parser = argparse.ArgumentParser()
     parser.add_argument("--netuid", type=int, default=18)
-    parser.add_argument('--wandb_off', action='store_false', dest='wandb_on', help='Turn off wandb bt.logging.')
+    parser.add_argument('--wandb_off', action='store_false', dest='wandb_on')
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
@@ -51,6 +51,7 @@ def init_wandb(my_subnet_uid):
     if config.wandb_on:
         run_name = f'validator-{my_subnet_uid}'
         config.run_name = run_name
+        config.version = template.__version__
         global wandb_run
         wandb_run = wandb.init(
             name=run_name,
@@ -161,10 +162,7 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
 
         state[category][item_type] = items
 
-    # Pop an item from the list
     item = items.pop() if items else None
-
-    # Reset list to None if it's empty to trigger fetching a new list next time
     if not items:
         state[category][item_type] = None
 
@@ -176,17 +174,6 @@ async def get_question(category):
 
     question = await update_counters_and_get_new_list(category, "questions")
     return question
-
-
-def log_wandb(type, query, engine, response):
-    data = {
-        '_timestamp': time.time(),
-        'engine': engine,
-        'prompt': query,
-        'response': response
-    }
-
-    wandb.log(data)
 
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
