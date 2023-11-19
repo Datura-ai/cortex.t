@@ -39,14 +39,14 @@ def preprocess_string(text):
 
         return processed_text
     except Exception as e:
-        logging.error(f"Error in preprocessing string: {e}")
+        bt.logging.error(f"Error in preprocessing string: {e}")
         return text
 
 def extract_python_list(text: str):
     try:
         text = preprocess_string(text)
-        # Improved regex to match more complex list structures
-        match = re.search(r'\[(?:[^\[\]]+|\[(?:[^\[\]]+|\[[^\[\]]*\])*\])*\]', text)
+        # Improved regex to match more complex list structures including multiline strings
+        match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
         if match:
             list_str = match.group()
 
@@ -54,10 +54,6 @@ def extract_python_list(text: str):
             evaluated = ast.literal_eval(list_str)
             if isinstance(evaluated, list):
                 return evaluated
-        else:
-            # Fallback mechanism if regex fails
-            return fallback_list_extraction(text)
-
     except SyntaxError as e:
         bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
     except ValueError as e:
@@ -65,4 +61,7 @@ def extract_python_list(text: str):
     except Exception as e:
         bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
+    # Return None if the list cannot be extracted
     return None
+
+
