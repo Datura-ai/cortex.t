@@ -156,20 +156,24 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
         if item_type == "themes":
             return await get_list(f"{category}_themes")
         else:
-            current_theme = await get_items(category, "themes")
+            current_theme = theme if theme else await get_current_theme(category)
             return await get_list(f"{category}_questions", current_theme)
+
+    async def get_current_theme(category):
+        themes = state[category]["themes"]
+        if not themes:
+            themes = await get_items(category, "themes")
+            state[category]["themes"] = themes
+        return themes.pop() if themes else None
 
     list_type = f"{category}_{item_type}"
 
-    # Check if items are available outside the lock
     items = state[category][item_type]
-    if not items:
-        # Acquire lock here
+    if not items or (item_type == "questions" and theme is None):
         async with list_update_lock:
-            # Double-check if items are still not available
             items = state[category][item_type]
-            if not items:
-                items = await get_items(category, item_type)
+            if not items or (item_type == "questions" and theme is None):
+                items = await get_items(category, item_type, theme)
                 state[category][item_type] = items
 
     item = items.pop() if items else None
@@ -177,6 +181,7 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
         state[category][item_type] = None
 
     return item
+
 
 async def get_question(category):
     if category not in ["text", "images"]:
@@ -429,6 +434,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 total_scores = torch.zeros(len(metagraph.hotkeys))
 
             steps_passed += 1
+            time.sleep(2)
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
