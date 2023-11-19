@@ -82,7 +82,7 @@ def check_validator_registration(wallet, subtensor, metagraph):
 
 async def call_openai(messages, temperature, engine, seed=1234):
     for attempt in range(2):
-        bt.logging.info("Calling Openai")
+        bt.logging.debug("Calling Openai")
         try:
             response = await client.chat.completions.create(
                 model=engine,
@@ -91,7 +91,7 @@ async def call_openai(messages, temperature, engine, seed=1234):
                 seed=seed,
             )
             response = response.choices[0].message.content
-            bt.logging.debug(f"validator response is {response}")
+            bt.logging.trace(f"validator response is {response}")
             return response
 
         except Exception as e:
@@ -156,8 +156,12 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
         if item_type == "themes":
             return await get_list(f"{category}_themes")
         else:
-            current_theme = theme if theme else await get_current_theme(category)
-            return await get_list(f"{category}_questions", current_theme)
+            # Ensure theme is always available for 'questions'
+            if theme is None:
+                theme = await get_current_theme(category)
+                if theme is None:
+                    raise ValueError("No theme available for questions")
+            return await get_list(f"{category}_questions", theme)
 
     async def get_current_theme(category):
         themes = state[category]["themes"]
@@ -168,20 +172,23 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
 
     list_type = f"{category}_{item_type}"
 
-    items = state[category][item_type]
-    if not items or (item_type == "questions" and theme is None):
-        async with list_update_lock:
-            items = state[category][item_type]
-            if not items or (item_type == "questions" and theme is None):
-                items = await get_items(category, item_type, theme)
-                state[category][item_type] = items
+    async with list_update_lock:
+        items = state[category][item_type]
 
-    item = items.pop() if items else None
-    if not items:
-        state[category][item_type] = None
+        # Logging the current state before fetching new items
+        bt.logging.debug(f"Queue for {list_type}: {len(items) if items else 0} items")
+
+        # Fetch new items if the list is empty
+        if not items:
+            items = await get_items(category, item_type, theme)
+            state[category][item_type] = items
+            bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
+
+        item = items.pop() if items else None
+        if not items:
+            state[category][item_type] = None
 
     return item
-
 
 async def get_question(category):
     if category not in ["text", "images"]:
@@ -193,7 +200,7 @@ async def get_question(category):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
-        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=.8)
+        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=2.3)
         if response.is_success:
             bt.logging.debug(f"UID {uid} is active")
             return uid
@@ -225,7 +232,7 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
 
 async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
-        bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages} using {syn.engine}")
+        bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages}")
         responses = await dendrite([axon], syn, deserialize=False, timeout=50)
         return uid, responses  # Return a tuple of the UID and the responses
     except Exception as e:
@@ -267,23 +274,28 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     score_tasks = []
     for uid, response in query_responses:
         if response:
-            response = response[0]  # Assuming the response structure
+            response = response[0]
             completion = response.completion
-            bt.logging.info(f"UID {uid} response is {completion}")
-            image_url = completion["url"]
+            if completion is not None:
+                bt.logging.info(f"UID {uid} response is {completion}")
+                image_url = completion["url"]
 
-            # Download the image and store it as a BytesIO object
-            image_response = requests.get(image_url)
-            image_bytes = BytesIO(image_response.content)
-            image = Image.open(image_bytes)
+                # Download the image and store it as a BytesIO object
+                image_response = requests.get(image_url)
+                image_bytes = BytesIO(image_response.content)
+                image = Image.open(image_bytes)
 
-            # Log the image to wandb
-            wandb_data["images"][uid] = wandb.Image(image)
-            wandb_data["responses"][uid] = completion
+                # Log the image to wandb
+                wandb_data["images"][uid] = wandb.Image(image)
+                wandb_data["responses"][uid] = completion
 
-            messages_for_uid = uid_to_messages[uid]
-            task = template.reward.image_score(uid, image_url, size, messages_for_uid, weight)
-            score_tasks.append((uid, task))
+                messages_for_uid = uid_to_messages[uid]
+                task = template.reward.image_score(uid, image_url, size, messages_for_uid, weight)
+                score_tasks.append((uid, task))
+            else:
+                bt.logging.info(f"Completion is None for UID {uid}")
+                scores[uid] = 0
+                uid_scores_dict[uid] = 0
         else:
             bt.logging.info(f"No response for UID {uid}")
             scores[uid] = 0
@@ -304,7 +316,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         wandb_data["scores"][uid] = score
         wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
-    wandb.log(wandb_data)
+    if config.wandb_on: wandb.log(wandb_data)
 
     return scores, uid_scores_dict
 
@@ -329,8 +341,6 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     engine = "gpt-4-1106-preview"
     weight = 1
     seed = 1234
-    
-    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 8))
 
     # Data container for wandb logging
     wandb_data = {
@@ -361,11 +371,18 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
 
     # Step 2: Prepare all OpenAI call tasks for selected UIDs
     openai_tasks = []
+    # Generate a random number once for the entire round
+    random_number = random.random()
+    will_score_all = random_number < 1/8
+
+    bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
+
     for uid, response in query_responses:
-        if uid in uids_to_score and response:
+        # Decide to score all UIDs this round based on a 1/8 chance
+        if will_score_all and response:
             messages = [{'role': 'user', 'content': uid_to_question[uid]}]
             task = call_openai(messages, 0, engine, seed)
-            openai_tasks.append((uid, task))  # Append tuple of (uid, task)
+            openai_tasks.append((uid, task))
 
     # Step 3: Run OpenAI calls concurrently for selected UIDs
     openai_responses = await asyncio.gather(*[task for _, task in openai_tasks])
@@ -387,15 +404,14 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         if score is not None:
             scores[uid] = score
             uid_scores_dict[uid] = score
+            # Log scores for UIDs that were scored
+            wandb_data["scores"][uid] = score
         else:
             scores[uid] = 0
             uid_scores_dict[uid] = 0
-        # Only log scores for UIDs that were scored
-        if uid in uids_to_score:
-            wandb_data["scores"][uid] = score
 
     # Log data to wandb
-    wandb.log(wandb_data)
+    if config.wandb_on: (wandb_data)
 
     return scores, uid_scores_dict
     
@@ -405,7 +421,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     while True:
         try:
             # Sync metagraph and initialze scores
-            metagraph = subtensor.metagraph(24)
+            metagraph = subtensor.metagraph(config.netuid)
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
             
@@ -413,12 +429,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             available_uids = await get_available_uids(dendrite, metagraph)
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # use text synapse 1/2 times
-            if steps_passed % 2 != 1:
-                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # # use text synapse 1/2 times
+            # if steps_passed % 2 != 1:
+            #     scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            else:
-                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # else:
+            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
