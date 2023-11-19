@@ -152,20 +152,25 @@ async def get_list(list_type, theme=None):
 async def update_counters_and_get_new_list(category, item_type, theme=None):
     global list_update_lock
 
-    list_type = f"{category}_{item_type}"  # "text_themes" or "text_questions" or "image_themes" or "images_questions"
-    items = state[category][item_type]  # themes or questions
+    async def get_items(category, item_type, theme=None):
+        if item_type == "themes":
+            return await get_list(f"{category}_themes")
+        else:
+            current_theme = await get_items(category, "themes")
+            return await get_list(f"{category}_questions", current_theme)
 
-    # Fetch new list if needed
-    async with list_update_lock:  # Acquire lock here
-        # Fetch new list if needed
-        if not items:
-            if item_type == "themes":
-                items = await get_list(list_type)
-            else:  # item_type == "questions"
-                current_theme = await update_counters_and_get_new_list(category, "themes")
-                items = await get_list(list_type, current_theme)
+    list_type = f"{category}_{item_type}"
 
-            state[category][item_type] = items
+    # Check if items are available outside the lock
+    items = state[category][item_type]
+    if not items:
+        # Acquire lock here
+        async with list_update_lock:
+            # Double-check if items are still not available
+            items = state[category][item_type]
+            if not items:
+                items = await get_items(category, item_type)
+                state[category][item_type] = items
 
     item = items.pop() if items else None
     if not items:
@@ -320,7 +325,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     weight = 1
     seed = 1234
     
-    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 6))
+    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 8))
 
     # Data container for wandb logging
     wandb_data = {
