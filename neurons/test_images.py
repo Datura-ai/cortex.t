@@ -2,8 +2,7 @@ import requests
 import wandb
 from openai import OpenAI
 
-# Initialize Weights & Biases
-# wandb.init(project="synthetic-images", entity="cortex-t")
+wandb.init(project="synthetic-images", entity="cortex-t")
 
 # Generate image with DALL-E 3
 client = OpenAI()
@@ -15,7 +14,7 @@ response = client.images.generate(
     style="vivid", # or natural
     n=1,
 )
-# print(response)
+
 # Get image URL
 print(response)
 image_url = response.data[0].url
@@ -31,7 +30,7 @@ with open(image_path, "wb") as f:
     f.write(image_response.content)
 
 # Log the image and prompt to wandb
-# wandb.log({"generated_image": wandb.Image(image_path), "prompt": "a white siamese cat"})
+wandb.log({"generated_image": wandb.Image(image_path), "prompt": "a white siamese cat"})
 
 # Optional: finish the wandb run
-# wandb.finish()
+wandb.finish()

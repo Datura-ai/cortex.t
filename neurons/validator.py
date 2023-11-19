@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import time
 import torch
 import wandb
@@ -8,10 +9,14 @@ import random
 import string
 import asyncio
 import template
+import requests
 import argparse
+import datetime
 import traceback
 import bittensor as bt
 import concurrent.futures
+from PIL import Image
+from io import BytesIO
 from openai import AsyncOpenAI
 from typing import List, Optional
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
@@ -40,8 +45,11 @@ def get_config():
     config.full_path = os.path.expanduser(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator")
     if not os.path.exists(config.full_path):
         os.makedirs(config.full_path, exist_ok=True)
+    return config
+
+def init_wandb(my_subnet_uid):
     if config.wandb_on:
-        run_name = f'validator-' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(7))
+        run_name = f'validator-{my_subnet_uid}'
         config.run_name = run_name
         global wandb_run
         wandb_run = wandb.init(
@@ -54,7 +62,6 @@ def get_config():
             dir=config.full_path,
         )
         bt.logging.success('Started wandb run')
-    return config
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)
@@ -103,11 +110,11 @@ async def get_list(list_type, theme=None):
         },
         "text_questions": {
             "default": template.text_questions,
-            "prompt": f"Generate a Python list of 10 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
+            "prompt": f"Generate a Python list of 20 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
         },
         "images_questions": {
             "default": template.image_questions,
-            "prompt": f"Provide a Python list of 10 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+            "prompt": f"Provide a Python list of 20 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
     }
 
@@ -171,7 +178,7 @@ async def get_question(category):
     return question
 
 
-def log_wandb(query, engine, response):
+def log_wandb(type, query, engine, response):
     data = {
         '_timestamp': time.time(),
         'engine': engine,
@@ -230,6 +237,14 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
     quality = "standard"
     style = "vivid"
 
+    wandb_data = {
+        "prompts": {},
+        "responses": {},
+        "images": {},
+        "scores": {},
+        "timestamps": {},
+    }
+
     # Step 1: Query all images concurrently
     query_tasks = []
     uid_to_messages = {}
@@ -242,6 +257,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
+        wandb_data["prompts"][uid] = messages
+
 
     query_responses = await asyncio.gather(*query_tasks)
 
@@ -252,9 +269,19 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
             response = response[0]  # Assuming the response structure
             completion = response.completion
             bt.logging.info(f"UID {uid} response is {completion}")
-            url = completion["url"]
-            messages_for_uid = uid_to_messages[uid]  # Get the correct messages for this UID
-            task = template.reward.image_score(uid, url, size, messages_for_uid, weight)
+            image_url = completion["url"]
+
+            # Download the image and store it as a BytesIO object
+            image_response = requests.get(image_url)
+            image_bytes = BytesIO(image_response.content)
+            image = Image.open(image_bytes)
+
+            # Log the image to wandb
+            wandb_data["images"][uid] = wandb.Image(image)
+            wandb_data["responses"][uid] = completion
+
+            messages_for_uid = uid_to_messages[uid]
+            task = template.reward.image_score(uid, image_url, size, messages_for_uid, weight)
             score_tasks.append((uid, task))
         else:
             bt.logging.info(f"No response for UID {uid}")
@@ -271,8 +298,12 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
             scores[uid] = score
             uid_scores_dict[uid] = score
         else:
-            scores[uid] = 0  # Assign default score for error cases
+            scores[uid] = 0
             uid_scores_dict[uid] = 0
+        wandb_data["scores"][uid] = score
+        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+
+    wandb.log(wandb_data)
 
     return scores, uid_scores_dict
 
@@ -284,7 +315,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    # bt.logging.info(chunk[0])
+                    bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
@@ -297,13 +328,23 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     engine = "gpt-3.5-turbo"
     weight = 1
     seed = 1234
+    
+    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 4))
+
+    # Data container for wandb logging
+    wandb_data = {
+        "prompts": {},
+        "responses": {},
+        "scores": {},
+        "timestamps": {},
+    }
 
     # Step 1: Query all text concurrently with associated questions
     query_tasks = []
-    uid_to_question = {}  # Map each uid to its corresponding question
+    uid_to_question = {}
     for uid in available_uids:
         prompt = await get_question("text")
-        uid_to_question[uid] = prompt  # Store the question for each uid
+        uid_to_question[uid] = prompt
         messages = [{'role': 'user', 'content': prompt}]
         syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
         task = query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
@@ -311,27 +352,27 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
 
     query_responses = await asyncio.gather(*query_tasks)
 
-    # Step 2: Prepare all OpenAI call tasks
+    # Step 2: Prepare all OpenAI call tasks for selected UIDs
     openai_tasks = []
     for uid, response in query_responses:
-        if response:
-            messages = [{'role': 'user', 'content': uid_to_question[uid]}]  # Use the specific question for each uid
+        if uid in uids_to_score and response:
+            messages = [{'role': 'user', 'content': uid_to_question[uid]}]
             task = call_openai(messages, 0, engine, seed)
-            openai_tasks.append(task)
+            openai_tasks.append((uid, task))  # Append tuple of (uid, task)
 
-    # Step 3: Run all OpenAI calls concurrently
-    openai_responses = await asyncio.gather(*openai_tasks)
+    # Step 3: Run OpenAI calls concurrently for selected UIDs
+    openai_responses = await asyncio.gather(*[task for _, task in openai_tasks])
 
     # Step 4: Prepare scoring tasks
     score_tasks = []
-    for (uid, response), openai_answer in zip(query_responses, openai_responses):
-        if response and openai_answer:
-            # Use the specific question when scoring
+    for (uid, _), openai_answer in zip(openai_tasks, openai_responses):
+        if openai_answer:
             question = uid_to_question[uid]
+            response = next(res for u, res in query_responses if u == uid)  # Find the matching response
             task = template.reward.openai_score(openai_answer, response, weight)
             score_tasks.append((uid, task))
 
-    # Step 5: Run all scoring tasks concurrently
+    # Step 5: Run scoring tasks concurrently
     scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
 
     # Step 6: Update scores and uid_scores_dict
@@ -339,9 +380,17 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         if score is not None:
             scores[uid] = score
             uid_scores_dict[uid] = score
+            wandb_data["scores"][uid] = score
+            wandb_data["prompts"][uid] = uid_to_question[uid]
+            response = next(res for u, res in query_responses if u == uid)
+            wandb_data["responses"][uid] = response
+            wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
         else:
-            scores[uid] = 0  # Assign default score for error cases
+            scores[uid] = 0
             uid_scores_dict[uid] = 0
+
+    # Log data to wandb
+    wandb.log(wandb_data)
 
     return scores, uid_scores_dict
     
@@ -359,12 +408,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # # use text synapse 1/2 times
-            # if step_counter % 2 != 1:
-            scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # use text synapse 1/2 times
+            if steps_passed % 2 != 1:
+                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            # else:
-            #     scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            else:
+                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
@@ -394,12 +443,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 def main():
     global config
     config = get_config()
-    bt.logging.debug(f"got config {config}")
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     bt.logging.debug(f"got {wallet}, {subtensor}, {dendrite}, {metagraph}")
     check_validator_registration(wallet, subtensor, metagraph)
+    my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
+    init_wandb(my_subnet_uid)
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
-    return config  # Return the config so it can be used elsewhere
+    return config
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
@@ -408,7 +458,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         bt.logging.success("Keyboard interrupt detected. Exiting validator.")
         template.utils.save_state_to_file(state)
-        if config and config.wandb_on:  # Check if config is not None and then access its attribute
-            wandb.finish()
-    finally:
-        loop.close()
+        if config.wandb_on: wandb.finish()
+    finally: loop.close()
