@@ -111,7 +111,7 @@ async def get_list(list_type, theme=None):
         },
         "text_questions": {
             "default": template.text_questions,
-            "prompt": f"Generate a Python list of 20 inventive and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
+            "prompt": f"Generate a Python list of 20 creative and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
         },
         "images_questions": {
             "default": template.image_questions,
@@ -315,7 +315,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     weight = 1
     seed = 1234
     
-    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 4))
+    uids_to_score = random.sample(available_uids, k=math.ceil(len(available_uids) / 6))
 
     # Data container for wandb logging
     wandb_data = {
@@ -337,6 +337,12 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         query_tasks.append(task)
 
     query_responses = await asyncio.gather(*query_tasks)
+
+    # log prompts and responses to wandb data
+    for uid, response in query_responses:
+        wandb_data["prompts"][uid] = uid_to_question[uid]
+        wandb_data["responses"][uid] = response
+        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
     # Step 2: Prepare all OpenAI call tasks for selected UIDs
     openai_tasks = []
@@ -366,14 +372,12 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         if score is not None:
             scores[uid] = score
             uid_scores_dict[uid] = score
-            wandb_data["scores"][uid] = score
-            wandb_data["prompts"][uid] = uid_to_question[uid]
-            response = next(res for u, res in query_responses if u == uid)
-            wandb_data["responses"][uid] = response
-            wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
         else:
             scores[uid] = 0
             uid_scores_dict[uid] = 0
+        # Only log scores for UIDs that were scored
+        if uid in uids_to_score:
+            wandb_data["scores"][uid] = score
 
     # Log data to wandb
     wandb.log(wandb_data)
