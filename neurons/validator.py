@@ -240,7 +240,6 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         # if wanting a specific image, redefine messages here with an image prompt and comment out the above line
         # messages = "aquamarine and pink, religious symbolism, american works on paper 1880–1950, flowerpunk, colorful assemblages"
         uid_to_messages[uid] = messages  # Store messages for each UID
-        bt.logging.info(f"UID {uid} question is {messages}")
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
         task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
         query_tasks.append(task)
@@ -312,7 +311,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         return uid, None
 
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    engine = "gpt-3.5-turbo"
+    engine = "gpt-4-1106-preview"
     weight = 1
     seed = 1234
     
