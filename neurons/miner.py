@@ -4,28 +4,33 @@ import asyncio
 import argparse
 import threading
 import traceback
+import os
 from abc import ABC, abstractmethod
 from functools import partial
 from starlette.types import Send
-import openai
+from openai import OpenAI
+from openai import AsyncOpenAI
 import bittensor as bt
 from transformers import GPT2Tokenizer
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
-
-from template.protocol import StreamPrompting, IsAlive
+from template.protocol import StreamPrompting, IsAlive, ImageResponse
 from config import get_config, check_config
+
+OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not OpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+client = AsyncOpenAI(timeout=30.0)
 
 
 class StreamMiner(ABC):
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
-        # Setup base config from Miner.config() and merge with subclassed config.
+        bt.logging.info("starting stream miner")
         base_config = copy.deepcopy(config or get_config())
         self.config = self.config()
         self.config.merge(base_config)
-
         check_config(StreamMiner, self.config)
         bt.logging.info(self.config)  # TODO: duplicate print?
-
         self.prompt_cache: Dict[str, Tuple[str, int]] = {}
 
         # Activating Bittensor's logging with the set configurations.
@@ -68,6 +73,8 @@ class StreamMiner(ABC):
             forward_fn=self._prompt,
         ).attach(
             forward_fn=self.is_alive,
+        ).attach(
+            forward_fn=self._images,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -90,6 +97,9 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
+    async def _images(self, synapse: ImageResponse) -> ImageResponse:
+        return await self.images(synapse)
+
     def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
         synapse.completion = "True"
@@ -99,6 +109,10 @@ class StreamMiner(ABC):
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         ...
 
+    @abstractmethod
+    def images(self, synapse: ImageResponse) -> ImageResponse:
+        ...
+
     def run(self):
         if not self.subtensor.is_hotkey_registered(
             netuid=self.config.netuid,
@@ -106,7 +120,7 @@ class StreamMiner(ABC):
         ):
             bt.logging.error(
                 f"Wallet: {self.wallet} is not registered on netuid {self.config.netuid}"
-                f"Please register the hotkey using `btcli subnets register` before trying again"
+                f"Please register the hotkey using `btcli s register --netuid 18` before trying again"
             )
             exit()
         bt.logging.info(
@@ -132,7 +146,6 @@ class StreamMiner(ABC):
                     # --- Wait for next bloc.
                     time.sleep(1)
                     current_block = self.subtensor.get_current_block()
-
                     # --- Check if we should exit.
                     if self.should_exit:
                         break
@@ -203,6 +216,46 @@ class StreamingTemplateMiner(StreamMiner):
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
 
+    async def images(self, synapse: ImageResponse) -> ImageResponse:
+        bt.logging.info(f"called image axon {synapse}")
+        try:
+            # Extract necessary information from synapse
+            engine = synapse.engine
+            messages = synapse.messages
+            size = synapse.size
+            quality = synapse.quality
+            style = synapse.style
+
+            # Await the response from the asynchronous function
+            meta = await client.images.generate(
+                model=engine,
+                prompt=messages,
+                size=size,
+                quality=quality,
+                style=style,
+                )
+
+            image_created = meta.created
+            image_url = meta.data[0].url
+            image_revised_prompt = meta.data[0].revised_prompt
+            # image_b64 = meta.data[0].revised_prompt
+
+            image_data = {
+                "created_at": image_created,
+                "url": image_url,
+                "revised_prompt": image_revised_prompt,
+                # "b64": image_b64
+            }
+
+            synapse.completion = image_data
+            bt.logging.info(f"returning image response of {synapse.completion}")
+            return synapse
+
+        except Exception as e:
+            bt.logging.error(f"error in images: {e}\n{traceback.format_exc()}")
+
+
+
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"starting processing for synapse {synapse}")
         
@@ -210,18 +263,20 @@ class StreamingTemplateMiner(StreamMiner):
             try:
                 engine = synapse.engine
                 messages = synapse.messages
-                bt.logging.info(f"question is {messages} with engine {engine}")
-                response = openai.ChatCompletion.create(
+                seed=synapse.seed
+                bt.logging.info(synapse)
+                bt.logging.info(f"question is {messages} with engine {engine}, seed: {seed}")
+                response = await client.chat.completions.create(
                     model= engine,
                     messages= messages,
-                    temperature= 0,
-                    stream= True
+                    temperature= 0.0001,
+                    stream= True,
+                    seed=seed,
                 )
                 buffer = []
                 N=1
-                for chunk in response:
-                    try: token = str(chunk['choices'][0]['delta']['content'])
-                    except: continue
+                async for chunk in response:
+                    token = chunk.choices[0].delta.content or ""
                     buffer.append(token)
                     if len(buffer) == N:
                         joined_buffer = "".join(buffer)
@@ -245,6 +300,7 @@ class StreamingTemplateMiner(StreamMiner):
                         }
                     )
                     bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                    print(f"response is {response}")
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 

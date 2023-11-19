@@ -1,38 +1,44 @@
-import openai
-import time
+import asyncio
 import os
-import ast 
 import traceback
+from openai import OpenAI
+from openai import AsyncOpenAI
 
-openai.api_key = os.environ.get('OPENAI_API_KEY')
-if not openai.api_key:
+OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-def send_openai_request(prompt, engine = "gpt-3.5-turbo"):
+client = AsyncOpenAI(timeout=30)
+
+async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
     try:
-        response = openai.ChatCompletion.create(
+        stream = await client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            stream=True,
             model=engine,
-            messages=[{'role': 'user', 'content': prompt}],
-            temperature=0,
-            stream=True
+            seed=1234,
+            temperature=0.0001,
         )
-
         collected_messages = []
-        for chunk in response:
-            try:
-                chunk_message = str(chunk['choices'][0]['delta']['content'])
-            except:
-                continue
-            print(chunk_message)
-            collected_messages.append(chunk_message)
 
-        all_messages = ' '.join(collected_messages)
+        async for part in stream:
+            print(part.choices[0].delta.content or "")
+            collected_messages.append(part.choices[0].delta.content or "")
+
+        all_messages = ''.join(collected_messages)
         return all_messages
 
     except Exception as e:
         print(f"Got exception when calling openai {e}")
-        traceback.print_exc()  # This will print the full traceback
+        traceback.print_exc()
         return "Error calling model"
 
-prompt = "count to 10"
-print(send_openai_request(prompt))
+async def main():
+    prompts = ["count to 10", "tell me a joke"]
+    tasks = [send_openai_request(prompt) for prompt in prompts]
+
+    responses = await asyncio.gather(*tasks)
+    for response in responses:
+        print(response)
+
+asyncio.run(main())
