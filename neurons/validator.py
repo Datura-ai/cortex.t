@@ -429,12 +429,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             available_uids = await get_available_uids(dendrite, metagraph)
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # # use text synapse 1/2 times
-            # if steps_passed % 2 != 1:
-            #     scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            # use text synapse 1/2 times
+            if steps_passed % 2 != 1:
+                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
-            # else:
-            scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            else:
+                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
