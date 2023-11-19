@@ -2,6 +2,7 @@ import re
 import os
 import ast
 import json
+import traceback
 import bittensor as bt
 
 
