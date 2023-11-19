@@ -315,7 +315,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    bt.logging.info(chunk[0])
+                    # bt.logging.info(chunk[0])
                     full_response += chunk[0]
             break
         return uid, full_response
@@ -399,13 +399,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     total_scores = torch.zeros(len(metagraph.hotkeys))
     while True:
         try:
+            # Sync metagraph and initialze scores
             metagraph = subtensor.metagraph(24)
             scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
             
             # Get the available UIDs
             available_uids = await get_available_uids(dendrite, metagraph)
-            # available_uids = [2]
             bt.logging.info(f"available_uids is {available_uids}")
 
             # use text synapse 1/2 times
@@ -428,17 +428,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
                 total_scores = torch.zeros(len(metagraph.hotkeys))
 
-
             steps_passed += 1
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
-        except KeyboardInterrupt:
-            bt.logging.success("Keyboard interrupt detected. Exiting validator from query_synapse")
-            if config.wandb_on: wandb.finish()
-            exit()
 
 def main():
     global config
