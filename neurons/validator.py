@@ -178,7 +178,7 @@ async def get_question(category):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
-        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=.1)
+        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=.8)
         if response.is_success:
             bt.logging.debug(f"UID {uid} is active")
             return uid
@@ -410,7 +410,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             bt.logging.info(f"total scores until set weights = {total_scores}")
 
             # Update weights after processing all batches
-            if steps_passed % 3 == 2:
+            if steps_passed % 5 == 4:
                 bt.logging.info(f"total_scores = {total_scores}")
                 avg_scores = total_scores / (steps_passed + 1)
                 bt.logging.info(f"avg scores is {avg_scores}")
