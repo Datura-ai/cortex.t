@@ -411,7 +411,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
             uid_scores_dict[uid] = 0
 
     # Log data to wandb
-    if config.wandb_on: (wandb_data)
+    if config.wandb_on: wandb.log(wandb_data)
 
     return scores, uid_scores_dict
     
