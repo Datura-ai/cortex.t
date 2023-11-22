@@ -24,10 +24,10 @@ async def query_synapse_image(dendrite, metagraph, subtensor):
     try:
         axon = metagraph.axons[67]
         engine = "dall-e-3"
-        size = "1024x1024"
+        size = "1024x1792"
         quality = "standard"
         style = "vivid"
-        messages = "a beautiful garden outside a rural house juxtaposed on a rainy day"
+        messages = "a jeep ride through aruba on a majestical dirt sunny road in the forest"
 
         syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
 
