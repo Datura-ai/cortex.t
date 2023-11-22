@@ -242,7 +242,7 @@ async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "dall-e-3"
     weight = 1
-    size = "1024x1024"
+    size = "1024x1792"
     quality = "standard"
     style = "vivid"
 
