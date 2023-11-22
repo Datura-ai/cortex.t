@@ -61,7 +61,7 @@ processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
 # Could also verify the date from the url
 url_regex = (
-    r'https://oaidalleapiprodscus\.blob\.core\.windows\.net/private/org-[\w-]+/'
+    r'https://(?:oaidalleapiprodscus|dalleprodsec)\.blob\.core\.windows\.net/private/org-[\w-]+/'
     r'user-[\w-]+/img-[\w-]+\.(?:png|jpg)\?'
     r'st=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
     r'se=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
