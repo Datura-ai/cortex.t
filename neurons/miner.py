@@ -71,10 +71,13 @@ class StreamMiner(ABC):
         print(f"Attaching forward function to axon. {self._prompt}")
         self.axon.attach(
             forward_fn=self._prompt,
+            blacklist_fn=self.blacklist_prompt,
         ).attach(
             forward_fn=self.is_alive,
+            blacklist_fn=self.blacklist_is_alive,
         ).attach(
             forward_fn=self._images,
+            blacklist_fn=self.blacklist_images,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -88,6 +91,49 @@ class StreamMiner(ABC):
     @abstractmethod
     def config(self) -> "bt.Config":
         ...
+
+    def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+        return self.prompt(synapse)
+
+    def base_blacklist(synapse: synapse, blacklist_amt = 1) -> Tuple[bool, str]:
+        # check if hotkey of synapse is in meta. and if so get its position in the array
+        uid = None
+        axon = None
+        for _uid, _axon in enumerate(meta.axons):
+            if _axon.hotkey == synapse.dendrite.hotkey:
+                uid = _uid
+                axon = _axon
+                break
+
+        # if uid is None, then the hotkey of the synapse is not in the meta.axons array
+        if uid is None:
+            return True, "hotkey of synapse is not in meta.axons array"
+        
+        # check the stake
+        tao = meta.neurons[uid].stake.tao
+        if tao < blacklist_amt:
+            return True, f"stake is less than min_validator_stake ({blacklist_amt})"
+
+        return False, ""
+    
+    
+    def blacklist_prompt( synapse: StreamPrompting ) -> Tuple[bool, str]:
+        b = base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        if b[0]:
+            return b
+        return False, ""
+
+    def blacklist_is_alive( synapse: IsAlive ) -> Tuple[bool, str]:
+        b = base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        if b[0]:
+            return b
+        return False, ""    
+        
+    def blacklist_images( synapse: ImageResponse ) -> Tuple[bool, str]:
+        b = base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        if b[0]:
+            return b
+        return False, ""
 
     @classmethod
     @abstractmethod
