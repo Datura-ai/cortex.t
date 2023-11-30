@@ -4,9 +4,9 @@ from openai import OpenAI
 # Generate image with DALL-E 3
 client = OpenAI()
 response = client.images.generate(
-    model="dall-e-2",
-    prompt="the ugliest person you can give me",
-    size="1024x1024",
+    model="dall-e-3",
+    prompt="a jeep ride through aruba on a majestical dirt sunny road in the forest",
+    size="1792x1024",
     quality="standard", # or hd (double the cost)
     style="vivid", # or naturual
     n=1,
