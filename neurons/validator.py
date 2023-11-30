@@ -200,7 +200,6 @@ async def get_question(category):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
-        print(dendrite, axon)
         response = await dendrite(axon, IsAlive(), deserialize=False, timeout=4)
         if response.is_success:
             bt.logging.debug(f"UID {uid} is active")
@@ -294,6 +293,7 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
                 task = template.reward.image_score(uid, image_url, size, messages_for_uid, weight)
                 score_tasks.append((uid, task))
             else:
+                bt.logging.info(f"result is {completion}")
                 bt.logging.info(f"Completion is None for UID {uid}")
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0

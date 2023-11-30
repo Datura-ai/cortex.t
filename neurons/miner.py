@@ -97,6 +97,7 @@ class StreamMiner(ABC):
         return self.prompt(synapse)
 
     def base_blacklist(self, synapse, blacklist_amt = 1) -> Tuple[bool, str]:
+        print("enter base_blacklist")
         # check if hotkey of synapse is in meta. and if so get its position in the array
         uid = None
         axon = None
@@ -108,29 +109,34 @@ class StreamMiner(ABC):
 
         # if uid is None, then the hotkey of the synapse is not in the meta.axons array
         if uid is None:
+            bt.logging.info("blacklisted a non registered hotkey's request")
             return True, "hotkey of synapse is not in meta.axons array"
         
         # check the stake
         tao = self.metagraph.neurons[uid].stake.tao
         if tao < blacklist_amt:
+            bt.logging.info("blacklisted a low stake request")
             return True, f"stake is less than min_validator_stake ({blacklist_amt})"
 
-        return False, ""
+        return False, "118"
     
     
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+        print("enter blacklist_prompt")
         b = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
         if b[0]:
             return b
         return False, ""
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+        print("enter blacklist is_alive")
         b = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
         if b[0]:
             return b
-        return False, ""    
+        return False, "131"    
         
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+        print("enter blacklist images")
         b = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
         if b[0]:
             return b
@@ -148,7 +154,8 @@ class StreamMiner(ABC):
         return await self.images(synapse)
 
     def is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.info("answered to be active")
+        print("entered is_alive")
+        # bt.logging.info("answered to be active")
         synapse.completion = "True"
         return synapse
 
