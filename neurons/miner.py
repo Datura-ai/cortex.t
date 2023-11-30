@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from transformers import GPT2Tokenizer
 from config import get_config, check_config
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
-from template.protocol import StreamPrompting, IsAlive, ImageResponse
+from template.protocol import StreamPrompting, IsAlive, ImageResponse, Embeddings
 
 OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
