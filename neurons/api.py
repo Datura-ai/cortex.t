@@ -22,10 +22,10 @@ def initialize():
 
 async def query_synapse_image(dendrite, metagraph, subtensor):
     try:
-        axon = metagraph.axons[67]
+        axon = metagraph.axons[94]
         engine = "dall-e-3"
-        size = "1024x1792"
-        quality = "standard"
+        size = "1792x1024"
+        quality = "hd"
         style = "vivid"
         messages = "a jeep ride through aruba on a majestical dirt sunny road in the forest"
 

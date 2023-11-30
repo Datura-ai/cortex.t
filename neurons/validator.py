@@ -200,7 +200,7 @@ async def get_question(category):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
-        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=2.3)
+        response = await dendrite(axon, IsAlive(), deserialize=False, timeout=4)
         if response.is_success:
             bt.logging.debug(f"UID {uid} is active")
             return uid
@@ -242,7 +242,7 @@ async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     engine = "dall-e-3"
     weight = 1
-    size = "1024x1792"
+    size = "1792x1024"
     quality = "standard"
     style = "vivid"
 
