@@ -9,3 +9,4 @@ bittensor_subnet_template.egg-info/top_level.txt
 template/__init__.py
 template/protocol.py
 template/reward.py
+template/utils.py

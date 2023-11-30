@@ -200,6 +200,7 @@ async def get_question(category):
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
+        print(dendrite, axon)
         response = await dendrite(axon, IsAlive(), deserialize=False, timeout=4)
         if response.is_success:
             bt.logging.debug(f"UID {uid} is active")
