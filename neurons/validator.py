@@ -19,6 +19,7 @@ from PIL import Image
 from io import BytesIO
 from openai import AsyncOpenAI
 from typing import List, Optional
+from datasets import load_dataset
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
 
 AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')

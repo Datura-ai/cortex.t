@@ -14,17 +14,81 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
-class ImageResponse( bt.Synapse ):
-    completion: Optional[Dict] = None
-    messages: str
-    engine: str
-    style: str
-    size: str
-    quality: str
-    required_hash_fields: List[str] = ["messages"] 
+class ImageResponse(pydantic.BaseModel):
+    """
+    A class to represent the response for an image-related request.
+    """
 
-    def deserialize(self) -> Dict:
+    completion: Optional[Dict] = pydantic.Field(
+        None,
+        title="Completion",
+        description="The completion data of the image response."
+    )
+
+    messages: str = pydantic.Field(
+        ...,
+        title="Messages",
+        description="Messages related to the image response."
+    )
+
+    engine: str = pydantic.Field(
+        ...,
+        title="Engine",
+        description="The engine used for generating the image."
+    )
+
+    style: str = pydantic.Field(
+        ...,
+        title="Style",
+        description="The style of the image."
+    )
+
+    size: str = pydantic.Field(
+        ...,
+        title="Size",
+        description="The size of the image."
+    )
+
+    quality: str = pydantic.Field(
+        ...,
+        title="Quality",
+        description="The quality of the image."
+    )
+
+    required_hash_fields: List[str] = pydantic.Field(
+        ["messages"],
+        title="Required Hash Fields",
+        description="A list of fields required for the hash."
+    )
+
+    def deserialize(self) -> Optional[Dict]:
+        """
+        Deserialize the completion data of the image response.
+        """
         return self.completion
+
+class EmbeddingsSynapse(pydantic.BaseModel):
+    """
+    A class to represent the embeddings request and response.
+    """
+
+    text: List[str] = pydantic.Field(
+        ...,
+        title="Text",
+        description="The list of input texts for which embeddings are to be generated."
+    )
+
+    model: str = pydantic.Field(
+        "text-embedding-ada-002",
+        title="Model",
+        description="The model used for generating embeddings."
+    )
+
+    embeddings: Optional[List[List[float]]] = pydantic.Field(
+        None,
+        title="Embeddings",
+        description="The resulting list of embeddings, each corresponding to an input text."
+    )
 
 class StreamPrompting(bt.StreamingSynapse):
 
