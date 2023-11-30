@@ -78,13 +78,13 @@ class StreamMiner(ABC):
             forward_fn=self._prompt,
             blacklist_fn=self.blacklist_prompt,
         ).attach(
-            forward_fn=self.is_alive,
+            forward_fn=self._is_alive,
             blacklist_fn=self.blacklist_is_alive,
         ).attach(
             forward_fn=self._images,
             blacklist_fn=self.blacklist_images,
         ).attach(
-            forward_fn=self.embeddings,
+            forward_fn=self._embeddings,
             blacklist_fn=self.blacklist_embeddings,
         )
         bt.logging.info(f"Axon created: {self.axon}")
@@ -103,13 +103,13 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
-    def base_blacklist(self, synapse, blacklist_amt = 1) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 10000) -> Tuple[bool, str]:
         try:
             print("enter base_blacklist")
             hotkey = synapse.dendrite.hotkey
 
             if hotkey in template.WHITELISTED_KEYS:
-                return False, "Accepted a Whitelisted hotkey"
+                return False, f"accepting request from {hotkey}"
 
             # Check if the key is black listed.
             if hotkey in template.BLACKLISTED_KEYS:
@@ -129,7 +129,7 @@ class StreamMiner(ABC):
             # check the stake
             tao = self.metagraph.neurons[uid].stake.tao
             if tao < blacklist_amt:
-                return True, f"Blacklisted a low stake request: {tao} < {blacklist_amt}"
+                return True, f"Blacklisted a low stake request: {tao} < {blacklist_amt} from {hotkey}"
 
             time_window = template.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
@@ -150,7 +150,7 @@ class StreamMiner(ABC):
 
             self.request_timestamps[hotkey].append(current_time)
 
-            return False, f"accepting request from {synapse.dendrite.hotkey} with {tao} stake"
+            return False, f"accepting request from {hotkey}"
 
         except Exception as e:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
@@ -158,7 +158,7 @@ class StreamMiner(ABC):
     
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
+        bt.logging.debug(blacklist[1])
         return blacklist    
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
@@ -190,9 +190,8 @@ class StreamMiner(ABC):
     async def _embeddings(self, synapse: Embeddings) -> Embeddings:
         return await self.embeddings(synapse)
 
-    def is_alive(self, synapse: IsAlive) -> IsAlive:
-        print("entered is_alive")
-        # bt.logging.info("answered to be active")
+    def _is_alive(self, synapse: IsAlive) -> IsAlive:
+        bt.logging.info("answered to be active")
         synapse.completion = "True"
         return synapse
 
@@ -313,26 +312,27 @@ class StreamingTemplateMiner(StreamMiner):
 
 
     async def embeddings(synapse: Embeddings) -> Embeddings:
-        bt.logging.info(f"Received embeddings request: {synapse}")
+        pass
+    #     bt.logging.info(f"Received embeddings request: {synapse}")
 
-        async def get_embeddings_in_batch(texts, model, batch_size=10):
-            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-            all_embeddings = []
-            for batch in batches:
-                response = await client.embeddings.create(input=batch, model=model)
-                batch_embeddings = [item.embedding for item in response.data]
-                all_embeddings.extend(batch_embeddings)
-            return all_embeddings
+    #     async def get_embeddings_in_batch(texts, model, batch_size=10):
+    #         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+    #         all_embeddings = []
+    #         for batch in batches:
+    #             response = await client.embeddings.create(input=batch, model=model)
+    #             batch_embeddings = [item.embedding for item in response.data]
+    #             all_embeddings.extend(batch_embeddings)
+    #         return all_embeddings
 
-    try:
-        texts = synapse.texts
-        model = synapse.model
-        batched_embeddings = await get_embeddings_in_batch(texts, model)
-        synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+    # try:
+    #     texts = synapse.texts
+    #     model = synapse.model
+    #     batched_embeddings = await get_embeddings_in_batch(texts, model)
+    #     synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
 
-        return synapse
-    except Exception as e:
-        bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+    #     return synapse
+    # except Exception as e:
+    #     bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
