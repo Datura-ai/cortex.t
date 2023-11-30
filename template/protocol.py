@@ -14,7 +14,7 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
-class ImageResponse(pydantic.BaseModel):
+class ImageResponse( bt.Synapse):
     """
     A class to represent the response for an image-related request.
     """
@@ -67,7 +67,7 @@ class ImageResponse(pydantic.BaseModel):
         """
         return self.completion
 
-class EmbeddingsSynapse(pydantic.BaseModel):
+class Embeddings( bt.Synapse):
     """
     A class to represent the embeddings request and response.
     """
@@ -90,7 +90,7 @@ class EmbeddingsSynapse(pydantic.BaseModel):
         description="The resulting list of embeddings, each corresponding to an input text."
     )
 
-class StreamPrompting(bt.StreamingSynapse):
+class StreamPrompting( bt.StreamingSynapse ):
 
     messages: List[Dict[str, str]] = pydantic.Field(
         ...,
