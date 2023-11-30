@@ -2,3 +2,5 @@ alias.sh
 cloudflared.deb
 go1.21.0.linux-amd64.tar.gz
 /neurons/state.json
+bittensor_subnet_template.egg-info/
+template/__pycache__/

@@ -1,20 +1,21 @@
-import copy
+import os
 import time
+import copy
 import asyncio
+import template
 import argparse
 import threading
 import traceback
-import os
-from abc import ABC, abstractmethod
-from functools import partial
-from starlette.types import Send
-from openai import OpenAI
-from openai import AsyncOpenAI
 import bittensor as bt
+from openai import OpenAI
+from functools import partial
+from openai import AsyncOpenAI
+from starlette.types import Send
+from abc import ABC, abstractmethod
 from transformers import GPT2Tokenizer
+from config import get_config, check_config
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
 from template.protocol import StreamPrompting, IsAlive, ImageResponse
-from config import get_config, check_config
 
 OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
@@ -95,11 +96,11 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
-    def base_blacklist(synapse: synapse, blacklist_amt = 1) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 1) -> Tuple[bool, str]:
         # check if hotkey of synapse is in meta. and if so get its position in the array
         uid = None
         axon = None
-        for _uid, _axon in enumerate(meta.axons):
+        for _uid, _axon in enumerate(self.metagraph.axons):
             if _axon.hotkey == synapse.dendrite.hotkey:
                 uid = _uid
                 axon = _axon
@@ -110,27 +111,27 @@ class StreamMiner(ABC):
             return True, "hotkey of synapse is not in meta.axons array"
         
         # check the stake
-        tao = meta.neurons[uid].stake.tao
+        tao = self.metagraph.neurons[uid].stake.tao
         if tao < blacklist_amt:
             return True, f"stake is less than min_validator_stake ({blacklist_amt})"
 
         return False, ""
     
     
-    def blacklist_prompt( synapse: StreamPrompting ) -> Tuple[bool, str]:
-        b = base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+        b = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
         if b[0]:
             return b
         return False, ""
 
-    def blacklist_is_alive( synapse: IsAlive ) -> Tuple[bool, str]:
-        b = base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+        b = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
         if b[0]:
             return b
         return False, ""    
         
-    def blacklist_images( synapse: ImageResponse ) -> Tuple[bool, str]:
-        b = base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+        b = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
         if b[0]:
             return b
         return False, ""

@@ -1,4 +1,11 @@
 bittensor
-openai
 torch
 wandb
+transformers
+openai>=1.3.2
+wandb
+requests
+Pillow
+aiohttp
+transformers
+scikit-learn
