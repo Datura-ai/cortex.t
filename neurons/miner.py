@@ -84,8 +84,8 @@ class StreamMiner(ABC):
             forward_fn=self._images,
             blacklist_fn=self.blacklist_images,
         ).attach(
-            forward_fn=self.embeddings
-            blacklist_fn=self.blacklist_embeddings
+            forward_fn=self.embeddings,
+            blacklist_fn=self.blacklist_embeddings,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
