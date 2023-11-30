@@ -6,6 +6,8 @@ import template
 import argparse
 import threading
 import traceback
+import numpy as np
+import pandas as pd
 import bittensor as bt
 from openai import OpenAI
 from functools import partial
@@ -81,6 +83,9 @@ class StreamMiner(ABC):
         ).attach(
             forward_fn=self._images,
             blacklist_fn=self.blacklist_images,
+        ).attach(
+            forward_fn=self.embeddings
+            blacklist_fn=self.blacklist_embeddings
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -166,6 +171,11 @@ class StreamMiner(ABC):
         bt.logging.info(blacklist[1])
         return blacklist
 
+    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
     @classmethod
     @abstractmethod
     def add_args(cls, parser: argparse.ArgumentParser):
@@ -176,6 +186,9 @@ class StreamMiner(ABC):
 
     async def _images(self, synapse: ImageResponse) -> ImageResponse:
         return await self.images(synapse)
+
+    async def _embeddings(self, synapse: Embeddings) -> Embeddings:
+        return await self.embeddings(synapse)
 
     def is_alive(self, synapse: IsAlive) -> IsAlive:
         print("entered is_alive")
@@ -189,6 +202,10 @@ class StreamMiner(ABC):
 
     @abstractmethod
     def images(self, synapse: ImageResponse) -> ImageResponse:
+        ...
+
+    @abstractmethod
+    def embeddings(self, synapse: Embeddings) -> Embeddings:
         ...
 
     def run(self):
@@ -294,8 +311,32 @@ class StreamingTemplateMiner(StreamMiner):
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
 
+
+    async def embeddings(synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"Received embeddings request: {synapse}")
+
+        async def get_embeddings_in_batch(texts, model, batch_size=10):
+            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            all_embeddings = []
+            for batch in batches:
+                response = await client.embeddings.create(input=batch, model=model)
+                batch_embeddings = [item.embedding for item in response.data]
+                all_embeddings.extend(batch_embeddings)
+            return all_embeddings
+
+    try:
+        texts = synapse.texts
+        model = synapse.model
+        batched_embeddings = await get_embeddings_in_batch(texts, model)
+        synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+
+        return synapse
+    except Exception as e:
+        bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+
+
     async def images(self, synapse: ImageResponse) -> ImageResponse:
-        bt.logging.info(f"called image axon {synapse}")
+        bt.logging.info(f"received image request: {synapse}")
         try:
             # Extract necessary information from synapse
             engine = synapse.engine
