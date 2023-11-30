@@ -9,6 +9,7 @@ import traceback
 import bittensor as bt
 from openai import OpenAI
 from functools import partial
+from collections import deque
 from openai import AsyncOpenAI
 from starlette.types import Send
 from abc import ABC, abstractmethod
@@ -33,6 +34,7 @@ class StreamMiner(ABC):
         check_config(StreamMiner, self.config)
         bt.logging.info(self.config)  # TODO: duplicate print?
         self.prompt_cache: Dict[str, Tuple[str, int]] = {}
+        self.request_timestamps = {}
 
         # Activating Bittensor's logging with the set configurations.
         bt.logging(config=self.config, logging_dir=self.config.full_path)
@@ -97,50 +99,72 @@ class StreamMiner(ABC):
         return self.prompt(synapse)
 
     def base_blacklist(self, synapse, blacklist_amt = 1) -> Tuple[bool, str]:
-        print("enter base_blacklist")
-        # check if hotkey of synapse is in meta. and if so get its position in the array
-        uid = None
-        axon = None
-        for _uid, _axon in enumerate(self.metagraph.axons):
-            if _axon.hotkey == synapse.dendrite.hotkey:
-                uid = _uid
-                axon = _axon
-                break
+        try:
+            print("enter base_blacklist")
+            hotkey = synapse.dendrite.hotkey
 
-        # if uid is None, then the hotkey of the synapse is not in the meta.axons array
-        if uid is None:
-            bt.logging.info("blacklisted a non registered hotkey's request")
-            return True, "hotkey of synapse is not in meta.axons array"
-        
-        # check the stake
-        tao = self.metagraph.neurons[uid].stake.tao
-        if tao < blacklist_amt:
-            bt.logging.info("blacklisted a low stake request")
-            return True, f"stake is less than min_validator_stake ({blacklist_amt})"
+            if hotkey in template.WHITELISTED_KEYS:
+                return False, "Accepted a Whitelisted hotkey"
 
-        return False, "118"
+            # Check if the key is black listed.
+            if hotkey in template.BLACKLISTED_KEYS:
+                return True, "Blacklisted a blacklisted hotkey"
+
+            uid = None
+            axon = None
+            for _uid, _axon in enumerate(self.metagraph.axons):
+                if _axon.hotkey == hotkey:
+                    uid = _uid
+                    axon = _axon
+                    break
+
+            if uid is None and template.ALLOW_NON_REGISTERED == False:
+                return True, f"Blacklisted a non registered hotkey's request {hotkey}"
+
+            # check the stake
+            tao = self.metagraph.neurons[uid].stake.tao
+            if tao < blacklist_amt:
+                return True, f"Blacklisted a low stake request: {tao} < {blacklist_amt}"
+
+            time_window = template.MIN_REQUEST_PERIOD * 60
+            current_time = time.time()
+
+            if hotkey not in self.request_timestamps:
+                self.request_timestamps[hotkey] = deque()
+
+            # Remove timestamps outside the current time window
+            while self.request_timestamps[hotkey] and current_time - self.request_timestamps[hotkey][0] > time_window:
+                self.request_timestamps[hotkey].popleft()
+
+            # Check if the number of requests exceeds the limit
+            if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
+                return (
+                    True,
+                    f"Request frequency for {hotkey} exceeded: {len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. Limit is {template.MAX_REQUESTS} requests."
+                )
+
+            self.request_timestamps[hotkey].append(current_time)
+
+            return False, f"accepting request from {synapse.dendrite.hotkey} with {tao} stake"
+
+        except Exception as e:
+            bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
     
     
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
-        print("enter blacklist_prompt")
-        b = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
-        if b[0]:
-            return b
-        return False, ""
+        blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist    
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
-        print("enter blacklist is_alive")
-        b = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
-        if b[0]:
-            return b
-        return False, "131"    
+        blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
         
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
-        print("enter blacklist images")
-        b = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
-        if b[0]:
-            return b
-        return False, ""
+        blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
 
     @classmethod
     @abstractmethod
