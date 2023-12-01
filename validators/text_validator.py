@@ -4,6 +4,7 @@ import wandb
 import bittensor as bt
 import random
 import asyncio
+import torch
 from base_validator import BaseValidator
 from template.protocol import StreamPrompting
 import template.reward
@@ -52,7 +53,7 @@ class TextValidator(BaseValidator):
         return uid, full_response
 
     async def score_responses(self, query_responses, uid_to_question):
-        scores = {}
+        scores = torch.zeros(len(self.metagraph.hotkeys))
         uid_scores_dict = {}
         score_tasks = []
 

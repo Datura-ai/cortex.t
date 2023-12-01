@@ -3,6 +3,7 @@ import wandb
 import random
 import bittensor as bt
 import asyncio
+import torch
 from datasets import load_dataset
 from base_validator import BaseValidator
 import template.reward
@@ -77,7 +78,7 @@ class EmbeddingsValidator(BaseValidator):
         return uid, responses
 
     async def score_responses(self, query_responses, uid_to_question):
-        scores = {}
+        scores = torch.zeros(len(self.metagraph.hotkeys))
         uid_scores_dict = {}
         score_tasks = []
 
