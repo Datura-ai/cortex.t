@@ -7,14 +7,18 @@ import template
 import argparse
 import traceback
 import bittensor as bt
+import template.utils as utils
+
+from fastapi import FastAPI
+from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
-from template.protocol import IsAlive
-import template.utils as utils
+
 
 moving_average_scores = None
+app = FastAPI()
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -50,6 +54,37 @@ def initialize_components(config):
         exit()
 
     return wallet, subtensor, dendrite, metagraph
+
+def initialize_validators(vali_config):
+    text_vali = TextValidator(**vali_config)
+    image_vali = ImageValidator(**vali_config)
+    embed_vali = EmbeddingsValidator(**vali_config)
+
+    return text_vali, image_vali, embed_vali
+
+@app.post("/text-validator/")
+async def text_validator_endpoint(data: str): 
+    try:
+        validation_result = await text_vali.get_and_score(request_data.text)
+        return validation_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/image-validator/")
+async def image_validator_endpoint(data: str): 
+    try:
+        validation_result = await image_vali.get_and_score(request_data.text)
+        return validation_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/embeddings-validator/")
+async def embeddings_validator_endpoint(data: str):
+    try:
+        validation_result = await embed_vali.get_and_score(request_data.text)
+        return validation_result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
@@ -102,13 +137,10 @@ def update_weights(total_scores, steps_passed, validators, config, subtensor, wa
         avg_scores = total_scores / (steps_passed + 1)
         set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
-async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
+async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validators):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    validators = [TextValidator(dendrite, metagraph, config, subtensor, wallet), 
-                  ImageValidator(dendrite, metagraph, config, subtensor, wallet), 
-                  EmbeddingsValidator(dendrite, metagraph, config, subtensor, wallet)]
-    # validators = validators[0]
+    # validators = validators[2]
 
     while True:
         try:
@@ -131,14 +163,23 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             time.sleep(100)
 
 def main():
+    global validators
     config = get_config()
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
+    validator_config = {
+        "dendrite": dendrite,
+        "metagraph": metagraph,
+        "config": config,
+        "subtensor": subtensor,
+        "wallet": wallet
+    }
+    validators = initialize_validators(validator_config)
     init_wandb(my_subnet_uid, config)
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
+        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet, validators))
 
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
