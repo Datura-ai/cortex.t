@@ -29,7 +29,6 @@ if not AsyncOpenAI.api_key:
 client = AsyncOpenAI(timeout=30.0)
 list_update_lock = asyncio.Lock()
 
-
 global state
 global config
 moving_average_scores = None
@@ -60,7 +59,7 @@ def init_wandb(my_subnet_uid):
             name=run_name,
             anonymous="allow",
             reinit=False,
-            project='synthetic-QA',
+            project='synthetic-data-2',
             entity='cortex-t',
             config=config,
             dir=config.full_path,
@@ -81,12 +80,12 @@ def check_validator_registration(wallet, subtensor, metagraph):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-async def call_openai(messages, temperature, engine, seed=1234):
+async def call_openai(messages, temperature, model, seed=1234):
     for attempt in range(2):
         bt.logging.debug("Calling Openai")
         try:
             response = await client.chat.completions.create(
-                model=engine,
+                model=model,
                 messages=messages,
                 temperature=temperature,
                 seed=seed,
@@ -231,21 +230,39 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
-async def query_image(dendrite, axon, uid, syn, config, subtensor, wallet):
+async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet, timeout, syn_type):
     try:
-        bt.logging.info(f"Sent image request to uid: {uid}, {syn.messages}")
-        responses = await dendrite([axon], syn, deserialize=False, timeout=50)
+        bt.logging.info(f"Sent {syn_type} request to uid: {uid} using {syn.model} with timeout {timeout}")
+
+        if syn_type == "image" or syn_type == "embeddings":
+            responses = await dendrite([axon], syn, deserialize=False, timeout=timeout)
+
+        elif syn_type == "text":
+            bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.model}")
+            responses = ""
+            streaming = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 24)
+            for resp in streaming:
+                async for chunk in resp:
+                    if isinstance(chunk, list):
+                        # bt.logging.info(chunk[0])
+                        responses += chunk[0]
+                break
+
+        else: 
+            bt.logging.error(f"not a valid synapse type: {syn_type}")
+
         return uid, responses  # Return a tuple of the UID and the responses
     except Exception as e:
         bt.logging.error(f"Exception during query for uid {uid}: {e}")
         return uid, None 
 
 async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    engine = "dall-e-3"
+    model = "dall-e-3"
     weight = 1
     size = "1792x1024"
     quality = "standard"
     style = "vivid"
+    timeout = 35
 
     wandb_data = {
         "prompts": {},
@@ -263,8 +280,8 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
         # if wanting a specific image, redefine messages here with an image prompt and comment out the above line
         # messages = "aquamarine and pink, religious symbolism, american works on paper 1880–1950, flowerpunk, colorful assemblages"
         uid_to_messages[uid] = messages  # Store messages for each UID
-        syn = ImageResponse(messages=messages, engine=engine, size=size, quality=quality, style=style)
-        task = query_image(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
+        syn = ImageResponse(messages=messages, model=model, size=size, quality=quality, style=style)
+        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "images")
         query_tasks.append(task)
         wandb_data["prompts"][uid] = messages
 
@@ -322,27 +339,11 @@ async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, s
 
     return scores, uid_scores_dict
 
-async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
-    try:
-        bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.engine}")
-        full_response = ""
-        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 24)
-        for resp in responses:
-            async for chunk in resp:
-                if isinstance(chunk, list):
-                    # bt.logging.info(chunk[0])
-                    full_response += chunk[0]
-            break
-        return uid, full_response
-    
-    except Exception as e:
-        bt.logging.error(f"Exception during query for uid {uid}: {e}\n{traceback.format_exc()}")
-        return uid, None
-
 async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    engine = "gpt-4-1106-preview"
+    model = "gpt-4-1106-preview"
     weight = 1
     seed = 1234
+    timeout = 24
 
     # Data container for wandb logging
     wandb_data = {
@@ -359,8 +360,8 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         prompt = await get_question("text")
         uid_to_question[uid] = prompt
         messages = [{'role': 'user', 'content': prompt}]
-        syn = StreamPrompting(messages=messages, engine=engine, seed=seed)
-        task = query_text(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet)
+        syn = StreamPrompting(messages=messages, model=model, seed=seed)
+        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "text")
         query_tasks.append(task)
 
     query_responses = await asyncio.gather(*query_tasks)
@@ -383,7 +384,7 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
         # Decide to score all UIDs this round based on a 1/8 chance
         if will_score_all and response:
             messages = [{'role': 'user', 'content': uid_to_question[uid]}]
-            task = call_openai(messages, 0, engine, seed)
+            task = call_openai(messages, 0, model, seed)
             openai_tasks.append((uid, task))
 
     # Step 3: Run OpenAI calls concurrently for selected UIDs
@@ -439,17 +440,7 @@ async def call_openai_embeddings(model, texts, batch_size=10):
             bt.logging.error(f"Error in processing batch: {e}")
     return all_embeddings
 
-async def query_embeddings(dendrite, axon, uid, syn, config, subtensor, wallet, timeout):
-    try:
-        bt.logging.info(f"Sent embeddings request to uid: {uid} of {len(syn.texts)}")
-        responses = await dendrite([axon], syn, deserialize=False, timeout=timeout)
-        return uid, responses  # Return a tuple of the UID and the responses
-    except Exception as e:
-        bt.logging.error(f"Exception during query for uid {uid}: {e}")
-        return uid, None 
-
 async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    bt.logging.info("getting and scoring embeddings")
     model = "text-embedding-ada-002"
     weight = 1
     timeout = 15
@@ -474,7 +465,6 @@ async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, walle
     random_texts = get_random_texts('wikitext', 'wikitext-2-v1', 100)
     num_texts_per_uid = len(random_texts) // len(available_uids)
 
-    bt.logging.info(f"Received random_texts of len {len(random_texts)}")
     bt.logging.info(f"Each UID will receive {num_texts_per_uid} texts")
 
     for index, uid in enumerate(available_uids):
@@ -486,8 +476,7 @@ async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, walle
             json.dump(prompt, f, indent=4)
 
         syn = Embeddings(model=model, texts=prompt)
-        bt.logging.info(f"Sent synapse to UID {uid} with {len(prompt)} texts")
-        task = query_embeddings(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout)
+        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "embeddings")
         query_tasks.append(task)
 
     query_responses = await asyncio.gather(*query_tasks)

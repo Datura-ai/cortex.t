@@ -354,7 +354,7 @@ class StreamingTemplateMiner(StreamMiner):
         bt.logging.info(f"received image request: {synapse}")
         try:
             # Extract necessary information from synapse
-            engine = synapse.engine
+            model = synapse.model
             messages = synapse.messages
             size = synapse.size
             quality = synapse.quality
@@ -362,7 +362,7 @@ class StreamingTemplateMiner(StreamMiner):
 
             # Await the response from the asynchronous function
             meta = await client.images.generate(
-                model=engine,
+                model=model,
                 prompt=messages,
                 size=size,
                 quality=quality,
@@ -395,13 +395,13 @@ class StreamingTemplateMiner(StreamMiner):
         
         async def _prompt(synapse, send: Send):
             try:
-                engine = synapse.engine
+                model = synapse.model
                 messages = synapse.messages
                 seed=synapse.seed
                 bt.logging.info(synapse)
-                bt.logging.info(f"question is {messages} with engine {engine}, seed: {seed}")
+                bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
                 response = await client.chat.completions.create(
-                    model= engine,
+                    model= model,
                     messages= messages,
                     temperature= 0.0001,
                     stream= True,
