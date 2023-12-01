@@ -25,7 +25,7 @@ AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not AsyncOpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=30.0)
+client = AsyncOpenAI(timeout=90.0)
 list_update_lock = asyncio.Lock()
 
 
@@ -81,7 +81,10 @@ def check_validator_registration(wallet, subtensor, metagraph):
         exit()
 
 async def call_openai(messages, temperature, engine, seed=1234):
-    for attempt in range(2):
+    max_retries = 5
+    backoff_secs = 0.5
+
+    for attempt in range(max_retries):
         bt.logging.debug("Calling Openai")
         try:
             response = await client.chat.completions.create(
@@ -95,8 +98,8 @@ async def call_openai(messages, temperature, engine, seed=1234):
             return response
 
         except Exception as e:
-            bt.logging.info(f"Error when calling OpenAI: {e}")
-            await asyncio.sleep(0.5) 
+            bt.logging.info(f"Error when calling OpenAI: {e}\nRetrying in {backoff_secs * attempt} seconds.")
+            await asyncio.sleep(backoff_secs * attempt)
     
     return None
 
@@ -130,7 +133,8 @@ async def get_list(list_type, theme=None):
     prompt = list_type_mapping[list_type]["prompt"]
 
     messages = [{'role': "user", 'content': prompt}]
-    max_retries = 3
+    max_retries = 5
+    backoff_secs = 1
     for retry in range(max_retries):
         try:
             random_seed = random.randint(1, 10000)
@@ -144,7 +148,8 @@ async def get_list(list_type, theme=None):
                 bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
         except Exception as e:
             retry += 1
-            bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}")
+            bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}\nRetrying in {backoff_secs * retry} seconds.")
+            time.sleep(backoff_secs * retry)
 
     bt.logging.error(f"No list found after {max_retries} retries, using default list.")
     return default
