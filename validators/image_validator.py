@@ -1,5 +1,6 @@
 
 import requests
+import torch
 import wandb
 import datetime
 import bittensor as bt
@@ -49,7 +50,7 @@ class ImageValidator(BaseValidator):
         return uid, responses
 
     async def score_responses(self, query_responses, uid_to_messages):
-        scores = {}
+        scores = torch.zeros(len(self.metagraph.hotkeys))
         uid_scores_dict = {}
         score_tasks = []
 

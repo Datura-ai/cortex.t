@@ -111,7 +111,6 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         try:
             # Sync metagraph and initialze scores
             metagraph = subtensor.metagraph(config.netuid)
-            scores = torch.zeros(len(metagraph.hotkeys))
             uid_scores_dict = {}
             
             # Get the available UIDs
@@ -123,7 +122,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 continue
 
             validator_index = int(steps_passed / len(validators))
-            print(validator_index)
+            print(f"validator index: {validator_index}")
             validator = validators[validator_index]
             bt.logging.info(f"starting with validator {validator}")
             scores, uid_scores_dict = await validator.get_and_score(available_uids)
