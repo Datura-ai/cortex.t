@@ -1,13 +1,14 @@
-
 import wandb
-import random
-import bittensor as bt
-import asyncio
 import torch
-from datasets import load_dataset
-from base_validator import BaseValidator
+import random
+import asyncio
+import bittensor as bt
 import template.reward
+
+from . import client
+from datasets import load_dataset
 from template.protocol import Embeddings
+from base_validator import BaseValidator
 
 
 async def call_openai_embeddings(model, texts, batch_size=10):

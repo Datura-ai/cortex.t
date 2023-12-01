@@ -1,6 +1,7 @@
-from abc import ABC, abstractmethod
 import asyncio
 import bittensor as bt
+
+from abc import ABC, abstractmethod
 
 
 class BaseValidator(ABC):

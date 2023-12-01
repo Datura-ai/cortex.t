@@ -3,14 +3,16 @@ import requests
 import torch
 import wandb
 import datetime
-import bittensor as bt
 import asyncio
+import template.reward
+import bittensor as bt
+
 from PIL import Image
 from io import BytesIO
+from template.utils import get_question
 from base_validator import BaseValidator
 from template.protocol import ImageResponse
-import template.reward
-from template.utils import get_question
+
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):

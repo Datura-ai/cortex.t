@@ -1,13 +1,14 @@
 
 import math
+import torch
 import wandb
-import bittensor as bt
 import random
 import asyncio
-import torch
+import template.reward
+import bittensor as bt
+
 from base_validator import BaseValidator
 from template.protocol import StreamPrompting
-import template.reward
 from template.utils import call_openai, get_question
 
 
