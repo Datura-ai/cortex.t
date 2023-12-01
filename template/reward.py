@@ -179,7 +179,7 @@ async def embeddings_score(openai_answer: List, response: List, weight: float, t
 
     # Average the similarities
     avg_similarity = sum(similarities) / len(similarities)
-    bt.logging.info(f"Similarities: {similarities[:1]}\nAverage embeddings similarity: {avg_similarity}")
+    bt.logging.info(f"Average similarity: {avg_similarity}")
 
     # Check against threshold
     if avg_similarity > threshold: 
