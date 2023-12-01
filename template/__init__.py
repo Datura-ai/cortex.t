@@ -27,6 +27,14 @@ __spec_version__ = (
     + (1 * int(version_split[2]))
 )
 
+import os
+from openai import AsyncOpenAI
+AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+if not AsyncOpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+client = AsyncOpenAI(timeout=30.0)
+
 # Blacklist variables
 ALLOW_NON_REGISTERED = False
 PROMPT_BLACKLIST_STAKE = 50
