@@ -100,6 +100,28 @@ async def call_openai(messages, temperature, model, seed=1234):
     
     return None
 
+async def call_openai_embeddings(model, texts, batch_size=10):
+    batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+    tasks = []
+    for batch in batches:
+        filtered_batch = [text for text in batch if text.strip()]
+        if filtered_batch:
+            print(filtered_batch)
+            task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
+            tasks.append(task)
+        else:
+            bt.logging.debug("Skipped an empty batch.")
+    
+    all_embeddings = []
+    for task in asyncio.as_completed(tasks):
+        try:
+            response = await task
+            batch_embeddings = [item.embedding for item in response.data]
+            all_embeddings.extend(batch_embeddings)
+        except Exception as e:
+            bt.logging.error(f"Error in processing batch: {e}")
+    return all_embeddings
+
 async def get_list(list_type, theme=None):
 
     list_type_mapping = {
@@ -417,28 +439,6 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     if config.wandb_on: wandb.log(wandb_data)
 
     return scores, uid_scores_dict
-
-async def call_openai_embeddings(model, texts, batch_size=10):
-    batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-    tasks = []
-    for batch in batches:
-        filtered_batch = [text for text in batch if text.strip()]
-        if filtered_batch:
-            print(filtered_batch)
-            task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
-            tasks.append(task)
-        else:
-            bt.logging.debug("Skipped an empty batch.")
-    
-    all_embeddings = []
-    for task in asyncio.as_completed(tasks):
-        try:
-            response = await task
-            batch_embeddings = [item.embedding for item in response.data]
-            all_embeddings.extend(batch_embeddings)
-        except Exception as e:
-            bt.logging.error(f"Error in processing batch: {e}")
-    return all_embeddings
 
 async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
     model = "text-embedding-ada-002"
