@@ -2,6 +2,8 @@ import os
 import time
 import torch
 import wandb
+import string
+import random
 import asyncio
 import template
 import argparse
@@ -18,7 +20,11 @@ from embeddings_validator import EmbeddingsValidator
 
 
 moving_average_scores = None
+text_vali = None
+image_vali = None
+embed_vali = None
 app = FastAPI()
+
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -35,12 +41,38 @@ def get_config():
         os.makedirs(config.full_path, exist_ok=True)
     return config
 
-def init_wandb(my_subnet_uid, config):
+
+def init_wandb(config, my_uid, wallet):
     if config.wandb_on:
-        utils.init_qa_wandb(my_subnet_uid, config)
-        utils.init_image_wandb(my_subnet_uid, config)
-        utils.init_embeddings_wandb(my_subnet_uid, config)
-        bt.logging.success("started all wandb runs")
+        run_name = f'validator-{my_uid}-{template.__version__}'
+        config.uid = my_uid
+        config.hotkey = wallet.hotkey.ss58_address
+        config.run_name = run_name
+        config.version = template.__version__
+        config.type = 'validator'
+
+        init_specific_wandb('embeddings-data', my_uid, config, run_name, wallet)
+        init_specific_wandb('synthetic-QA-v2', my_uid, config, run_name, wallet)
+        init_specific_wandb('synthetic-images', my_uid, config, run_name, wallet)
+
+        bt.logging.success("Started all wandb runs")
+
+
+def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
+    run = wandb.init(
+        name=run_name,
+        project=project,
+        entity='cortex-t',
+        config=config,
+        dir=config.full_path,
+        reinit=True
+    )
+
+    # Sign the run to ensure it's from the correct hotkey
+    signature = wallet.hotkey.sign(run.id.encode()).hex()
+    config.signature = signature 
+    run.config.update({"signature": signature})
+
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)
@@ -56,12 +88,14 @@ def initialize_components(config):
 
     return wallet, subtensor, dendrite, metagraph, my_uid
 
+
 def initialize_validators(vali_config):
+    global text_vali, image_vali, embed_vali
+
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     embed_vali = EmbeddingsValidator(**vali_config)
 
-    return text_vali, image_vali, embed_vali
 
 @app.post("/text-validator/")
 async def text_validator_endpoint(data: str): 
@@ -71,6 +105,7 @@ async def text_validator_endpoint(data: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/image-validator/")
 async def image_validator_endpoint(data: str): 
     try:
@@ -79,6 +114,7 @@ async def image_validator_endpoint(data: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/embeddings-validator/")
 async def embeddings_validator_endpoint(data: str):
     try:
@@ -86,6 +122,7 @@ async def embeddings_validator_endpoint(data: str):
         return validation_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
@@ -101,12 +138,14 @@ async def check_uid(dendrite, axon, uid):
         bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
         return None
 
+
 async def get_available_uids(dendrite, metagraph):
     """Get a list of available UIDs asynchronously."""
     tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
     uids = await asyncio.gather(*tasks)
     # Filter out None values (inactive UIDs)
     return [uid for uid in uids if uid is not None]
+
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
@@ -122,15 +161,16 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     bt.logging.success("Successfully set weights based on moving average.")
     
 async def sync_metagraph(subtensor, config):
-    # Sync metagraph and return it
     return subtensor.metagraph(config.netuid)
 
-async def calculate_scores(dendrite, metagraph, validators, available_uids, steps_passed):
+
+async def process_modality(dendrite, metagraph, validators, available_uids, steps_passed):
     # Calculate and return scores and uid_scores_dict
     validator_index = steps_passed % len(validators)
     validator = validators[validator_index]
     scores, uid_scores_dict = await validator.get_and_score(available_uids)
     return scores, uid_scores_dict
+
 
 def update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph):
     # Update weights based on total scores
@@ -138,9 +178,12 @@ def update_weights(total_scores, steps_passed, validators, config, subtensor, wa
         avg_scores = total_scores / (steps_passed + 1)
         set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
-async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validators):
+
+async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
+    # validators to use in the loop
+    validators = [text_vali, image_vali, embed_vali]
     # validators = validators[2]
 
     while True:
@@ -153,7 +196,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validato
                 time.sleep(5)
                 continue
 
-            scores, uid_scores_dict = await calculate_scores(dendrite, metagraph, validators, available_uids, steps_passed)
+            scores, uid_scores_dict = await process_modality(dendrite, metagraph, validators, available_uids, steps_passed)
             total_scores += scores
             update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph)
 
@@ -164,10 +207,11 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validato
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
             time.sleep(100)
 
+
 def main():
     global validators
     config = get_config()
-    wallet, subtensor, dendrite, metagraph, my_subnet_uid = initialize_components(config)
+    wallet, subtensor, dendrite, metagraph, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
         "metagraph": metagraph,
@@ -175,12 +219,12 @@ def main():
         "subtensor": subtensor,
         "wallet": wallet
     }
-    validators = initialize_validators(validator_config)
-    init_wandb(my_subnet_uid, config)
+    initialize_validators(validator_config)
+    init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet, validators))
+        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
@@ -194,6 +238,7 @@ def main():
 
     finally:
         loop.close()
+
 
 if __name__ == "__main__":
     main()
