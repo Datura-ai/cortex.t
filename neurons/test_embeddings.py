@@ -46,12 +46,12 @@ async def embeddings(texts, model):
         bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 
-def get_random_texts(dataset_name, config_name, num_samples=10000):
+def get_random_texts(dataset_name, config_name, num_samples=10):
     dataset = load_dataset(dataset_name, config_name)
     texts = [item['text'] for item in dataset['train']] 
     return random.sample(texts, num_samples)
 
-random_texts = get_random_texts('wikitext', 'wikitext-2-v1', 10000)
+random_texts = get_random_texts('wikitext', 'wikitext-2-v1', 10)
 print(random_texts)
 
 def main():

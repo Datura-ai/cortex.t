@@ -107,13 +107,14 @@ class StreamMiner(ABC):
         try:
             print("enter base_blacklist")
             hotkey = synapse.dendrite.hotkey
+            synapse_type = type(synapse).__name__
 
             if hotkey in template.WHITELISTED_KEYS:
-                return False, f"accepting request from {hotkey}"
+                return False, f"accepting {synapse_type} from {hotkey}"
 
             # Check if the key is black listed.
             if hotkey in template.BLACKLISTED_KEYS:
-                return True, "Blacklisted a blacklisted hotkey"
+                return True, f"Blacklisted a {synapse_type} request from blacklisted hotkey"
 
             uid = None
             axon = None
@@ -124,12 +125,12 @@ class StreamMiner(ABC):
                     break
 
             if uid is None and template.ALLOW_NON_REGISTERED == False:
-                return True, f"Blacklisted a non registered hotkey's request {hotkey}"
+                return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
             tao = self.metagraph.neurons[uid].stake.tao
             if tao < blacklist_amt:
-                return True, f"Blacklisted a low stake request: {tao} < {blacklist_amt} from {hotkey}"
+                return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
 
             time_window = template.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
@@ -150,7 +151,7 @@ class StreamMiner(ABC):
 
             self.request_timestamps[hotkey].append(current_time)
 
-            return False, f"accepting request from {hotkey}"
+            return False, f"accepting {synapse_type} request from {hotkey}"
 
         except Exception as e:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
@@ -311,28 +312,42 @@ class StreamingTemplateMiner(StreamMiner):
         pass
 
 
-    async def embeddings(synapse: Embeddings) -> Embeddings:
-        pass
-    #     bt.logging.info(f"Received embeddings request: {synapse}")
+    async def embeddings(self, synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
 
-    #     async def get_embeddings_in_batch(texts, model, batch_size=10):
-    #         batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-    #         all_embeddings = []
-    #         for batch in batches:
-    #             response = await client.embeddings.create(input=batch, model=model)
-    #             batch_embeddings = [item.embedding for item in response.data]
-    #             all_embeddings.extend(batch_embeddings)
-    #         return all_embeddings
+        async def get_embeddings_in_batch(texts, model, batch_size=10):
+            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            tasks = []
+            for batch in batches:
+                filtered_batch = [text for text in batch if text.strip()]
+                if filtered_batch:
+                    print(filtered_batch)
+                    task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
+                    tasks.append(task)
+                else:
+                    bt.logging.info("Skipped an empty batch.")
+            
+            all_embeddings = []
+            for task in asyncio.as_completed(tasks):
+                try:
+                    response = await task
+                    batch_embeddings = [item.embedding for item in response.data]
+                    all_embeddings.extend(batch_embeddings)
+                except Exception as e:
+                    bt.logging.error(f"Error in processing batch: {e}")
 
-    # try:
-    #     texts = synapse.texts
-    #     model = synapse.model
-    #     batched_embeddings = await get_embeddings_in_batch(texts, model)
-    #     synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+            return all_embeddings
 
-    #     return synapse
-    # except Exception as e:
-    #     bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+        try:
+            texts = synapse.texts
+            model = synapse.model
+            batched_embeddings = await get_embeddings_in_batch(texts, model)
+            synapse.embeddings = batched_embeddings
+            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
+            return synapse
+        except Exception as e:
+            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
