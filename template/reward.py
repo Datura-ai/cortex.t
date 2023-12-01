@@ -40,6 +40,7 @@ from transformers import CLIPProcessor, CLIPModel
 
 
 # ==== TEXT ====
+
 def calculate_text_similarity(text1, text2):
     # Initialize the TF-IDF Vectorizer
     vectorizer = TfidfVectorizer()
@@ -59,7 +60,10 @@ async def openai_score(openai_answer: str, response: str, weight: float) -> floa
 
     return weight if similarity > .75 else 0
 
+
+
 # ==== IMAGES =====
+
 # Load the CLIP model and processor
 model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
