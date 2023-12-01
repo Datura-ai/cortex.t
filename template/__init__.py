@@ -40,9 +40,16 @@ IMAGE_BLACKLIST_STAKE = 50
 EMBEDDING_BLACKLIST_STAKE = 50
 ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE)
 MIN_REQUEST_PERIOD = 2
-MAX_REQUESTS = 80
-TESTING_KEY = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
-WHITELISTED_KEYS = [TESTING_KEY]
+MAX_REQUESTS = 40
+# must have the test_key whitelisted to avoid a global blacklist
+test_key = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
+corcel = "5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8"
+
+weight_copiers = []
+WHITELISTED_KEYS = [test_key, corcel]
+running_wandb = [149, 255, 57, 109, 81, 124, 16, 26, 178, 103, 146, 0, 1, 244, 113, 42]
+actual_validator_uids = [244, 0, 103, 81, 117, 178, 1, 26, 224, 214, 109, 16, 104, 2, 124, 102, 7, 135, 114, 251, 113, 4]
+validators_running_wandb = [0, 1, 16, 26, 81, 103, 109, 113, 124, 178, 244]
 BLACKLISTED_KEYS = []
 
 
