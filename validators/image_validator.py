@@ -1,7 +1,15 @@
+
+import requests
+import wandb
+import datetime
+import bittensor as bt
+import asyncio
 from PIL import Image
 from io import BytesIO
 from base_validator import BaseValidator
 from template.protocol import ImageResponse
+import template.reward
+from template.utils import get_question
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
@@ -35,6 +43,9 @@ class ImageValidator(BaseValidator):
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_messages
+
+    async def handle_response(self, uid, responses):
+        return uid, responses
 
     async def score_responses(self, query_responses, uid_to_messages):
         scores = {}
