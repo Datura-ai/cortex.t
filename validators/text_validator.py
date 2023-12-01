@@ -14,6 +14,7 @@ from template.utils import call_openai, get_question
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
         super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=24)
+        self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
         self.weight = 1
@@ -47,7 +48,7 @@ class TextValidator(BaseValidator):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
-                    # bt.logging.info(chunk[0])
+                    bt.logging.debug(chunk[0])
                     responses += chunk[0]
             break
         return uid, full_response

@@ -1,14 +1,10 @@
 import os
-import re
-import json
-import math
 import time
 import torch
 import wandb
 import asyncio
 import template
 import argparse
-import datetime
 import traceback
 import bittensor as bt
 from base_validator import BaseValidator
@@ -105,15 +101,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     image_validator = ImageValidator(dendrite, metagraph, config, subtensor, wallet)
     text_validator = TextValidator(dendrite, metagraph, config, subtensor, wallet)
     embeddings_validator = EmbeddingsValidator(dendrite, metagraph, config, subtensor, wallet)
-    validators = [image_validator, text_validator, embeddings_validator]
+    validators = [text_validator, image_validator, embeddings_validator]
 
     while True:
         try:
             # Sync metagraph and initialze scores
             metagraph = subtensor.metagraph(config.netuid)
             uid_scores_dict = {}
-            
-            # Get the available UIDs
             available_uids = await get_available_uids(dendrite, metagraph)
             bt.logging.info(f"available_uids is {available_uids}")
 
@@ -121,25 +115,23 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 time.sleep(5)
                 continue
 
-            validator_index = int(steps_passed / len(validators))
-            print(f"validator index: {validator_index}")
+            # Use modulo to get the index for the current validator
+            validator_index = steps_passed % len(validators)
             validator = validators[validator_index]
-            validator_type = validator.__class__.__name__
-            bt.logging.info(f"calling {validator_type}")
             scores, uid_scores_dict = await validator.get_and_score(available_uids)
             total_scores += scores
-            bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
+            bt.logging.info(f"scores = {uid_scores_dict}, {len(validators) - 1 - steps_passed % len(validators)} iterations until next cycle")
 
             # Update weights after processing all batches
-            if steps_passed % 5 == 4:
+            if steps_passed % len(validators) == len(validators) - 1:
                 avg_scores = total_scores / (steps_passed + 1)
                 bt.logging.info(f"avg scores is {avg_scores}")
-                steps_passed = 0
                 set_weights(avg_scores, config, subtensor, wallet, metagraph)
                 total_scores = torch.zeros(len(metagraph.hotkeys))
 
             steps_passed += 1
-            time.sleep(100)
+            bt.logging.info(f"steps_passed = {steps_passed}")
+            time.sleep(3)
 
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
