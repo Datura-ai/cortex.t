@@ -102,6 +102,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     text_validator = TextValidator(dendrite, metagraph, config, subtensor, wallet)
     embeddings_validator = EmbeddingsValidator(dendrite, metagraph, config, subtensor, wallet)
     validators = [text_validator, image_validator, embeddings_validator]
+    validators = [embeddings_validator]
 
     while True:
         try:

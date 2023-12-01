@@ -5,33 +5,10 @@ import asyncio
 import bittensor as bt
 import template.reward
 
-from . import client
+from template import client
 from datasets import load_dataset
 from template.protocol import Embeddings
 from base_validator import BaseValidator
-
-
-async def call_openai_embeddings(model, texts, batch_size=10):
-    batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-    tasks = []
-    for batch in batches:
-        filtered_batch = [text for text in batch if text.strip()]
-        if filtered_batch:
-            print(filtered_batch)
-            task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
-            tasks.append(task)
-        else:
-            bt.logging.debug("Skipped an empty batch.")
-    
-    all_embeddings = []
-    for task in asyncio.as_completed(tasks):
-        try:
-            response = await task
-            batch_embeddings = [item.embedding for item in response.data]
-            all_embeddings.extend(batch_embeddings)
-        except Exception as e:
-            bt.logging.error(f"Error in processing batch: {e}")
-    return all_embeddings
 
 
 class EmbeddingsValidator(BaseValidator):
@@ -48,6 +25,28 @@ class EmbeddingsValidator(BaseValidator):
             "scores": {},
             "timestamps": {},
         }
+
+    async def call_openai_embeddings(self, model, texts, batch_size=10):
+        batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+        tasks = []
+        for batch in batches:
+            filtered_batch = [text for text in batch if text.strip()]
+            if filtered_batch:
+                print(filtered_batch)
+                task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
+                tasks.append(task)
+            else:
+                bt.logging.debug("Skipped an empty batch.")
+        
+        all_embeddings = []
+        for task in asyncio.as_completed(tasks):
+            try:
+                response = await task
+                batch_embeddings = [item.embedding for item in response.data]
+                all_embeddings.extend(batch_embeddings)
+            except Exception as e:
+                bt.logging.error(f"Error in processing batch: {e}")
+        return all_embeddings
 
     def get_random_texts(self, dataset_name, config_name, num_samples=100):
         dataset = load_dataset(dataset_name, config_name)
@@ -82,7 +81,8 @@ class EmbeddingsValidator(BaseValidator):
     async def score_responses(self, query_responses, uid_to_question):
         scores = torch.zeros(len(self.metagraph.hotkeys))
         uid_scores_dict = {}
-        score_tasks = []
+        embedding_score_tasks = []
+        scoring_tasks = []
 
         random_number = random.random()
         will_score_all = random_number < 1/1.1
@@ -91,25 +91,28 @@ class EmbeddingsValidator(BaseValidator):
         for uid, response in query_responses:
             if will_score_all and response:
                 messages = uid_to_question[uid]
-                task = call_openai_embeddings(self.model, messages)
-                score_tasks.append((uid, task))
+                task = self.call_openai_embeddings(self.model, messages)
+                embedding_score_tasks.append((uid, task))
 
-        openai_responses = await asyncio.gather(*[task for _, task in score_tasks])
+        # Await all embedding tasks
+        embeddings_results = await asyncio.gather(*[task for _, task in embedding_score_tasks])
 
-        for (uid, _), openai_answer in zip(score_tasks, openai_responses):
+        # Now create new tasks for scoring embeddings
+        for (uid, _), openai_answer in zip(embedding_score_tasks, embeddings_results):
             response = next(res for u, res in query_responses if u == uid)
             response = response[0]
             if response.embeddings is not None:
                 response_embeddings = response.embeddings
                 task = template.reward.embeddings_score(openai_answer, response_embeddings, self.weight)
-                score_tasks.append((uid, task))
+                scoring_tasks.append((uid, task))
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
 
-        scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+        # Await all scoring tasks
+        scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
 
-        for (uid, _), score in zip(score_tasks, scored_responses):
+        for (uid, _), score in zip(scoring_tasks, scored_responses):  # Use scoring_tasks here
             scores[uid] = score if score is not None else 0
             uid_scores_dict[uid] = scores[uid]
             self.wandb_data["scores"][uid] = score
