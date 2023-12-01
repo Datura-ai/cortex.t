@@ -124,7 +124,8 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             validator_index = int(steps_passed / len(validators))
             print(f"validator index: {validator_index}")
             validator = validators[validator_index]
-            bt.logging.info(f"starting with validator {validator}")
+            validator_type = validator.__class__.__name__
+            bt.logging.info(f"calling {validator_type}")
             scores, uid_scores_dict = await validator.get_and_score(available_uids)
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")

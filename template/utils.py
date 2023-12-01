@@ -73,7 +73,7 @@ async def get_list(list_type, theme=None):
     for retry in range(max_retries):
         try:
             random_seed = random.randint(1, 10000)
-            answer = await utils.call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
+            answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = utils.extract_python_list(answer)
             if extracted_list:
