@@ -3,6 +3,7 @@ import re
 import json
 import math
 import time
+import torch
 import wandb
 import asyncio
 import template
@@ -34,7 +35,7 @@ def get_config():
         os.makedirs(config.full_path, exist_ok=True)
     return config
 
-def init_wandb(my_subnet_uid):
+def init_wandb(my_subnet_uid, config):
     if config.wandb_on:
         run_name = f'validator-{my_subnet_uid}'
         config.run_name = run_name
@@ -52,15 +53,16 @@ def init_wandb(my_subnet_uid):
         bt.logging.success('Started wandb run')
 
 def initialize_components(config):
-    if wallet.hotkey.ss58_address not in metagraph.hotkeys:
-        bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
-        exit()
     bt.logging(config=config, logging_dir=config.full_path)
     bt.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
     wallet = bt.wallet(config=config)
     subtensor = bt.subtensor(config=config)
-    dendrite = bt.dendrite(wallet=wallet)
     metagraph = subtensor.metagraph(config.netuid)
+    dendrite = bt.dendrite(wallet=wallet)
+    if wallet.hotkey.ss58_address not in metagraph.hotkeys:
+        bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
+        exit()
+
     return wallet, subtensor, dendrite, metagraph
 
 async def check_uid(dendrite, axon, uid):
@@ -153,9 +155,8 @@ def main():
     config = get_config()
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     bt.logging.debug(f"got {wallet}, {subtensor}, {dendrite}, {metagraph}")
-    check_validator_registration(wallet, subtensor, metagraph)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
-    init_wandb(my_subnet_uid)
+    init_wandb(my_subnet_uid, config)
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
     return config
 
