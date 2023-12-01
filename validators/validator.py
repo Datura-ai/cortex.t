@@ -85,43 +85,45 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
     
+async def sync_metagraph(subtensor, config):
+    # Sync metagraph and return it
+    return subtensor.metagraph(config.netuid)
+
+async def calculate_scores(dendrite, metagraph, validators, available_uids, steps_passed):
+    # Calculate and return scores and uid_scores_dict
+    validator_index = steps_passed % len(validators)
+    validator = validators[validator_index]
+    scores, uid_scores_dict = await validator.get_and_score(available_uids)
+    return scores, uid_scores_dict
+
+def update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph):
+    # Update weights based on total scores
+    if steps_passed % len(validators) == len(validators) - 1:
+        avg_scores = total_scores / (steps_passed + 1)
+        set_weights(avg_scores, config, subtensor, wallet, metagraph)
+
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    image_validator = ImageValidator(dendrite, metagraph, config, subtensor, wallet)
-    text_validator = TextValidator(dendrite, metagraph, config, subtensor, wallet)
-    embeddings_validator = EmbeddingsValidator(dendrite, metagraph, config, subtensor, wallet)
-    validators = [text_validator, image_validator, embeddings_validator]
-    validators = [embeddings_validator]
+    validators = [TextValidator(dendrite, metagraph, config, subtensor, wallet), 
+                  ImageValidator(dendrite, metagraph, config, subtensor, wallet), 
+                  EmbeddingsValidator(dendrite, metagraph, config, subtensor, wallet)]
+    # validators = validators[0]
 
     while True:
         try:
-            # Sync metagraph and initialze scores
-            metagraph = subtensor.metagraph(config.netuid)
-            uid_scores_dict = {}
+            metagraph = await sync_metagraph(subtensor, config)
             available_uids = await get_available_uids(dendrite, metagraph)
-            bt.logging.info(f"available_uids is {available_uids}")
 
             if not available_uids:
                 time.sleep(5)
                 continue
 
-            # Use modulo to get the index for the current validator
-            validator_index = steps_passed % len(validators)
-            validator = validators[validator_index]
-            scores, uid_scores_dict = await validator.get_and_score(available_uids)
+            scores, uid_scores_dict = await calculate_scores(dendrite, metagraph, validators, available_uids, steps_passed)
             total_scores += scores
-            bt.logging.info(f"scores = {uid_scores_dict}, {len(validators) - 1 - steps_passed % len(validators)} iterations until next cycle")
-
-            # Update weights after processing all batches
-            if steps_passed % len(validators) == len(validators) - 1:
-                avg_scores = total_scores / (steps_passed + 1)
-                bt.logging.info(f"avg scores is {avg_scores}")
-                set_weights(avg_scores, config, subtensor, wallet, metagraph)
-                total_scores = torch.zeros(len(metagraph.hotkeys))
+            update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
-            bt.logging.info(f"steps_passed = {steps_passed}")
             time.sleep(3)
 
         except Exception as e:
@@ -133,10 +135,11 @@ def main():
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     init_wandb(my_subnet_uid, config)
-
     loop = asyncio.get_event_loop()
+
     try:
         loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
+
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
         tasks = asyncio.all_tasks(loop)
@@ -146,6 +149,7 @@ def main():
         state = utils.get_state()
         utils.save_state_to_file(state)
         if config.wandb_on: wandb.finish()
+
     finally:
         loop.close()
 
