@@ -31,10 +31,10 @@ class ImageResponse( bt.Synapse):
         description="Messages related to the image response."
     )
 
-    engine: str = pydantic.Field(
+    model: str = pydantic.Field(
         ...,
-        title="Engine",
-        description="The engine used for generating the image."
+        title="Model",
+        description="The model used for generating the image."
     )
 
     style: str = pydantic.Field(
@@ -118,10 +118,10 @@ class StreamPrompting( bt.StreamingSynapse ):
         description="Completion status of the current StreamPrompting object. This attribute is mutable and can be updated.",
     )
 
-    engine: str = pydantic.Field(
+    model: str = pydantic.Field(
         "",
-        title="engine",
-        description="The engine that which to use when calling openai for your response.",
+        title="model",
+        description="The model that which to use when calling openai for your response.",
     )
 
     async def process_streaming_response(self, response: StreamingResponse):
