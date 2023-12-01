@@ -33,9 +33,9 @@ def get_config():
 
 def init_wandb(my_subnet_uid, config):
     if config.wandb_on:
-        init_qa_wandb(my_subnet_uid, config)
-        init_image_wandb(my_subnet_uid, config)
-        init_embeddings_wandb(my_subnet_uid, config)
+        utils.init_qa_wandb(my_subnet_uid, config)
+        utils.init_image_wandb(my_subnet_uid, config)
+        utils.init_embeddings_wandb(my_subnet_uid, config)
         bt.logging.success("started all wandb runs")
 
 def initialize_components(config):
