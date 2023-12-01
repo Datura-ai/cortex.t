@@ -252,296 +252,295 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
 
-async def query_miner(dendrite, axon, uid, syn, config, subtensor, wallet, timeout, syn_type):
-    try:
-        bt.logging.info(f"Sent {syn_type} request to uid: {uid} using {syn.model} with timeout {timeout}")
 
-        if syn_type == "image" or syn_type == "embeddings":
-            responses = await dendrite([axon], syn, deserialize=False, timeout=timeout)
+class BaseValidator:
+    def __init__(self, dendrite, metagraph, config, subtensor, wallet, timeout):
+        self.dendrite = dendrite
+        self.metagraph = metagraph
+        self.config = config
+        self.subtensor = subtensor
+        self.wallet = wallet
+        self.timeout = timeout
 
-        elif syn_type == "text":
-            bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.model}")
-            responses = ""
-            streaming = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 24)
-            for resp in streaming:
-                async for chunk in resp:
-                    if isinstance(chunk, list):
-                        # bt.logging.info(chunk[0])
-                        responses += chunk[0]
-                break
+    async def query_miner(self, axon, uid, syn, syn_type):
+        try:
+            bt.logging.info(f"Sent {syn_type} request to uid: {uid} using {syn.model} with timeout {timeout}")
 
-        else: 
-            bt.logging.error(f"not a valid synapse type: {syn_type}")
+            if syn_type == "image" or syn_type == "embeddings":
+                responses = await self.dendrite([axon], syn, deserialize=False, timeout=timeout)
 
-        return uid, responses  # Return a tuple of the UID and the responses
-    except Exception as e:
-        bt.logging.error(f"Exception during query for uid {uid}: {e}")
-        return uid, None 
+            elif syn_type == "text":
+                bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.model}")
+                responses = ""
+                streaming = await asyncio.wait_for(self.dendrite([axon], syn, deserialize=False, streaming=True), 24)
+                for resp in streaming:
+                    async for chunk in resp:
+                        if isinstance(chunk, list):
+                            # bt.logging.info(chunk[0])
+                            responses += chunk[0]
+                    break
 
-async def get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    model = "dall-e-3"
-    weight = 1
-    size = "1792x1024"
-    quality = "standard"
-    style = "vivid"
-    timeout = 35
+            else: 
+                bt.logging.error(f"not a valid synapse type: {syn_type}")
 
-    wandb_data = {
-        "prompts": {},
-        "responses": {},
-        "images": {},
-        "scores": {},
-        "timestamps": {},
-    }
-
-    # Step 1: Query all images concurrently
-    query_tasks = []
-    uid_to_messages = {}
-    for uid in available_uids:
-        messages = await get_question("images")
-        # if wanting a specific image, redefine messages here with an image prompt and comment out the above line
-        # messages = "aquamarine and pink, religious symbolism, american works on paper 1880–1950, flowerpunk, colorful assemblages"
-        uid_to_messages[uid] = messages  # Store messages for each UID
-        syn = ImageResponse(messages=messages, model=model, size=size, quality=quality, style=style)
-        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "images")
-        query_tasks.append(task)
-        wandb_data["prompts"][uid] = messages
+            return uid, responses  # Return a tuple of the UID and the responses
+        except Exception as e:
+            bt.logging.error(f"Exception during query for uid {uid}: {e}")
+            return uid, None 
 
 
-    query_responses = await asyncio.gather(*query_tasks)
+    async def perform_query(self, available_uids, query_type):
+        pass
 
-    # Step 2: Create scoring tasks for all images
-    score_tasks = []
-    for uid, response in query_responses:
-        if response:
-            response = response[0]
-            completion = response.completion
-            if completion is not None:
-                bt.logging.info(f"UID {uid} response is {completion}")
-                image_url = completion["url"]
+    async def score_responses(self, responses):
+        pass
 
-                # Download the image and store it as a BytesIO object
-                image_response = requests.get(image_url)
-                image_bytes = BytesIO(image_response.content)
-                image = Image.open(image_bytes)
+    async def get_and_score(self, available_uids):
+        responses = await self.perform_query(available_uids, self.query_type)
+        return await self.score_responses(responses)
 
-                # Log the image to wandb
-                wandb_data["images"][uid] = wandb.Image(image)
-                wandb_data["responses"][uid] = completion
+class ImageValidator(BaseValidator):
+    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=35)
+        self.query_type = "images"
+        self.model = "dall-e-3"
+        self.weight = 1
+        self.size = "1792x1024"
+        self.quality = "standard"
+        self.style = "vivid"
 
-                messages_for_uid = uid_to_messages[uid]
-                task = template.reward.image_score(uid, image_url, size, messages_for_uid, weight)
-                score_tasks.append((uid, task))
+        self.wandb_data = {
+            "prompts": {},
+            "responses": {},
+            "images": {},
+            "scores": {},
+            "timestamps": {},
+        }
+
+    async def start_query(self, available_uids):
+        # Query all images concurrently
+        query_tasks = []
+        uid_to_messages = {}
+        for uid in available_uids:
+            messages = await get_question("images")
+            uid_to_messages[uid] = messages  # Store messages for each UID
+            syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
+            task = self.query_miner(self.metagraph.axons[uid], uid, syn, self.query_type)
+            query_tasks.append(task)
+            self.wandb_data["prompts"][uid] = messages
+
+        query_responses = await asyncio.gather(*query_tasks)
+        return query_responses, uid_to_messages
+
+    async def score_responses(self, query_responses, uid_to_messages):
+        scores = {}
+        uid_scores_dict = {}
+        score_tasks = []
+
+        for uid, response in query_responses:
+            if response:
+                response = response[0]
+                completion = response.completion
+                if completion is not None:
+                    bt.logging.info(f"UID {uid} response is {completion}")
+                    image_url = completion["url"]
+
+                    # Download the image and store it as a BytesIO object
+                    image_response = requests.get(image_url)
+                    image_bytes = BytesIO(image_response.content)
+                    image = Image.open(image_bytes)
+
+                    # Log the image to wandb
+                    self.wandb_data["images"][uid] = wandb.Image(image)
+                    self.wandb_data["responses"][uid] = completion
+
+                    messages_for_uid = uid_to_messages[uid]
+                    task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
+                    score_tasks.append((uid, task))
+                else:
+                    bt.logging.info(f"Completion is None for UID {uid}")
+                    scores[uid] = 0
+                    uid_scores_dict[uid] = 0
             else:
-                bt.logging.info(f"result is {completion}")
-                bt.logging.info(f"Completion is None for UID {uid}")
+                bt.logging.info(f"No response for UID {uid}")
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
-        else:
-            bt.logging.info(f"No response for UID {uid}")
-            scores[uid] = 0
-            uid_scores_dict[uid] = 0
 
-    # Step 3: Run all scoring tasks concurrently
-    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
-    bt.logging.info(f"Scoring tasks completed for UIDs: {[uid for uid, _ in score_tasks]}")
+        scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+        bt.logging.info(f"Scoring tasks completed for UIDs: {[uid for uid, _ in score_tasks]}")
 
-    # Step 4: Update scores and uid_scores_dict
-    for (uid, _), score in zip(score_tasks, scored_responses):
-        if score is not None:
-            scores[uid] = score
-            uid_scores_dict[uid] = score
-        else:
-            scores[uid] = 0
-            uid_scores_dict[uid] = 0
-        wandb_data["scores"][uid] = score
-        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+        for (uid, _), score in zip(score_tasks, scored_responses):
+            if score is not None:
+                scores[uid] = score
+                uid_scores_dict[uid] = score
+            else:
+                scores[uid] = 0
+                uid_scores_dict[uid] = 0
+            self.wandb_data["scores"][uid] = score
+            self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
-    if config.wandb_on: wandb.log(wandb_data)
+        if self.config.wandb_on:
+            wandb.log(self.wandb_data)
 
-    return scores, uid_scores_dict
+        return scores, uid_scores_dict
 
-async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    model = "gpt-4-1106-preview"
-    weight = 1
-    seed = 1234
-    timeout = 24
+    async def get_and_score(self, available_uids):
+        query_responses, uid_to_messages = await self.start_query(available_uids)
+        return await self.score_responses(query_responses, uid_to_messages)
 
-    # Data container for wandb logging
-    wandb_data = {
-        "prompts": {},
-        "responses": {},
-        "scores": {},
-        "timestamps": {},
-    }
+class TextValidator(BaseValidator):
+    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=24)
+        self.query_type = "text"
+        self.model = "gpt-4-1106-preview"
+        self.weight = 1
+        self.seed = 1234
 
-    # Step 1: Query all text concurrently with associated questions
-    query_tasks = []
-    uid_to_question = {}
-    for uid in available_uids:
-        prompt = await get_question("text")
-        uid_to_question[uid] = prompt
-        messages = [{'role': 'user', 'content': prompt}]
-        syn = StreamPrompting(messages=messages, model=model, seed=seed)
-        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "text")
-        query_tasks.append(task)
+        self.wandb_data = {
+            "prompts": {},
+            "responses": {},
+            "scores": {},
+            "timestamps": {},
+        }
 
-    query_responses = await asyncio.gather(*query_tasks)
+    async def start_query(self, available_uids):
+        query_tasks = []
+        uid_to_question = {}
+        for uid in available_uids:
+            prompt = await get_question("text")
+            uid_to_question[uid] = prompt
+            messages = [{'role': 'user', 'content': prompt}]
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            task = self.query_miner(self.metagraph.axons[uid], uid, syn, self.query_type)
+            query_tasks.append(task)
+            self.wandb_data["prompts"][uid] = prompt
 
-    # log prompts and responses to wandb data
-    for uid, response in query_responses:
-        wandb_data["prompts"][uid] = uid_to_question[uid]
-        wandb_data["responses"][uid] = response
-        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+        query_responses = await asyncio.gather(*query_tasks)
+        return query_responses, uid_to_question
 
-    # Step 2: Prepare all OpenAI call tasks for selected UIDs
-    openai_tasks = []
-    # Generate a random number once for the entire round
-    random_number = random.random()
-    will_score_all = random_number < 1/8
+    async def score_responses(self, query_responses, uid_to_question):
+        scores = {}
+        uid_scores_dict = {}
+        score_tasks = []
 
-    bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
-
-    for uid, response in query_responses:
         # Decide to score all UIDs this round based on a 1/8 chance
-        if will_score_all and response:
-            messages = [{'role': 'user', 'content': uid_to_question[uid]}]
-            task = call_openai(messages, 0, model, seed)
-            openai_tasks.append((uid, task))
+        random_number = random.random()
+        will_score_all = random_number < 1/8
+        bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
 
-    # Step 3: Run OpenAI calls concurrently for selected UIDs
-    openai_responses = await asyncio.gather(*[task for _, task in openai_tasks])
+        for uid, response in query_responses:
+            if will_score_all and response:
+                messages = [{'role': 'user', 'content': uid_to_question[uid]}]
+                task = call_openai(messages, 0, self.model, self.seed)
+                score_tasks.append((uid, task))
 
-    # Step 4: Prepare scoring tasks
-    score_tasks = []
-    for (uid, _), openai_answer in zip(openai_tasks, openai_responses):
-        if openai_answer:
-            question = uid_to_question[uid]
-            response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-            task = template.reward.openai_score(openai_answer, response, weight)
-            score_tasks.append((uid, task))
+        openai_responses = await asyncio.gather(*[task for _, task in score_tasks])
 
-    # Step 5: Run scoring tasks concurrently
-    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+        for (uid, _), openai_answer in zip(score_tasks, openai_responses):
+            if openai_answer:
+                response = next(res for u, res in query_responses if u == uid)  # Find the matching response
+                task = template.reward.openai_score(openai_answer, response, self.weight)
+                score_tasks.append((uid, task))
 
-    # Step 6: Update scores and uid_scores_dict
-    for (uid, _), score in zip(score_tasks, scored_responses):
-        if score is not None:
-            scores[uid] = score
-            uid_scores_dict[uid] = score
-            # Log scores for UIDs that were scored
-            wandb_data["scores"][uid] = score
-        else:
-            scores[uid] = 0
-            uid_scores_dict[uid] = 0
+        scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
 
-    # Log data to wandb
-    if config.wandb_on: wandb.log(wandb_data)
+        for (uid, _), score in zip(score_tasks, scored_responses):
+            scores[uid] = score if score is not None else 0
+            uid_scores_dict[uid] = scores[uid]
+            self.wandb_data["scores"][uid] = score
 
-    return scores, uid_scores_dict
+        if self.config.wandb_on:
+            wandb.log(self.wandb_data)
 
-async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
-    model = "text-embedding-ada-002"
-    weight = 1
-    timeout = 15
+        return scores, uid_scores_dict
 
-    # Data container for wandb logging
-    wandb_data = {
-        "texts": {},
-        "embeddings": {},
-        "scores": {},
-        "timestamps": {},
-    }
+    async def get_and_score(self, available_uids):
+        query_responses, uid_to_question = await self.start_query(available_uids)
+        return await self.score_responses(query_responses, uid_to_question)
 
-    # Step 1: Query all text concurrently with associated questions
-    query_tasks = []
-    uid_to_question = {}
+class EmbeddingsValidator(BaseValidator):
+    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=15)
+        self.query_type = "embeddings"
+        self.model = "text-embedding-ada-002"
+        self.weight = 1
+
+        self.wandb_data = {
+            "texts": {},
+            "embeddings": {},
+            "scores": {},
+            "timestamps": {},
+        }
 
     def get_random_texts(dataset_name, config_name, num_samples=100):
         dataset = load_dataset(dataset_name, config_name)
         texts = [item['text'] for item in dataset['train']] 
         return random.sample(texts, num_samples)
+        
+    async def start_query(self, available_uids):
+        query_tasks = []
+        uid_to_question = {}
+        random_texts = self.get_random_texts('wikitext', 'wikitext-2-v1', 100)
+        num_texts_per_uid = len(random_texts) // len(available_uids)
 
-    random_texts = get_random_texts('wikitext', 'wikitext-2-v1', 100)
-    num_texts_per_uid = len(random_texts) // len(available_uids)
+        bt.logging.info(f"Each UID will receive {num_texts_per_uid} texts")
 
-    bt.logging.info(f"Each UID will receive {num_texts_per_uid} texts")
+        for index, uid in enumerate(available_uids):
+            start_index = index * num_texts_per_uid
+            end_index = start_index + num_texts_per_uid
+            prompt = random_texts[start_index:end_index]
+            uid_to_question[uid] = prompt
+            syn = Embeddings(model=self.model, texts=prompt)
+            task = self.query_miner(self.metagraph.axons[uid], uid, syn, self.query_type)
+            query_tasks.append(task)
+            self.wandb_data["texts"][uid] = prompt
 
-    for index, uid in enumerate(available_uids):
-        start_index = index * num_texts_per_uid
-        end_index = start_index + num_texts_per_uid
-        prompt = random_texts[start_index:end_index]
-        uid_to_question[uid] = prompt
-        with open(f"test_uid_{uid}.txt", "w") as f:
-            json.dump(prompt, f, indent=4)
+        query_responses = await asyncio.gather(*query_tasks)
+        return query_responses, uid_to_question
 
-        syn = Embeddings(model=model, texts=prompt)
-        task = query_miner(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout, "embeddings")
-        query_tasks.append(task)
+    async def score_responses(self, query_responses, uid_to_question):
+        scores = {}
+        uid_scores_dict = {}
+        score_tasks = []
 
-    query_responses = await asyncio.gather(*query_tasks)
+        random_number = random.random()
+        will_score_all = random_number < 1/1.1
+        bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
 
-    with open(f"uid_to_question.txt", "w") as f:
-        json.dump(uid_to_question, f, indent=4)
-    # log prompts and responses to wandb data
-    for uid, response in query_responses:
-        wandb_data["texts"][uid] = uid_to_question[uid]
-        wandb_data["embeddings"][uid] = response
-        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+        for uid, response in query_responses:
+            if will_score_all and response:
+                messages = uid_to_question[uid]
+                task = call_openai_embeddings(self.model, messages)
+                score_tasks.append((uid, task))
 
-    # Step 2: Prepare all OpenAI call tasks for selected UIDs
-    openai_tasks = []
-    # Generate a random number once for the entire round
-    random_number = random.random()
-    will_score_all = random_number < 1/1.1
+        openai_responses = await asyncio.gather(*[task for _, task in score_tasks])
 
-    bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
+        for (uid, _), openai_answer in zip(score_tasks, openai_responses):
+            response = next(res for u, res in query_responses if u == uid)
+            response = response[0]
+            if response.embeddings is not None:
+                response_embeddings = response.embeddings
+                task = template.reward.embeddings_score(openai_answer, response_embeddings, self.weight)
+                score_tasks.append((uid, task))
+            else:
+                scores[uid] = 0
+                uid_scores_dict[uid] = 0
 
-    for uid, response in query_responses:
-        # Decide to score all UIDs this round based on a 1/8 chance
-        if will_score_all and response:
-            messages = uid_to_question[uid]
-            with open(f"test2_uid_{uid}.txt", "w") as f:
-                json.dump(messages, f, indent=4)
-            task = call_openai_embeddings(model, messages)
-            openai_tasks.append((uid, task))
+        scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
 
-    # Step 3: Run OpenAI calls concurrently for selected UIDs
-    openai_responses = await asyncio.gather(*[task for _, task in openai_tasks])
+        for (uid, _), score in zip(score_tasks, scored_responses):
+            scores[uid] = score if score is not None else 0
+            uid_scores_dict[uid] = scores[uid]
+            self.wandb_data["scores"][uid] = score
 
-    # Step 4: Prepare scoring tasks
-    score_tasks = []
-    for (uid, _), openai_answer in zip(openai_tasks, openai_responses):
-        question = uid_to_question[uid]
-        response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-        response = response[0]
-        if response.embeddings is not None:
-            response_embeddings = response.embeddings
-            bt.logging.info(f"response embeddings is {response_embeddings[0][:10]}")
-            bt.logging.info(f"openai answer is {openai_answer[0][:10]}")
-            task = template.reward.embeddings_score(openai_answer, response_embeddings, weight)
-            score_tasks.append((uid, task))
-        else:
-            bt.logging.info(f"No embeddings found in the response {response.embeddings[0]}. Score = 0")
-            scores[uid] = 0
-            uid_scores_dict[uid] = 0
+        if self.config.wandb_on:
+            wandb.log(self.wandb_data)
 
-    # Step 5: Run scoring tasks concurrently
-    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+        return scores, uid_scores_dict
 
-    # Step 6: Update scores and uid_scores_dict
-    for (uid, _), score in zip(score_tasks, scored_responses):
-        if score is not None:
-            scores[uid] = score
-            uid_scores_dict[uid] = score
-            # Log scores for UIDs that were scored
-            wandb_data["scores"][uid] = score
-
-    # Log data to wandb
-    bt.logging.info(f"scores: {scores}")  # \n wandb_data: {wandb_data}")
-    if config.wandb_on: wandb.log(wandb_data)
-
-    return scores, uid_scores_dict
+    async def get_and_score(self, available_uids):
+        query_responses, uid_to_question = await self.start_query(available_uids)
+        return await self.score_responses(query_responses, uid_to_question)
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
