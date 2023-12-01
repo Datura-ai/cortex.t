@@ -46,6 +46,7 @@ def init_embeddings_wandb(my_subnet_uid, config):
             name=run_name,
             project='embeddings-data',
             entity='cortex-t',
+            version=''
             config=config,
             dir=config.full_path,
             reinit=True

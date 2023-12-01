@@ -49,11 +49,12 @@ def initialize_components(config):
     subtensor = bt.subtensor(config=config)
     metagraph = subtensor.metagraph(config.netuid)
     dendrite = bt.dendrite(wallet=wallet)
+    my_uid = uid(wallet, metagraph)
     if wallet.hotkey.ss58_address not in metagraph.hotkeys:
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-    return wallet, subtensor, dendrite, metagraph
+    return wallet, subtensor, dendrite, metagraph, my_uid
 
 def initialize_validators(vali_config):
     text_vali = TextValidator(**vali_config)
@@ -146,6 +147,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validato
         try:
             metagraph = await sync_metagraph(subtensor, config)
             available_uids = await get_available_uids(dendrite, metagraph)
+            bt.logging.info(f"available_uids = {available_uids}")
 
             if not available_uids:
                 time.sleep(5)
@@ -165,8 +167,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validato
 def main():
     global validators
     config = get_config()
-    wallet, subtensor, dendrite, metagraph = initialize_components(config)
-    my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
+    wallet, subtensor, dendrite, metagraph, my_subnet_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
         "metagraph": metagraph,
