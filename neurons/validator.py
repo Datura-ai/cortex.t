@@ -20,7 +20,7 @@ from io import BytesIO
 from openai import AsyncOpenAI
 from typing import List, Optional
 from datasets import load_dataset
-from template.protocol import StreamPrompting, IsAlive, ImageResponse
+from template.protocol import StreamPrompting, IsAlive, ImageResponse, Embeddings
 
 AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not AsyncOpenAI.api_key:
@@ -326,7 +326,7 @@ async def query_text(dendrite, axon, uid, syn, config, subtensor, wallet):
     try:
         bt.logging.info(f"Sent query to uid: {uid}, {syn.messages[0]['content']} using {syn.engine}")
         full_response = ""
-        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 20)
+        responses = await asyncio.wait_for(dendrite([axon], syn, deserialize=False, streaming=True), 24)
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, list):
@@ -416,6 +416,143 @@ async def get_and_score_text(dendrite, metagraph, config, subtensor, wallet, sco
     if config.wandb_on: wandb.log(wandb_data)
 
     return scores, uid_scores_dict
+
+async def call_openai_embeddings(model, texts, batch_size=10):
+    batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+    tasks = []
+    for batch in batches:
+        filtered_batch = [text for text in batch if text.strip()]
+        if filtered_batch:
+            print(filtered_batch)
+            task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
+            tasks.append(task)
+        else:
+            bt.logging.debug("Skipped an empty batch.")
+    
+    all_embeddings = []
+    for task in asyncio.as_completed(tasks):
+        try:
+            response = await task
+            batch_embeddings = [item.embedding for item in response.data]
+            all_embeddings.extend(batch_embeddings)
+        except Exception as e:
+            bt.logging.error(f"Error in processing batch: {e}")
+    return all_embeddings
+
+async def query_embeddings(dendrite, axon, uid, syn, config, subtensor, wallet, timeout):
+    try:
+        bt.logging.info(f"Sent embeddings request to uid: {uid} of {len(syn.texts)}")
+        responses = await dendrite([axon], syn, deserialize=False, timeout=timeout)
+        return uid, responses  # Return a tuple of the UID and the responses
+    except Exception as e:
+        bt.logging.error(f"Exception during query for uid {uid}: {e}")
+        return uid, None 
+
+async def get_and_score_embeddings(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids):
+    bt.logging.info("getting and scoring embeddings")
+    model = "text-embedding-ada-002"
+    weight = 1
+    timeout = 15
+
+    # Data container for wandb logging
+    wandb_data = {
+        "texts": {},
+        "embeddings": {},
+        "scores": {},
+        "timestamps": {},
+    }
+
+    # Step 1: Query all text concurrently with associated questions
+    query_tasks = []
+    uid_to_question = {}
+
+    def get_random_texts(dataset_name, config_name, num_samples=100):
+        dataset = load_dataset(dataset_name, config_name)
+        texts = [item['text'] for item in dataset['train']] 
+        return random.sample(texts, num_samples)
+
+    random_texts = get_random_texts('wikitext', 'wikitext-2-v1', 100)
+    num_texts_per_uid = len(random_texts) // len(available_uids)
+
+    bt.logging.info(f"Received random_texts of len {len(random_texts)}")
+    bt.logging.info(f"Each UID will receive {num_texts_per_uid} texts")
+
+    for index, uid in enumerate(available_uids):
+        start_index = index * num_texts_per_uid
+        end_index = start_index + num_texts_per_uid
+        prompt = random_texts[start_index:end_index]
+        uid_to_question[uid] = prompt
+        with open(f"test_uid_{uid}.txt", "w") as f:
+            json.dump(prompt, f, indent=4)
+
+        syn = Embeddings(model=model, texts=prompt)
+        bt.logging.info(f"Sent synapse to UID {uid} with {len(prompt)} texts")
+        task = query_embeddings(dendrite, metagraph.axons[uid], uid, syn, config, subtensor, wallet, timeout)
+        query_tasks.append(task)
+
+    query_responses = await asyncio.gather(*query_tasks)
+
+    with open(f"uid_to_question.txt", "w") as f:
+        json.dump(uid_to_question, f, indent=4)
+    # log prompts and responses to wandb data
+    for uid, response in query_responses:
+        wandb_data["texts"][uid] = uid_to_question[uid]
+        wandb_data["embeddings"][uid] = response
+        wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+
+    # Step 2: Prepare all OpenAI call tasks for selected UIDs
+    openai_tasks = []
+    # Generate a random number once for the entire round
+    random_number = random.random()
+    will_score_all = random_number < 1/1.1
+
+    bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
+
+    for uid, response in query_responses:
+        # Decide to score all UIDs this round based on a 1/8 chance
+        if will_score_all and response:
+            messages = uid_to_question[uid]
+            with open(f"test2_uid_{uid}.txt", "w") as f:
+                json.dump(messages, f, indent=4)
+            task = call_openai_embeddings(model, messages)
+            openai_tasks.append((uid, task))
+
+    # Step 3: Run OpenAI calls concurrently for selected UIDs
+    openai_responses = await asyncio.gather(*[task for _, task in openai_tasks])
+
+    # Step 4: Prepare scoring tasks
+    score_tasks = []
+    for (uid, _), openai_answer in zip(openai_tasks, openai_responses):
+        question = uid_to_question[uid]
+        response = next(res for u, res in query_responses if u == uid)  # Find the matching response
+        response = response[0]
+        if response.embeddings is not None:
+            response_embeddings = response.embeddings
+            bt.logging.info(f"response embeddings is {response_embeddings[0][:10]}")
+            bt.logging.info(f"openai answer is {openai_answer[0][:10]}")
+            task = template.reward.embeddings_score(openai_answer, response_embeddings, weight)
+            score_tasks.append((uid, task))
+        else:
+            bt.logging.info(f"No embeddings found in the response {response.embeddings[0]}. Score = 0")
+            scores[uid] = 0
+            uid_scores_dict[uid] = 0
+
+    # Step 5: Run scoring tasks concurrently
+    scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
+
+    # Step 6: Update scores and uid_scores_dict
+    for (uid, _), score in zip(score_tasks, scored_responses):
+        if score is not None:
+            scores[uid] = score
+            uid_scores_dict[uid] = score
+            # Log scores for UIDs that were scored
+            wandb_data["scores"][uid] = score
+
+    # Log data to wandb
+    bt.logging.info(f"scores: {scores}")  # \n wandb_data: {wandb_data}")
+    if config.wandb_on: wandb.log(wandb_data)
+
+    return scores, uid_scores_dict
     
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
@@ -431,12 +568,18 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             available_uids = await get_available_uids(dendrite, metagraph)
             bt.logging.info(f"available_uids is {available_uids}")
 
-            # use text synapse 1/2 times
-            if steps_passed % 2 != 1:
-                scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            if not available_uids:
+                time.sleep(5)
+                continue
 
-            else:
-                scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+            scores, uid_scores_dict = await get_and_score_embeddings(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+
+            # # use text synapse 1/2 times
+            # if steps_passed % 2 != 1:
+            #     scores, uid_scores_dict = await get_and_score_text(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
+
+            # else:
+            #     scores, uid_scores_dict = await get_and_score_images(dendrite, metagraph, config, subtensor, wallet, scores, uid_scores_dict, available_uids)
 
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
@@ -452,7 +595,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 total_scores = torch.zeros(len(metagraph.hotkeys))
 
             steps_passed += 1
-            time.sleep(2)
+            time.sleep(100)
 
         except RuntimeError as e:
             bt.logging.error(f"RuntimeError: {e}\n{traceback.format_exc()}")

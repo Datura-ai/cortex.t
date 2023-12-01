@@ -72,7 +72,7 @@ class Embeddings( bt.Synapse):
     A class to represent the embeddings request and response.
     """
 
-    text: List[str] = pydantic.Field(
+    texts: List[str] = pydantic.Field(
         ...,
         title="Text",
         description="The list of input texts for which embeddings are to be generated."

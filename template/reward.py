@@ -16,23 +16,28 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import logging
 from transformers import logging as hf_logging
 hf_logging.set_verbosity_error()
-import typing
-import openai
-import aiohttp
-import bittensor as bt
-import difflib
-from sklearn.feature_extraction.text import TfidfVectorizer
-import asyncio
-from sklearn.metrics.pairwise import cosine_similarity
-import torch
-from transformers import CLIPProcessor, CLIPModel
-from PIL import Image
-import io
-import requests
+
+
 import re
+import io
+import torch
+import openai
+import typing
+import difflib
+import asyncio
+import logging
+import aiohttp
+import requests
+from PIL import Image
+import bittensor as bt
+from typing import List
+from scipy.spatial.distance import cosine
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import CLIPProcessor, CLIPModel
+
 
 # ==== TEXT ====
 def calculate_text_similarity(text1, text2):
@@ -153,3 +158,30 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
+
+
+# ==== Embeddings =====
+
+async def embeddings_score(openai_answer: List, response: List, weight: float, threshold=.95) -> float:
+    if len(openai_answer) != len(response):
+        bt.logging.info("The number of embeddings in openai_answer and response do not match.")
+        return 0
+
+    # Calculate similarity for each pair of embeddings
+    similarities = []
+    for oa_emb, resp_emb in zip(openai_answer, response):
+        similarity = 1 - cosine(oa_emb, resp_emb)
+        similarities.append(similarity)
+
+    # Average the similarities
+    avg_similarity = sum(similarities) / len(similarities)
+    bt.logging.info(f"Similarities: {similarities[:1]}\nAverage embeddings similarity: {avg_similarity}")
+
+    # Check against threshold
+    if avg_similarity > threshold: 
+        bt.logging.info("Average embeddings similarity exceeds threshold!")
+        return weight
+    else:
+        bt.logging.info(f"Average embeddings similarity does not exceed threshold: {avg_similarity}")
+        return 0
+
