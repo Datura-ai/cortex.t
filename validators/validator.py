@@ -122,14 +122,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 time.sleep(5)
                 continue
 
-            validator_index = steps_passed / len(validators)
+            validator_index = int(steps_passed / len(validators))
+            print(validator_index)
             validator = validators[validator_index]
+            bt.logging.info(f"starting with validator {validator}")
             scores, uid_scores_dict = await validator.get_and_score(available_uids)
-
-
             total_scores += scores
             bt.logging.info(f"scores = {uid_scores_dict}, {2 - steps_passed % 3} iterations until set weights")
-            bt.logging.info(f"total scores until set weights = {total_scores}")
 
             # Update weights after processing all batches
             if steps_passed % 5 == 4:
@@ -144,21 +143,27 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
-        except KeyboardInterrupt:
-            bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-            state = utils.get_state()
-            utils.save_state_to_file(state)
-            if config.wandb_on: wandb.finish()
-        finally: loop.close()
 
 def main():
     config = get_config()
     wallet, subtensor, dendrite, metagraph = initialize_components(config)
-    bt.logging.debug(f"got {wallet}, {subtensor}, {dendrite}, {metagraph}")
     my_subnet_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     init_wandb(my_subnet_uid, config)
-    asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet))
-    return config
+
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
+    except KeyboardInterrupt:
+        bt.logging.info("Keyboard interrupt detected. Exiting validator.")
+        tasks = asyncio.all_tasks(loop)
+        for task in tasks:
+            task.cancel()
+        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        state = utils.get_state()
+        utils.save_state_to_file(state)
+        if config.wandb_on: wandb.finish()
+    finally:
+        loop.close()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

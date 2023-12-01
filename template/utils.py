@@ -2,23 +2,15 @@ import re
 import os
 import ast
 import json
+import random
 import asyncio
+import template
 import traceback
 import bittensor as bt
 
 
 list_update_lock = asyncio.Lock()
-global state
 
-def get_state():
-    if state is None:
-        load_state_from_file()
-    return state
-
-def save_state_to_file(state, filename="state.json"):
-    with open(filename, "w") as file:
-        bt.logging.success(f"saved global state to {filename}")
-        json.dump(state, file)
 
 def load_state_from_file(filename="state.json"):
     if os.path.exists(filename):
@@ -32,67 +24,19 @@ def load_state_from_file(filename="state.json"):
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
         }
 
-def preprocess_string(text):
-    try:
-        # Placeholder for single quotes within words
-        placeholder = "___SINGLE_QUOTE___"
 
-        # Replace single quotes within words with the placeholder
-        processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, text)
+state = load_state_from_file()
 
-        # Replace single quotes used for enclosing strings with double quotes
-        processed_text = processed_text.replace("'", '"')
+def get_state():
+    global state
+    if state is None:
+        load_state_from_file()
+    return state
 
-        # Restore the original single quotes from the placeholder
-        processed_text = processed_text.replace(placeholder, "'")
-
-        return processed_text
-    except Exception as e:
-        bt.logging.error(f"Error in preprocessing string: {e}")
-        return text
-
-def extract_python_list(text: str):
-    try:
-        text = preprocess_string(text)
-        # Improved regex to match more complex list structures including multiline strings
-        match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
-        if match:
-            list_str = match.group()
-
-            # Using ast.literal_eval to safely evaluate the string as a Python literal
-            evaluated = ast.literal_eval(list_str)
-            if isinstance(evaluated, list):
-                return evaluated
-    except SyntaxError as e:
-        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
-    except ValueError as e:
-        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
-    except Exception as e:
-        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
-
-    # Return None if the list cannot be extracted
-    return None
-
-
-async def call_openai(messages, temperature, model, seed=1234):
-    for attempt in range(2):
-        bt.logging.debug("Calling Openai")
-        try:
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                seed=seed,
-            )
-            response = response.choices[0].message.content
-            bt.logging.trace(f"validator response is {response}")
-            return response
-
-        except Exception as e:
-            bt.logging.info(f"Error when calling OpenAI: {e}")
-            await asyncio.sleep(0.5) 
-    
-    return None
+def save_state_to_file(state, filename="state.json"):
+    with open(filename, "w") as file:
+        bt.logging.success(f"saved global state to {filename}")
+        json.dump(state, file)
 
 
 async def get_list(list_type, theme=None):
@@ -192,3 +136,65 @@ async def get_question(category):
     question = await update_counters_and_get_new_list(category, "questions")
     return question
 
+
+def preprocess_string(text):
+    try:
+        # Placeholder for single quotes within words
+        placeholder = "___SINGLE_QUOTE___"
+
+        # Replace single quotes within words with the placeholder
+        processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, text)
+
+        # Replace single quotes used for enclosing strings with double quotes
+        processed_text = processed_text.replace("'", '"')
+
+        # Restore the original single quotes from the placeholder
+        processed_text = processed_text.replace(placeholder, "'")
+
+        return processed_text
+    except Exception as e:
+        bt.logging.error(f"Error in preprocessing string: {e}")
+        return text
+
+def extract_python_list(text: str):
+    try:
+        text = preprocess_string(text)
+        # Improved regex to match more complex list structures including multiline strings
+        match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
+        if match:
+            list_str = match.group()
+
+            # Using ast.literal_eval to safely evaluate the string as a Python literal
+            evaluated = ast.literal_eval(list_str)
+            if isinstance(evaluated, list):
+                return evaluated
+    except SyntaxError as e:
+        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
+    except ValueError as e:
+        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
+    except Exception as e:
+        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+
+    # Return None if the list cannot be extracted
+    return None
+
+
+async def call_openai(messages, temperature, model, seed=1234):
+    for attempt in range(2):
+        bt.logging.debug("Calling Openai")
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                seed=seed,
+            )
+            response = response.choices[0].message.content
+            bt.logging.trace(f"validator response is {response}")
+            return response
+
+        except Exception as e:
+            bt.logging.info(f"Error when calling OpenAI: {e}")
+            await asyncio.sleep(0.5) 
+    
+    return None

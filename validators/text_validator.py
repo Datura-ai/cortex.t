@@ -1,9 +1,13 @@
-import random
+
 import math
+import wandb
+import bittensor as bt
+import random
+import asyncio
 from base_validator import BaseValidator
 from template.protocol import StreamPrompting
-
-
+import template.reward
+from template.utils import call_openai, get_question
 
 
 class TextValidator(BaseValidator):
@@ -35,6 +39,16 @@ class TextValidator(BaseValidator):
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
+
+    async def handle_response(self, uid, responses):
+        full_response = ""
+        for resp in responses:
+            async for chunk in resp:
+                if isinstance(chunk, list):
+                    # bt.logging.info(chunk[0])
+                    responses += chunk[0]
+            break
+        return uid, full_response
 
     async def score_responses(self, query_responses, uid_to_question):
         scores = {}
