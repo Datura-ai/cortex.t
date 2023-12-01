@@ -36,6 +36,7 @@ async def call_openai_embeddings(model, texts, batch_size=10):
 class EmbeddingsValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
         super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=15)
+        self.streaming = False
         self.query_type = "embeddings"
         self.model = "text-embedding-ada-002"
         self.weight = 1
@@ -47,7 +48,7 @@ class EmbeddingsValidator(BaseValidator):
             "timestamps": {},
         }
 
-    def get_random_texts(dataset_name, config_name, num_samples=100):
+    def get_random_texts(self, dataset_name, config_name, num_samples=100):
         dataset = load_dataset(dataset_name, config_name)
         texts = [item['text'] for item in dataset['train']] 
         return random.sample(texts, num_samples)
