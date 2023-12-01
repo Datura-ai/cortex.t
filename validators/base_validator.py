@@ -12,9 +12,8 @@ class BaseValidator(ABC):
         self.wallet = wallet
         self.timeout = timeout
 
-    async def query_miner(self, axon, uid, syn, syn_type):
+    async def query_miner(self, axon, uid, syn):
         try:
-            bt.logging.info(f"Sent {syn_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}")
             responses = await self.dendrite([axon], syn, deserialize=False, timeout=self.timeout)
             return await self.handle_response(uid, responses)
 
