@@ -65,7 +65,8 @@ class EmbeddingsValidator(BaseValidator):
             prompt = random_texts[start_index:end_index]
             uid_to_question[uid] = prompt
             syn = Embeddings(model=self.model, texts=prompt)
-            task = self.query_miner(self.metagraph.axons[uid], uid, syn, self.query_type)
+            bt.logging.info(f"Sending {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.texts[0]}")
+            task = self.query_miner(self.metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["texts"][uid] = prompt
 

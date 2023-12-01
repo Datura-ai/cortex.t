@@ -143,6 +143,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
         except Exception as e:
             bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
+            time.sleep(100)
 
 def main():
     config = get_config()

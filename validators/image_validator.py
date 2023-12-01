@@ -37,7 +37,8 @@ class ImageValidator(BaseValidator):
             messages = await get_question("images")
             uid_to_messages[uid] = messages  # Store messages for each UID
             syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
-            task = self.query_miner(self.metagraph.axons[uid], uid, syn, self.query_type)
+            bt.logging.info(f"Sending {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}")
+            task = self.query_miner(self.metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = messages
 
