@@ -33,20 +33,10 @@ def get_config():
 
 def init_wandb(my_subnet_uid, config):
     if config.wandb_on:
-        run_name = f'validator-{my_subnet_uid}'
-        config.run_name = run_name
-        config.version = template.__version__
-        global wandb_run
-        wandb_run = wandb.init(
-            name=run_name,
-            anonymous="allow",
-            reinit=False,
-            project='synthetic-data-2',
-            entity='cortex-t',
-            config=config,
-            dir=config.full_path,
-        )
-        bt.logging.success('Started wandb run')
+        init_qa_wandb(my_subnet_uid, config)
+        init_image_wandb(my_subnet_uid, config)
+        init_embeddings_wandb(my_subnet_uid, config)
+        bt.logging.success("started all wandb runs")
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)

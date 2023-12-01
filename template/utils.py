@@ -2,15 +2,15 @@ import re
 import os
 import ast
 import json
+import wandb
 import random
 import asyncio
 import template
 import traceback
 import bittensor as bt
-
+from . import client
 
 list_update_lock = asyncio.Lock()
-
 
 def load_state_from_file(filename="state.json"):
     if os.path.exists(filename):
@@ -37,6 +37,49 @@ def save_state_to_file(state, filename="state.json"):
     with open(filename, "w") as file:
         bt.logging.success(f"saved global state to {filename}")
         json.dump(state, file)
+
+
+def init_embeddings_wandb(my_subnet_uid, config):
+    if config.wandb_on:
+        run_name = f'validator-{my_subnet_uid}'
+        return wandb.init(
+            name=run_name,
+            project='embeddings-data',
+            entity='cortex-t',
+            config=config,
+            dir=config.full_path,
+            reinit=True
+        )
+    bt.logging.success('Started embeddings wandb run')
+
+
+def init_qa_wandb(my_subnet_uid, config):
+    if config.wandb_on:
+        run_name = f'validator-{my_subnet_uid}'
+        return wandb.init(
+            name=run_name,
+            project='synthetic-QA-v2',
+            entity='cortex-t',
+            config=config,
+            dir=config.full_path,
+            reinit=True
+        )
+    bt.logging.success('Started QA wandb run')
+
+
+def init_image_wandb(my_subnet_uid, config):
+    if config.wandb_on:
+        run_name = f'validator-{my_subnet_uid}'
+        return wandb.init(
+            name=run_name,
+            project='synthetic-images',
+            entity='cortex-t',
+            config=config,
+            dir=config.full_path,
+            reinit=True
+        )
+    bt.logging.success('Started image wandb run')
+
 
 
 async def get_list(list_type, theme=None):
@@ -75,7 +118,7 @@ async def get_list(list_type, theme=None):
             random_seed = random.randint(1, 10000)
             answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
-            extracted_list = utils.extract_python_list(answer)
+            extracted_list = extract_python_list(answer)
             if extracted_list:
                 bt.logging.info(f"Received {list_type}: {extracted_list}")
                 return extracted_list

@@ -10,7 +10,6 @@ from datasets import load_dataset
 from template.protocol import Embeddings
 from base_validator import BaseValidator
 
-
 class EmbeddingsValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
         super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=15)
@@ -32,7 +31,6 @@ class EmbeddingsValidator(BaseValidator):
         for batch in batches:
             filtered_batch = [text for text in batch if text.strip()]
             if filtered_batch:
-                print(filtered_batch)
                 task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
                 tasks.append(task)
             else:
