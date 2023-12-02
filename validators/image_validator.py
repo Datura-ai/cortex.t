@@ -107,6 +107,7 @@ class ImageValidator(BaseValidator):
             self.wandb_data["scores"][uid] = scored_response
             self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
+        bt.logging.info(f"image_scores = {self.wandb_data['scores']}")
         return scores, uid_scores_dict, self.wandb_data
 
 
