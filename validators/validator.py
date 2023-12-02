@@ -8,6 +8,7 @@ import asyncio
 import template
 import argparse
 import traceback
+import threading
 import bittensor as bt
 import template.utils as utils
 
@@ -23,7 +24,6 @@ moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
-wandb_runs = {}
 app = FastAPI()
 
 
@@ -57,7 +57,6 @@ def init_wandb(config, my_uid, wallet):
 
         bt.logging.success("Started all wandb runs")
 
-
 def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
     run = wandb.init(
         name=run_name,
@@ -73,15 +72,6 @@ def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
     signature = wallet.hotkey.sign(run.id.encode()).hex()
     config.signature = signature 
     wandb.config.update(config, allow_val_change=True)
-
-
-def log_to_specific_project(project_name, data):
-    if project_name in wandb_runs:
-        run = wandb_runs[project_name]
-        with run:
-            wandb.log(data)
-    else:
-        print(f"Project {project_name} is not initialized.")
         
 
 def initialize_components(config):
@@ -176,12 +166,8 @@ async def process_modality(config, dendrite, metagraph, validators, available_ui
     # Calculate and return scores and uid_scores_dict
     validator_index = steps_passed % len(validators)
     validator = validators[validator_index]
-    scores, uid_scores_dict, wandb_data = await validator.get_and_score(available_uids)
-    if config.wandb_on:
-        bt.logging.info(f"logging to {template.PROJECT_NAMES}")
-        bt.logging.info(f"logging to {template.PROJECT_NAMES[validator_index]}")
-        log_to_specific_project(template.PROJECT_NAMES[validator_index], wandb_data)
-        bt.logging.success("wandb_log successful")
+    scores, uid_scores_dict = await validator.get_and_score(available_uids)
+
     return scores, uid_scores_dict
 
 
