@@ -95,7 +95,8 @@ async def get_list(list_type, theme=None):
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
-                bt.logging.info(f"Received {list_type}: {extracted_list}")
+                bt.logging.info(f"Received new {list_type}")
+                bt.logging.debug(f"questions are {extracted_list}")
                 return extracted_list
             else:
                 bt.logging.info(f"No valid python list found, retry count: {retry + 1} {answer}")
@@ -184,7 +185,7 @@ def preprocess_string(text):
 
         return processed_text
     except Exception as e:
-        bt.error(f"Error in preprocessing string: {e}")
+        bt.logging.error(f"Error in preprocessing string: {traceback.format_exc()}")
         return text
 
 
@@ -213,7 +214,7 @@ def extract_python_list(text: str):
 
 async def call_openai(messages, temperature, model, seed=1234):
     for attempt in range(2):
-        bt.logging.debug("Calling Openai")
+        bt.logging.debug("Calling Openai ")
         try:
             response = await client.chat.completions.create(
                 model=model,
@@ -222,11 +223,11 @@ async def call_openai(messages, temperature, model, seed=1234):
                 seed=seed,
             )
             response = response.choices[0].message.content
-            bt.logging.trace(f"validator response is {response}")
+            bt.logging.debug(f"validator response is {response}")
             return response
 
         except Exception as e:
-            bt.logging.info(f"Error when calling OpenAI: {e}")
+            bt.logging.error(f"Error when calling OpenAI: {e}")
             await asyncio.sleep(0.5) 
     
     return None

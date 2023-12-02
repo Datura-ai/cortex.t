@@ -52,37 +52,23 @@ def init_wandb(config, my_uid, wallet):
         config.version = template.__version__
         config.type = 'validator'
 
-        for project in template.PROJECT_NAMES:
-            init_specific_wandb(project, my_uid, config, run_name, wallet)
+        # Initialize the wandb run for the single project
+        run = wandb.init(
+            name=run_name,
+            project=template.PROJECT_NAME,
+            entity='cortex-t',
+            config=config,
+            dir=config.full_path,
+            reinit=True
+        )
 
-        bt.logging.success("Started all wandb runs")
+        # Sign the run to ensure it's from the correct hotkey
+        signature = wallet.hotkey.sign(run.id.encode()).hex()
+        config.signature = signature 
+        wandb.config.update(config, allow_val_change=True)
 
+        bt.logging.success(f"Started wandb run for project '{template.PROJECT_NAME}'")
 
-def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
-    run = wandb.init(
-        name=run_name,
-        project=project,
-        entity='cortex-t',
-        config=config,
-        dir=config.full_path,
-        reinit=True
-    )
-    wandb_runs[project] = run
-
-    # Sign the run to ensure it's from the correct hotkey
-    signature = wallet.hotkey.sign(run.id.encode()).hex()
-    config.signature = signature 
-    wandb.config.update(config, allow_val_change=True)
-
-
-def log_to_specific_project(project_name, data):
-    if project_name in wandb_runs:
-        run = wandb_runs[project_name]
-        with run:
-            wandb.log(data)
-    else:
-        print(f"Project {project_name} is not initialized.")
-        
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)
@@ -178,9 +164,7 @@ async def process_modality(config, dendrite, metagraph, validators, available_ui
     validator = validators[validator_index]
     scores, uid_scores_dict, wandb_data = await validator.get_and_score(available_uids)
     if config.wandb_on:
-        bt.logging.info(f"logging to {template.PROJECT_NAMES}")
-        bt.logging.info(f"logging to {template.PROJECT_NAMES[validator_index]}")
-        log_to_specific_project(template.PROJECT_NAMES[validator_index], wandb_data)
+        wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
@@ -196,7 +180,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
     # Validators to use in the loop
-    validators = [image_vali, text_vali, embed_vali][:2] # Splice here because embeddings modality isn't perfect yet
+    validators = [text_vali, image_vali, embed_vali][:2] # Splice here because embeddings modality isn't perfect yet
 
     while True:
         try:
@@ -216,7 +200,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             time.sleep(3)
 
         except Exception as e:
-            bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
+            bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")
             time.sleep(100)
 
 
