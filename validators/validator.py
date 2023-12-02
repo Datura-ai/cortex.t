@@ -70,8 +70,7 @@ def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
     # Sign the run to ensure it's from the correct hotkey
     signature = wallet.hotkey.sign(run.id.encode()).hex()
     config.signature = signature 
-    run.config.update({"signature": signature})
-
+    wandb.config.update(config, allow_val_change=True)
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)

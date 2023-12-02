@@ -2,11 +2,7 @@ import wandb
 import pandas as pd
 
 api = wandb.Api()
-username = "username here"
-project_name = "project name here"
-run_name = "run name here"
-# run = api.run(f"/{username}/{project_name}/runs/{run_name}")
-run = api.run("/cortex-t/synthetic-QA/runs/p0gdm9g7")
+run = api.run("/cortex-t/synthetic-QA/runs/amczp753")
 history = run.history()
 
 # Write the history to a file in JSON format using pandas
