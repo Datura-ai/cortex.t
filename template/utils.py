@@ -12,6 +12,7 @@ from . import client
 
 list_update_lock = asyncio.Lock()
 
+
 def load_state_from_file(filename="state.json"):
     if os.path.exists(filename):
         with open(filename, "r") as file:
@@ -24,8 +25,8 @@ def load_state_from_file(filename="state.json"):
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
         }
 
-
 state = load_state_from_file()
+
 
 def get_state():
     global state
@@ -33,54 +34,27 @@ def get_state():
         load_state_from_file()
     return state
 
+
 def save_state_to_file(state, filename="state.json"):
     with open(filename, "w") as file:
         bt.logging.success(f"saved global state to {filename}")
         json.dump(state, file)
 
 
-def init_embeddings_wandb(my_subnet_uid, config):
-    if config.wandb_on:
-        run_name = f'validator-{my_subnet_uid}'
-        return wandb.init(
-            name=run_name,
-            project='embeddings-data',
-            entity='cortex-t',
-            version=''
-            config=config,
-            dir=config.full_path,
-            reinit=True
-        )
-    bt.logging.success('Started embeddings wandb run')
+def get_validators_with_runs_in_all_projects():
+    api = wandb.Api()
+    validators_runs = {project: set() for project in projects}
 
+    # Retrieve runs for each project and store validator UIDs
+    for project in template.PROJECT_NAMES:
+        runs = api.runs(f"cortex-t/{project}")
+        for run in runs:
+            if run.config['type'] == 'validator':
+                validators_runs[project].add(run.config['uid'])
 
-def init_qa_wandb(my_subnet_uid, config):
-    if config.wandb_on:
-        run_name = f'validator-{my_subnet_uid}'
-        return wandb.init(
-            name=run_name,
-            project='synthetic-QA-v2',
-            entity='cortex-t',
-            config=config,
-            dir=config.full_path,
-            reinit=True
-        )
-    bt.logging.success('Started QA wandb run')
-
-
-def init_image_wandb(my_subnet_uid, config):
-    if config.wandb_on:
-        run_name = f'validator-{my_subnet_uid}'
-        return wandb.init(
-            name=run_name,
-            project='synthetic-images',
-            entity='cortex-t',
-            config=config,
-            dir=config.full_path,
-            reinit=True
-        )
-    bt.logging.success('Started image wandb run')
-
+    # Find common validators across all projects
+    common_validators = set.intersection(*validators_runs.values())
+    return common_validators
 
 
 async def get_list(list_type, theme=None):
@@ -132,6 +106,7 @@ async def get_list(list_type, theme=None):
     bt.logging.error(f"No list found after {max_retries} retries, using default list.")
     return default
 
+
 async def update_counters_and_get_new_list(category, item_type, theme=None):
     global list_update_lock
 
@@ -173,6 +148,7 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
 
     return item
 
+
 async def get_question(category):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
@@ -195,10 +171,14 @@ def preprocess_string(text):
         # Restore the original single quotes from the placeholder
         processed_text = processed_text.replace(placeholder, "'")
 
+        # Replace tabs with a single space
+        processed_text = processed_text.replace("\t", " ")
+
         return processed_text
     except Exception as e:
-        bt.logging.error(f"Error in preprocessing string: {e}")
+        bt.error(f"Error in preprocessing string: {e}")
         return text
+
 
 def extract_python_list(text: str):
     try:
@@ -213,11 +193,11 @@ def extract_python_list(text: str):
             if isinstance(evaluated, list):
                 return evaluated
     except SyntaxError as e:
-        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
     except ValueError as e:
-        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
     except Exception as e:
-        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
     # Return None if the list cannot be extracted
     return None
