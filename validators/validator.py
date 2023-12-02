@@ -23,6 +23,7 @@ moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
+wandb_runs = {}
 app = FastAPI()
 
 
@@ -66,11 +67,22 @@ def init_specific_wandb(project, my_subnet_uid, config, run_name, wallet):
         dir=config.full_path,
         reinit=True
     )
+    wandb_runs[project] = run
 
     # Sign the run to ensure it's from the correct hotkey
     signature = wallet.hotkey.sign(run.id.encode()).hex()
     config.signature = signature 
     wandb.config.update(config, allow_val_change=True)
+
+
+def log_to_specific_project(project_name, data):
+    if project_name in wandb_runs:
+        run = wandb_runs[project_name]
+        with run:
+            wandb.log(data)
+    else:
+        print(f"Project {project_name} is not initialized.")
+        
 
 def initialize_components(config):
     bt.logging(config=config, logging_dir=config.full_path)
@@ -103,7 +115,6 @@ async def text_validator_endpoint(data: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/image-validator/")
 async def image_validator_endpoint(data: str): 
     try:
@@ -111,7 +122,6 @@ async def image_validator_endpoint(data: str):
         return validation_result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/embeddings-validator/")
 async def embeddings_validator_endpoint(data: str):
@@ -162,11 +172,16 @@ async def sync_metagraph(subtensor, config):
     return subtensor.metagraph(config.netuid)
 
 
-async def process_modality(dendrite, metagraph, validators, available_uids, steps_passed):
+async def process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed):
     # Calculate and return scores and uid_scores_dict
     validator_index = steps_passed % len(validators)
     validator = validators[validator_index]
-    scores, uid_scores_dict = await validator.get_and_score(available_uids)
+    scores, uid_scores_dict, wandb_data = await validator.get_and_score(available_uids)
+    if config.wandb_on:
+        bt.logging.info(f"logging to {template.PROJECT_NAMES}")
+        bt.logging.info(f"logging to {template.PROJECT_NAMES[validator_index]}")
+        log_to_specific_project(template.PROJECT_NAMES[validator_index], wandb_data)
+        bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
 
@@ -194,7 +209,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
                 time.sleep(5)
                 continue
 
-            scores, uid_scores_dict = await process_modality(dendrite, metagraph, validators, available_uids, steps_passed)
+            scores, uid_scores_dict = await process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed)
             total_scores += scores
             update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph)
 

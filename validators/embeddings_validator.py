@@ -115,10 +115,7 @@ class EmbeddingsValidator(BaseValidator):
             uid_scores_dict[uid] = scores[uid]
             self.wandb_data["scores"][uid] = score
 
-        if self.config.wandb_on:
-            wandb.log(self.wandb_data)
-
-        return scores, uid_scores_dict
+        return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):
         query_responses, uid_to_question = await self.start_query(available_uids)

@@ -98,7 +98,7 @@ async def get_list(list_type, theme=None):
                 bt.logging.info(f"Received {list_type}: {extracted_list}")
                 return extracted_list
             else:
-                bt.logging.info(f"No valid python list found, retry count: {retry + 1}")
+                bt.logging.info(f"No valid python list found, retry count: {retry + 1} {answer}")
         except Exception as e:
             retry += 1
             bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}")
