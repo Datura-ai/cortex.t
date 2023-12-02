@@ -75,7 +75,10 @@ class ImageValidator(BaseValidator):
 
                     # Schedule the image download as an async task
                     download_task = asyncio.create_task(self.download_image(image_url))
-                    download_tasks.append((uid, download_task, completion))
+                    messages_for_uid = uid_to_messages[uid]
+                    score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
+                    download_tasks.append((uid, download_task, image_url))
+                    score_tasks.append((uid, score_task))
                 else:
                     bt.logging.info(f"Completion is None for UID {uid}")
                     scores[uid] = 0
@@ -85,33 +88,30 @@ class ImageValidator(BaseValidator):
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
 
-        # Wait for all image downloads to complete
-        for uid, download_task, completion in download_tasks:
+        # Wait for all download tasks to complete
+        for uid, download_task, image_url in download_tasks:
             image = await download_task
-
             # Log the image to wandb
             self.wandb_data["images"][uid] = wandb.Image(image)
-            self.wandb_data["responses"][uid] = completion
+            self.wandb_data["responses"][uid] = {"url": image_url}
 
-            messages_for_uid = uid_to_messages[uid]
-            score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
-            score_tasks.append((uid, asyncio.create_task(score_task)))
-
-        # Wait for all scoring tasks to complete
+        # Await all scoring tasks concurrently
         scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
-        bt.logging.info(f"Scoring tasks completed for UIDs: {[uid for uid, _ in score_tasks]}")
 
-        for (uid, _), score in zip(score_tasks, scored_responses):
-            if score is not None:
-                scores[uid] = score
-                uid_scores_dict[uid] = score
+        # Process the results of scoring tasks
+        for (uid, _), scored_response in zip(score_tasks, scored_responses):
+            if scored_response is not None:
+                scores[uid] = scored_response
+                uid_scores_dict[uid] = scored_response
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
-            self.wandb_data["scores"][uid] = score
+            self.wandb_data["scores"][uid] = scored_response
             self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
         return scores, uid_scores_dict, self.wandb_data
+
+
 
     async def get_and_score(self, available_uids):
         query_responses, uid_to_messages = await self.start_query(available_uids)
