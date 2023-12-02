@@ -24,6 +24,8 @@ moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
+available_uids = []
+lock = threading.Lock()
 app = FastAPI()
 
 
@@ -122,6 +124,31 @@ async def embeddings_validator_endpoint(data: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def set_weights(scores, config, subtensor, wallet, metagraph):
+    global moving_average_scores
+    # alpha of .3 means that each new score has a 30% weight of the current weights
+    alpha = .3
+    if moving_average_scores is None:
+        moving_average_scores = scores.clone()
+
+    # Update the moving average scores
+    moving_average_scores = alpha * scores + (1 - alpha) * moving_average_scores
+    bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
+    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
+    bt.logging.success("Successfully set weights based on moving average.")
+    
+
+async def sync_metagraph(subtensor, config):
+    return subtensor.metagraph(config.netuid)
+
+
+def update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph):
+    # Update weights based on total scores
+    if steps_passed % len(validators) == len(validators) - 1:
+        avg_scores = total_scores / (steps_passed + 1)
+        set_weights(avg_scores, config, subtensor, wallet, metagraph)
+
+
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
@@ -137,74 +164,76 @@ async def check_uid(dendrite, axon, uid):
         return None
 
 
-async def get_available_uids(dendrite, metagraph):
-    """Get a list of available UIDs asynchronously."""
-    tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
-    uids = await asyncio.gather(*tasks)
-    # Filter out None values (inactive UIDs)
-    return [uid for uid in uids if uid is not None]
+async def get_and_update_available_uids(dendrite, metagraph):
+    global available_uids
+    while True:
+        try:
+            tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
+            uids = await asyncio.gather(*tasks)
+            new_uids = [uid for uid in uids if uid is not None]
+            bt.logging.info(f"available_uids = {available_uids}")
+
+            with lock:
+                available_uids = new_uids
+
+            await asyncio.sleep(10)
+        except Exception as e:
+            print(f"UID update thread exception: {e}")
 
 
-def set_weights(scores, config, subtensor, wallet, metagraph):
-    global moving_average_scores
-    # alpha of .3 means that each new score has a 30% weight of the current weights
-    alpha = .3
-    if moving_average_scores is None:
-        moving_average_scores = scores.clone()
+def validator_thread(config, dendrite, metagraph, validator, total_scores, steps_passed):
+    global available_uids
+    while True:
+        try:
+            if available_uids:
+                scores, uid_scores_dict = asyncio.run(process_modality(config, dendrite, metagraph, validator, available_uids))
+                with lock:
+                    total_scores += scores
+                    steps_passed[validator] += 1
+            else:
+                time.sleep(10)
+        except Exception as e:
+            print(f"Thread exception: {e}")
+            break
 
-    # Update the moving average scores
-    moving_average_scores = alpha * scores + (1 - alpha) * moving_average_scores
-    bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
-    subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
-    bt.logging.success("Successfully set weights based on moving average.")
-    
-async def sync_metagraph(subtensor, config):
-    return subtensor.metagraph(config.netuid)
-
-
-async def process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed):
-    # Calculate and return scores and uid_scores_dict
-    validator_index = steps_passed % len(validators)
-    validator = validators[validator_index]
-    scores, uid_scores_dict = await validator.get_and_score(available_uids)
-
+async def process_modality(config, dendrite, metagraph, validator, available_uids):
+    # Calculate and return scores and uid_scores_dict for a specific validator
+    bt.logging.info(f"starting processing for {validator.__class__.__name__} with available_uids = {available_uids}")
+    scores, uid_scores_dict, wandb_data = await validator.get_and_score(available_uids)
+    bt.logging.info(f"scores: {scores}, uid_scores_dict = {uid_scores_dict}, wandb_data: {wandb_data}")
     return scores, uid_scores_dict
 
-
-def update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph):
-    # Update weights based on total scores
-    if steps_passed % len(validators) == len(validators) - 1:
-        avg_scores = total_scores / (steps_passed + 1)
-        set_weights(avg_scores, config, subtensor, wallet, metagraph)
-
-
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
-    steps_passed = 0
-    total_scores = torch.zeros(len(metagraph.hotkeys))
-    # validators to use in the loop
     validators = [text_vali, image_vali, embed_vali]
     validators = validators[:2]
+    steps_passed = {validator: 0 for validator in validators}
+    total_scores = torch.zeros(len(metagraph.hotkeys))
+    threads = []
+
+    for validator in validators:
+        thread = threading.Thread(target=validator_thread, args=(config, dendrite, metagraph, validator, total_scores, steps_passed))
+        threads.append(thread)
+        thread.start()
 
     while True:
         try:
             metagraph = await sync_metagraph(subtensor, config)
-            available_uids = await get_available_uids(dendrite, metagraph)
-            bt.logging.info(f"available_uids = {available_uids}")
 
-            if not available_uids:
-                time.sleep(5)
-                continue
+            with lock:
+                total_steps = sum(steps_passed.values())
+                if total_steps % len(validators) == len(validators) - 1:
+                    avg_scores = total_scores / total_steps
+                    set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
-            scores, uid_scores_dict = await process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed)
-            total_scores += scores
-            update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph)
-
-            steps_passed += 1
             time.sleep(3)
 
         except Exception as e:
-            bt.logging.info(f"General exception: {e}\n{traceback.format_exc()}")
+            print(f"General exception: {traceback.format_exc()}")
             time.sleep(100)
+
+    # Optionally join threads
+    for thread in threads:
+        thread.join()
 
 
 def main():
@@ -220,9 +249,11 @@ def main():
     }
     initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
+    uid_update_thread = threading.Thread(target=asyncio.run, args=(get_and_update_available_uids(dendrite, metagraph),))
     loop = asyncio.get_event_loop()
 
     try:
+        uid_update_thread.start()
         loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
 
     except KeyboardInterrupt:
