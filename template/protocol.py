@@ -127,15 +127,12 @@ class StreamPrompting( bt.StreamingSynapse ):
     async def process_streaming_response(self, response: StreamingResponse):
         if self.completion is None:
             self.completion = ""
-        bt.logging.debug("Processing streaming response (StreamingSynapse base class).")
         async for chunk in response.content.iter_any():
-            bt.logging.debug(f"Processing chunk: {chunk}")
-            tokens = chunk.decode("utf-8").split("\n")
+            tokens = chunk.decode("utf-8")
             for token in tokens:
-                bt.logging.debug(f"--processing token: {token}")
+                bt.logging.debug(f"yielding tokens {tokens}")
                 if token:
                     self.completion += token
-            bt.logging.debug(f"yielding tokens {tokens}")
             yield tokens
 
     def deserialize(self) -> str:
