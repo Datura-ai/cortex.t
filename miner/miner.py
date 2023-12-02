@@ -105,7 +105,6 @@ class StreamMiner(ABC):
 
     def base_blacklist(self, synapse, blacklist_amt = 10000) -> Tuple[bool, str]:
         try:
-            print("enter base_blacklist")
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
@@ -114,7 +113,7 @@ class StreamMiner(ABC):
 
             # Check if the key is black listed.
             if hotkey in template.BLACKLISTED_KEYS:
-                return True, f"Blacklisted a {synapse_type} request from blacklisted hotkey"
+                return True, f"Blacklisted a {synapse_type} request from blacklisted hotkey: {hotkey}"
 
             uid = None
             axon = None

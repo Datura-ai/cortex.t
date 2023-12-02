@@ -35,23 +35,24 @@ client = AsyncOpenAI(timeout=30.0)
 
 # Blacklist variables
 ALLOW_NON_REGISTERED = False
-PROMPT_BLACKLIST_STAKE = 50
-IMAGE_BLACKLIST_STAKE = 50
-EMBEDDING_BLACKLIST_STAKE = 50
+PROMPT_BLACKLIST_STAKE = 20000
+IMAGE_BLACKLIST_STAKE = 20000
+EMBEDDING_BLACKLIST_STAKE = 20000
 ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE)
 MIN_REQUEST_PERIOD = 2
 MAX_REQUESTS = 40
 # must have the test_key whitelisted to avoid a global blacklist
+testnet_key = "5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"
 test_key = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
 corcel = "5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8"
+WHITELISTED_KEYS = [testnet_key, test_key, corcel]
 
-weight_copiers = []
-WHITELISTED_KEYS = [test_key, corcel]
-running_wandb = [149, 255, 57, 109, 81, 124, 16, 26, 178, 103, 146, 0, 1, 244, 113, 42]
-actual_validator_uids = [244, 0, 103, 81, 117, 178, 1, 26, 224, 214, 109, 16, 104, 2, 124, 102, 7, 135, 114, 251, 113, 4]
+weight_copiers = [117,224,214,104,2,102,7,135,114,251,4]
+threat_keys = [251]
+BLACKLISTED_KEYS = weight_copiers + threat_keys + []
 validators_running_wandb = [0, 1, 16, 26, 81, 103, 109, 113, 124, 178, 244]
-BLACKLISTED_KEYS = []
 
+PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 
 question_themes = ['Love and relationships', 'Nature and environment', 'Art and creativity', 'Technology and innovation', 'Health and wellness', 'History and culture', 'Science and discovery', 'Philosophy and ethics', 'Education and learning', 'Music and rhythm', 'Sports and athleticism', 'Food and nutrition', 'Travel and adventure', 'Fashion and style', 'Books and literature', 'Movies and entertainment', 'Politics and governance', 'Business and entrepreneurship', 'Mind and consciousness', 'Family and parenting', 'Social media and networking', 'Religion and spirituality', 'Money and finance', 'Language and communication', 'Human behavior and psychology', 'Space and astronomy', 'Climate change and sustainability', 'Dreams and aspirations', 'Equality and social justice', 'Gaming and virtual reality', 'Artificial intelligence and robotics', 'Creativity and imagination', 'Emotions and feelings', 'Healthcare and medicine', 'Sportsmanship and teamwork', 'Cuisine and gastronomy', 'Historical events and figures', 'Scientific advancements', 'Ethical dilemmas and decision making', 'Learning and growth', 'Music genres and artists', 'Film genres and directors', 'Government policies and laws', 'Startups and innovation', 'Consciousness and perception', 'Parenting styles and techniques', 'Online communities and forums', 'Religious practices and rituals', 'Personal finance and budgeting', 'Linguistic diversity and evolution', 'Human cognition and memory', 'Astrology and horoscopes', 'Environmental conservation', 'Personal development and self-improvement', 'Sports strategies and tactics', 'Culinary traditions and customs', 'Ancient civilizations and empires', 'Medical breakthroughs and treatments', 'Moral values and principles', 'Critical thinking and problem solving', 'Musical instruments and techniques', 'Film production and cinematography', 'International relations and diplomacy', 'Corporate culture and work-life balance', 'Neuroscience and brain function', 'Childhood development and milestones', 'Online privacy and cybersecurity', 'Religious tolerance and understanding', 'Investment strategies and tips', 'Language acquisition and fluency', 'Social influence and conformity', 'Space exploration and colonization', 'Sustainable living and eco-friendly practices', 'Self-reflection and introspection', 'Sports psychology and mental training', 'Globalization and cultural exchange', 'Political ideologies and systems', 'Entrepreneurial mindset and success', 'Conscious living and mindfulness', 'Positive psychology and happiness', 'Music therapy and healing', 'Film analysis and interpretation', 'Human rights and advocacy', 'Financial literacy and money management', 'Multilingualism and translation', 'Social media impact on society', 'Religious extremism and radicalization', 'Real estate investment and trends', 'Language preservation and revitalization', 'Social inequality and discrimination', 'Climate change mitigation strategies', 'Self-care and well-being', 'Sports injuries and rehabilitation', 'Artificial intelligence ethics', 'Creativity in problem solving', 'Emotional intelligence and empathy', 'Healthcare access and affordability', 'Sports analytics and data science', 'Cultural appropriation and appreciation', 'Ethical implications of technology']
 text_questions = ['What is the most important quality you look for in a partner?', 'How do you define love?', 'What is the most romantic gesture you have ever received?', 'What is your favorite love song and why?', 'What is the key to a successful long-term relationship?', 'What is your idea of a perfect date?', 'What is the best piece of relationship advice you have ever received?', 'What is the most memorable love story you have heard?', 'What is the biggest challenge in maintaining a healthy relationship?', 'What is your favorite way to show someone you love them?']
