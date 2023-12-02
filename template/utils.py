@@ -174,6 +174,14 @@ def preprocess_string(text):
         # Replace tabs with a single space
         processed_text = processed_text.replace("\t", " ")
 
+        # Delete spaces after an opening bracket '['
+        processed_text = re.sub(r"\[\s+", "[", processed_text)
+
+        # Delete spaces before a closing bracket ']'
+        processed_text = re.sub(r"\s+\]", "]", processed_text)
+
+        return processed_text
+
         return processed_text
     except Exception as e:
         bt.error(f"Error in preprocessing string: {e}")

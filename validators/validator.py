@@ -195,9 +195,8 @@ def update_weights(total_scores, steps_passed, validators, config, subtensor, wa
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    # validators to use in the loop
-    validators = [text_vali, image_vali, embed_vali]
-    validators = validators[:2]
+    # Validators to use in the loop
+    validators = [image_vali, text_vali, embed_vali][:2] # Splice here because embeddings modality isn't perfect yet
 
     while True:
         try:
