@@ -51,9 +51,8 @@ def init_wandb(config, my_uid, wallet):
         config.version = template.__version__
         config.type = 'validator'
 
-        init_specific_wandb('embeddings-data', my_uid, config, run_name, wallet)
-        init_specific_wandb('synthetic-QA-v2', my_uid, config, run_name, wallet)
-        init_specific_wandb('synthetic-images', my_uid, config, run_name, wallet)
+        for project in template.PROJECT_NAMES:
+            init_specific_wandb(project, my_uid, config, run_name, wallet)
 
         bt.logging.success("Started all wandb runs")
 
@@ -81,7 +80,7 @@ def initialize_components(config):
     subtensor = bt.subtensor(config=config)
     metagraph = subtensor.metagraph(config.netuid)
     dendrite = bt.dendrite(wallet=wallet)
-    my_uid = uid(wallet, metagraph)
+    my_uid = metagraph.hotkeys.index(wallet.hotkey.ss58_address)
     if wallet.hotkey.ss58_address not in metagraph.hotkeys:
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
@@ -94,7 +93,7 @@ def initialize_validators(vali_config):
 
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
-    embed_vali = EmbeddingsValidator(**vali_config)
+    # embed_vali = EmbeddingsValidator(**vali_config)
 
 
 @app.post("/text-validator/")
@@ -184,7 +183,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     total_scores = torch.zeros(len(metagraph.hotkeys))
     # validators to use in the loop
     validators = [text_vali, image_vali, embed_vali]
-    # validators = validators[2]
+    validators = validators[:2]
 
     while True:
         try:
