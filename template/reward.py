@@ -56,7 +56,7 @@ def calculate_text_similarity(text1, text2):
 async def openai_score(openai_answer: str, response: str, weight: float) -> float:
     loop = asyncio.get_running_loop()
     similarity = await loop.run_in_executor(None, calculate_text_similarity, openai_answer, response)
-    bt.logging.info(f"similarity is {similarity}")
+    bt.logging.debug(f"similarity is {similarity}")
 
     return weight if similarity > .75 else 0
 
@@ -153,7 +153,7 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
         if similarity > similarity_threshold:
-            bt.logging.info(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
+            bt.logging.debug(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
             return weight
 
         else: 

@@ -95,7 +95,7 @@ async def get_list(list_type, theme=None):
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
-                bt.logging.info(f"Received new {list_type}")
+                bt.logging.success(f"Received new {list_type}")
                 bt.logging.debug(f"questions are {extracted_list}")
                 return extracted_list
             else:
@@ -160,6 +160,8 @@ async def get_question(category):
 
 def preprocess_string(text):
     try:
+        text = text.replace("\t", " ")
+
         # Placeholder for single quotes within words
         placeholder = "___SINGLE_QUOTE___"
 
@@ -172,18 +174,21 @@ def preprocess_string(text):
         # Restore the original single quotes from the placeholder
         processed_text = processed_text.replace(placeholder, "'")
 
-        # Replace tabs with a single space
-        processed_text = processed_text.replace("\t", " ")
-
         # Delete spaces after an opening bracket '['
         processed_text = re.sub(r"\[\s+", "[", processed_text)
 
         # Delete spaces before a closing bracket ']'
         processed_text = re.sub(r"\s+\]", "]", processed_text)
 
-        return processed_text
+        # Remove characters before first '[' and after first ']'
+        start = processed_text.find('[')
+        end = processed_text.find(']')
+
+        if start != -1 and end != -1 and end > start:
+            processed_text = processed_text[start:end + 1]
 
         return processed_text
+
     except Exception as e:
         bt.logging.error(f"Error in preprocessing string: {traceback.format_exc()}")
         return text
