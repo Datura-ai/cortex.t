@@ -193,11 +193,11 @@ def extract_python_list(text: str):
             if isinstance(evaluated, list):
                 return evaluated
     except SyntaxError as e:
-        bt.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
     except ValueError as e:
-        bt.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
     except Exception as e:
-        bt.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
     # Return None if the list cannot be extracted
     return None
