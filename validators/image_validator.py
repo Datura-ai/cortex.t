@@ -50,9 +50,6 @@ class ImageValidator(BaseValidator):
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_messages
 
-    async def handle_response(self, uid, responses):
-        return uid, responses
-
     async def download_image(self, url):
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:

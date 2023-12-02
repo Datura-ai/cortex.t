@@ -23,9 +23,8 @@ class BaseValidator(ABC):
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 
-    @abstractmethod
     async def handle_response(self, uid, responses):
-        pass
+        return uid, responses
 
     @abstractmethod
     async def start_query(self, available_uids):
