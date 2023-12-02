@@ -180,27 +180,31 @@ async def get_and_update_available_uids(dendrite, metagraph):
             bt.logging.info(f"UID update thread exception: {traceback.format_exc()}")
 
 def run_async_in_thread(func, *args):
+    loop_ref = {}
+
     def thread_task():
         loop = asyncio.new_event_loop()
+        loop_ref['loop'] = loop  # Store the loop in the reference object
         asyncio.set_event_loop(loop)
         try:
-            loop.run_until_complete(func(*args))
+            loop.run_until_complete(func(*args, loop=loop))
         except Exception as e:
             bt.logging.info(f"Exception in thread: {e}")
         finally:
             loop.close()
-    return thread_task
 
-async def validator_thread(config, dendrite, metagraph, validator, total_scores, steps_passed):
+    return thread_task, loop_ref
+
+async def validator_thread(config, dendrite, metagraph, validator, total_scores, steps_passed, loop):
     global available_uids
     bt.logging.info(f"Starting validator_thread for {validator.__class__.__name__}")
     while True:
         try:
             bt.logging.info(f"available_uids in thread is {available_uids}")
             if available_uids:
-                scores, uid_scores_dict = await process_modality(config, dendrite, metagraph, validator, available_uids)
+                scores, uid_scores_dict = await process_modality(config, dendrite, metagraph, validator, available_uids, loop)
                 bt.logging.info(f"scores: {scores}, uid_scores_dict: {uid_scores_dict}")
-                with lock:  # Ensure you have a lock defined for thread-safe operations
+                with lock:
                     total_scores += scores
                     steps_passed[validator] += 1
             else:
@@ -228,8 +232,8 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     threads = []
 
     for validator in validators:
-        thread = threading.Thread(target=run_async_in_thread(validator_thread, config, dendrite, metagraph, validator, total_scores, steps_passed))
-        threads.append(thread)
+        thread_task, loop_ref = run_async_in_thread(validator_thread, config, dendrite, metagraph, validator, total_scores, steps_passed)
+        thread = threading.Thread(target=thread_task) 
         thread.start()
 
     while True:
@@ -253,10 +257,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         thread.join()
 
 def uid_update_task_with_own_loop(dendrite, metagraph):
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    # Add here any asyncio tasks you want to run in this thread
-    loop.run_forever()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.create_task(get_and_update_available_uids(dendrite, metagraph))
+    try:
+        loop.run_forever()
+    finally:
+        loop.close()
 
 def main():
     config = get_config()
