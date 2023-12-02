@@ -111,10 +111,7 @@ class ImageValidator(BaseValidator):
             self.wandb_data["scores"][uid] = score
             self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
-        if self.config.wandb_on:
-            wandb.log(self.wandb_data)
-
-        return scores, uid_scores_dict
+        return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):
         query_responses, uid_to_messages = await self.start_query(available_uids)

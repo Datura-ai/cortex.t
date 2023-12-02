@@ -6,3 +6,4 @@ bittensor_subnet_template.egg-info/
 template/__pycache__/
 __pycache__/
 *.pyc
+wandb/
