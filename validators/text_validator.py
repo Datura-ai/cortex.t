@@ -49,10 +49,10 @@ class TextValidator(BaseValidator):
         full_response = ""
         for resp in responses:
             async for chunk in resp:
-                if isinstance(chunk, list):
-                    bt.logging.debug(chunk[0])
-                    full_response += chunk[0]
-            bt.logging.debug(f"full_response for uid {uid}: {full_response}")
+                if isinstance(chunk, str):  # Now expecting chunk to be a string
+                    bt.logging.debug(chunk)
+                    full_response += chunk
+            bt.logging.info(f"full_response for uid {uid}: {full_response}")
             break
         return uid, full_response
 

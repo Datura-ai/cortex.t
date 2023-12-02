@@ -390,7 +390,7 @@ class StreamingTemplateMiner(StreamMiner):
 
 
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        bt.logging.info(f"starting processing for synapse {synapse}")
+        bt.logging.info(f"started processing for synapse {synapse}")
         
         async def _prompt(synapse, send: Send):
             try:
