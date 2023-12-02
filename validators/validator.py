@@ -161,7 +161,7 @@ async def check_uid(dendrite, axon, uid):
 
 async def get_and_update_available_uids(dendrite, metagraph, available_uids, loop):
     asyncio.set_event_loop(loop)
-    await asyncio.sleep(2)
+    await asyncio.sleep(5)
     while True:
         try:
             bt.logging.info("Checking available_uids")
@@ -169,7 +169,9 @@ async def get_and_update_available_uids(dendrite, metagraph, available_uids, loo
             updated_uids = [uid for uid in await asyncio.gather(*tasks) if uid is not None]
             available_uids[:] = updated_uids
             bt.logging.info(f"Available UIDs: {available_uids}")
-            await asyncio.sleep(5)
+            bt.logging.info(f"Sleeping at: {time.strftime('%X')}")
+            await asyncio.sleep(60)
+            bt.logging.info(f"Woke up at: {time.strftime('%X')}")
         except Exception as e:
             bt.logging.error(f"UID update exception: {traceback.format_exc()}")
 
@@ -178,7 +180,7 @@ def run_async_in_thread(func, *args):
     def thread_task():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        args_with_loop = (*args, loop)  # Pass the loop as an argument
+        args_with_loop = (*args, loop)
         try:
             loop.run_until_complete(func(*args_with_loop))
         finally:
@@ -189,20 +191,21 @@ async def validator_thread(config, dendrite, metagraph, validator, total_scores,
     asyncio.set_event_loop(loop)
     bt.logging.info(f"Starting validator_thread for {validator.__class__.__name__}")
     while True:
-        bt.logging.info(f"Available UIDs: {available_uids}")
+        bt.logging.info(f"Available UIDs for  {validator.__class__.__name__}: {available_uids}")
         if available_uids:
             lock.acquire()
             try:
                 scores, uid_scores_dict, wandb_data = await process_modality(config, dendrite, metagraph, validator, available_uids)
                 total_scores += scores
                 steps_passed[validator] += 1
+                await asyncio.sleep(100)
             except Exception as e:
                 bt.logging.error(f"Thread exception: {traceback.format_exc()}")
                 break
             finally:
                 lock.release()
         else:
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
             
 async def process_modality(config, dendrite, metagraph, validator, available_uids):
     bt.logging.info(f"Processing for {validator.__class__.__name__} with UIDs: {available_uids}")
@@ -221,9 +224,8 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, availabl
     while True:
         try:
             metagraph = await sync_metagraph(subtensor, config)
-            lock.acquire()  # Acquire the lock
+            lock.acquire() 
             try:
-                # Your code that needs the lock
                 total_steps = sum(steps_passed.values())
                 if total_steps % len(validators) == len(validators) - 1:
                     avg_scores = total_scores / total_steps
@@ -246,7 +248,6 @@ def main():
         "wallet": wallet
     })
     init_wandb(config, my_uid, wallet)
-
     thread_task = run_async_in_thread(get_and_update_available_uids, dendrite, metagraph, available_uids)
     threading.Thread(target=thread_task).start()
     asyncio.run(query_synapse(dendrite, metagraph, subtensor, config, wallet, available_uids))
