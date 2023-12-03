@@ -78,11 +78,13 @@ text1 = """
 python entertainment_complex_questions = [     # Question 1     "Develop a comprehensive algorithm to predict the box office success of movies across different genres and global markets, considering variables such as cast popularity, marketing budget, release timing, and historical data of similar movies.",          # Question 2     "Create a neural network model that can generate original scripts for a TV series that match the linguistic style and thematic depth of a given showrunner, such as Aaron Sorkin or Shonda Rhimes, and test its effectiveness by comparing it with human-written scripts.",          # Question 3     "Design a virtual reality experience that integrates live performances with interactive audience participation, ensuring the experience is adaptable to multiple entertainment genres including concerts, theater, and sport events." ] 
 """
 text2 = """
- python economy_related_tasks = [     "Write a program that simulates the impact of a small tax cut on a simplified supply-demand model, considering only three industries, with relevance to broader economic factors being minimal.",     "Create a Monte Carlo simulation to project the potential variations in a local market's commodity prices, with little consideration for macroeconomic indicators such as GDP or employment rates.",     "Develop a script that scrapes data from a social media platform to gauge consumer sentiment on a new tech gadget, ignoring the broader economic implications of consumer electronics on the economy.",     "Implement an algorithm that predicts the stock price of a fictional company based on random fluctuations, without any connection to economic indicators like inflation or interest rates." ] 
+    ["List five synonyms for "write".",     "Name two famous authors from the 20th century.",     "Write a sentence using the word "pen" as a metaphor.",     "Describe your favorite book in three words.",     "What is the primary tool you use for writing? List one and explain why.",     "Identify and write down one goal for your writing this month.",     "List three adjectives to describe your current writing project or interest."]
  """
-text3 = """
 
+#  not working
+text3 = """
+["An artist's cluttered studio, filled with whispered critiques and the echoes of brushstrokes on canvas.",     "A haunting battlefield from World War I, with the whispers of soldiers" prayers echoing through the abandoned trenches.",     "A virtual reality world where every user's whispers echo through digital landscapes, creating an immersive soundscape.",     "A Victorian-era seance room, with whispered messages from the beyond echoing around a dimly lit, ornate table.",     "A cavernous wine cellar, where the whispered tales of harvests past echo among the dusty, age-old bottles.",     "A supernatural vortex in the heart of a swirling nebula, where the whispers of the universe echo the origins of time."]
 """
 
-extract_python_list(text2)
+print(extract_python_list(text3))
 
