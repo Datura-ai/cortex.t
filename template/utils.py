@@ -178,44 +178,90 @@ async def get_question(category, num_questions_needed):
 
 
 def preprocess_string(text):
-    try:
-        processed_text = text.replace("\t", "")
-        placeholder = "___SINGLE_QUOTE___"
-        processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
-        processed_text = processed_text.replace("'", '"').replace(placeholder, "'")
+    processed_text = text.replace("\t", "")
+    placeholder = "___SINGLE_QUOTE___"
+    processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
+    processed_text = processed_text.replace("'", '"').replace(placeholder, "'")
 
-        # Initialize variables to track whether we are inside quotes or a comment
-        inside_quotes = False
-        inside_comment = False
-        cleaned_text = []
+    # First, remove all comments, ending at the next quote
+    no_comments_text = ""
+    i = 0
+    in_comment = False
+    while i < len(processed_text):
+        if processed_text[i] == '#':
+            in_comment = True
+        elif processed_text[i] == '"' and in_comment:
+            in_comment = False
+            no_comments_text += processed_text[i]  # Keep the quote that ends the comment
+            i += 1
+            continue
+        if not in_comment:
+            no_comments_text += processed_text[i]
+        i += 1
 
-        # Iterate through the text to remove spaces outside quotes and handle comments
-        for char in processed_text:
-            if char == '"':
+    # Now process the text without comments for quotes
+    cleaned_text = []
+    inside_quotes = False
+    found_first_bracket = False
+
+    i = 0
+    while i < len(no_comments_text):
+        char = no_comments_text[i]
+
+        if not found_first_bracket:
+            if char == '[':
+                found_first_bracket = True
+            cleaned_text.append(char)
+            i += 1
+            continue
+
+        if char == '"':
+            # Look for preceding comma or bracket, skipping spaces
+            preceding_char_index = i - 1
+            found_comma_or_bracket = False
+
+            while preceding_char_index >= 0:
+                if no_comments_text[preceding_char_index] in '[,':  # Check for comma or opening bracket
+                    found_comma_or_bracket = True
+                    break
+                elif no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
+                    break
+                preceding_char_index -= 1
+
+            following_char_index = i + 1
+            while following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in ' \n':
+                following_char_index += 1
+
+            if found_comma_or_bracket or \
+               (following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in '],'):
                 inside_quotes = not inside_quotes
-                if inside_comment:
-                    inside_comment = False
-            elif char == '#' and not inside_quotes and not inside_comment:
-                inside_comment = True
+            else:
+                i += 1
+                continue  # Skip this quote
+
+            cleaned_text.append(char)
+            i += 1
+            continue
+
+        if char == ' ':
+            # Skip spaces if not inside quotes and if the space is not between words
+            if not inside_quotes and (i == 0 or no_comments_text[i - 1] in ' ,[' or no_comments_text[i + 1] in ' ,]'):
+                i += 1
                 continue
-            if not inside_quotes and char == ' ':
-                continue
-            if not inside_comment:
-                cleaned_text.append(char)
 
-        cleaned_str = ''.join(cleaned_text)
-        cleaned_str = re.sub(r"\[\s+", "[", cleaned_str)
-        cleaned_str = re.sub(r"\s+\]", "]", cleaned_str)
+        cleaned_text.append(char)
+        i += 1
 
-        # Extract the portion within the outermost square brackets
-        start, end = cleaned_str.find('['), cleaned_str.rfind(']')
-        if start != -1 and end != -1 and end > start:
-            cleaned_str = cleaned_str[start:end + 1]
+    cleaned_str = ''.join(cleaned_text)
+    cleaned_str = re.sub(r"\[\s+", "[", cleaned_str)
+    cleaned_str = re.sub(r"\s+\]", "]", cleaned_str)
+    cleaned_str = re.sub(r"\s*,\s*", ", ", cleaned_str)  # Ensure single space after commas
 
-        return cleaned_str
-    except Exception as e:
-        print(f"Error in preprocessing string: {e}")
-        return text
+    start, end = cleaned_str.find('['), cleaned_str.rfind(']')
+    if start != -1 and end != -1 and end > start:
+        cleaned_str = cleaned_str[start:end + 1]
+
+    return cleaned_str
 
 def convert_to_list(text):
     pattern = r'\d+\.\s'
@@ -227,9 +273,9 @@ def extract_python_list(text: str):
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
         
-        print(f"Preprocessed text = {text}")
+        bt.logging.info(f"Preprocessed text = {text}")
         text = preprocess_string(text)
-        print(f"Postprocessed text = {text}")
+        bt.logging.info(f"Postprocessed text = {text}")
 
         # Extracting list enclosed in square brackets
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text, re.DOTALL)
@@ -242,7 +288,7 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
-        print(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
     return text
 
