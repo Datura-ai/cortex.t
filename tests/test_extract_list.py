@@ -3,7 +3,6 @@ import ast
 import regex
 import traceback
 
-
 def preprocess_string(text):
     try:
         processed_text = text.replace("\t", "")
@@ -22,33 +21,50 @@ def preprocess_string(text):
             if not found_first_bracket:
                 if char == '[':
                     found_first_bracket = True
-                    cleaned_text.append(char)  # Add the opening bracket
+                cleaned_text.append(char)
                 i += 1
                 continue
 
             if char == '#':
-                # Skip until the end of the line or the string
                 while i < len(processed_text) and processed_text[i] not in ['\n', '"']:
                     i += 1
                 continue
 
             if char == '"':
-                inside_quotes = not inside_quotes
+                # Check for preceding or following bracket or comma, ignoring spaces and comments
+                preceding_char_index = i - 1
+                while preceding_char_index > 0 and processed_text[preceding_char_index] in ' \n':
+                    preceding_char_index -= 1
 
-            if not inside_quotes and char == ' ' and (i == 0 or processed_text[i - 1] == ' '):
+                following_char_index = i + 1
+                while following_char_index < len(processed_text) and processed_text[following_char_index] in ' \n':
+                    following_char_index += 1
+
+                if (preceding_char_index >= 0 and processed_text[preceding_char_index] in '[,') or \
+                   (following_char_index < len(processed_text) and processed_text[following_char_index] in '],'):
+                    inside_quotes = not inside_quotes
+                else:
+                    i += 1
+                    continue  # Skip this quote
+
+                cleaned_text.append(char)
                 i += 1
                 continue
+
+            if char == ' ':
+                # Skip spaces if not inside quotes and if the space is not between words
+                if not inside_quotes and (i == 0 or processed_text[i - 1] in ' ,[' or processed_text[i + 1] in ' ,]'):
+                    i += 1
+                    continue
 
             cleaned_text.append(char)
             i += 1
 
         cleaned_str = ''.join(cleaned_text)
-
-        # Clean up bracket spacing
         cleaned_str = re.sub(r"\[\s+", "[", cleaned_str)
         cleaned_str = re.sub(r"\s+\]", "]", cleaned_str)
+        cleaned_str = re.sub(r"\s*,\s*", ", ", cleaned_str)  # Ensure single space after commas
 
-        # Extract the portion within the outermost square brackets
         start, end = cleaned_str.find('['), cleaned_str.rfind(']')
         if start != -1 and end != -1 and end > start:
             cleaned_str = cleaned_str[start:end + 1]
@@ -57,7 +73,6 @@ def preprocess_string(text):
     except Exception as e:
         print(f"Error in preprocessing string: {e}")
         return text
-
 
 def convert_to_list(text):
     pattern = r'\d+\.\s'
@@ -90,7 +105,7 @@ def extract_python_list(text: str):
 
 
 text1 = """
-python entertainment_complex_questions = [     # Question 1     "Develop a comprehensive "algorithm" to predict the box office success of movies across different genres and global markets, considering variables such as cast popularity, marketing budget, release timing, and historical data of similar movies.",          # Question 2     "Create a neural network model that can generate original scripts for a TV series that match the linguistic style and thematic depth of a given showrunner, such as Aaron Sorkin or Shonda Rhimes, and test its effectiveness by comparing it with human-written scripts." ] 
+my_list = [     # Question 1     "Develop a comprehensive "algorithm" to make predictions, considering variables such as cast 'popularity' and marketing budget.",          # Question 2     "Create a neural network model that can generate ""original"" scripts for a TV series" ] 
 """
 
 print(extract_python_list(text1))
