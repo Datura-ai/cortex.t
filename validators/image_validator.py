@@ -40,7 +40,7 @@ class ImageValidator(BaseValidator):
         query_tasks = []
         uid_to_messages = {}
         for uid in available_uids:
-            messages = await get_question("images")
+            messages = await get_question("images", len(available_uids))
             uid_to_messages[uid] = messages  # Store messages for each UID
             syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
             bt.logging.info(f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}")

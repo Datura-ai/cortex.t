@@ -61,19 +61,19 @@ async def get_list(list_type, theme=None):
 
     list_type_mapping = {
         "text_themes": {
-            "default": template.question_themes,
-            "prompt": "Create a Python list of 50 unique and thought-provoking themes, each suitable for generating meaningful text-based questions. Limit each theme to a maximum of four words. The themes should be diverse and encompass a range of topics, including technology, philosophy, society, history, science, and art. Format the themes as elements in a Python list, and provide only the list without any additional text or explanations."
+            "default": template.INSTRUCT_DEFAULT_THEMES,
+            "prompt": "Please generate a list of broad, informational themes suitable for creating a diverse range of instructive prompts. These themes should be ideal for training an LLM to produce detailed, educational, and insightful content. They should span across multiple disciplines and be general enough to allow for the generation of many sub-topics. Each theme should be a seed for countless questions that delve into the specifics of the subject matter, aiming to inform and educate users about complex topics in an accessible way. Avoid themes that are too narrow or niche and focus on those that could be universally recognized and widely applicable for educational purposes."
         },
         "images_themes": {
-            "default": template.image_themes,
+            "default": template.IMAGE_DEFAULT_THEMES,
             "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
         },
         "text_questions": {
-            "default": template.text_questions,
-            "prompt": f"Generate a Python list of 20 creative and thought-provoking questions, each related to the theme '{theme}'. Ensure each question is concise, no more than 15 words, and tailored to evoke in-depth exploration or discussion about '{theme}'. Format the output as elements in a Python list, and include only the list without any additional explanations or text."
+            "default": template.INSTRUCT_DEfAULT_QUESTIONS,
+            "prompt" = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
         },
         "images_questions": {
-            "default": template.image_questions,
+            "default": template.IMAGE_DEFAULT_QUESTIONS,
             "prompt": f"Provide a Python list of 20 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
     }
@@ -85,6 +85,16 @@ async def get_list(list_type, theme=None):
     
     default = list_type_mapping[list_type]["default"]
     prompt = list_type_mapping[list_type]["prompt"]
+
+    if list_type == "text_questions":
+        questions = []
+        for complexity_level in range(1, 11): 
+            for relevance_level in range(1, 11):
+                prompt = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                questions += await generate_questions(prompt)
+        return questions if questions else default
+    else:
+        prompt = list_type_mapping[list_type]["prompt"]
 
     messages = [{'role': "user", 'content': prompt}]
     max_retries = 3
@@ -150,7 +160,7 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
     return item
 
 
-async def get_question(category):
+async def get_question(category, questions_needed):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 

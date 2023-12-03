@@ -33,7 +33,7 @@ class TextValidator(BaseValidator):
         query_tasks = []
         uid_to_question = {}
         for uid in available_uids:
-            prompt = await get_question("text")
+            prompt = await get_question("text", len(available_uids))
             uid_to_question[uid] = prompt
             messages = [{'role': 'user', 'content': prompt}]
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
