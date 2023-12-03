@@ -5,8 +5,11 @@ import traceback
 
 import re
 
+import re
+
 def preprocess_string(text):
     try:
+        # Replace tabs and handle apostrophes
         processed_text = text.replace("\t", "")
         placeholder = "___SINGLE_QUOTE___"
         processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
@@ -15,8 +18,16 @@ def preprocess_string(text):
         cleaned_text = []
         inside_quotes = False
         inside_comment = False
+        found_first_bracket = False
 
         for i, char in enumerate(processed_text):
+            # Skip processing until the first '[' is found
+            if not found_first_bracket:
+                if char == '[':
+                    found_first_bracket = True
+                else:
+                    continue
+
             # Handle comment toggling
             if char == '#' and not inside_quotes:
                 inside_comment = not inside_comment
@@ -32,15 +43,15 @@ def preprocess_string(text):
                     # Check if quote is correctly placed before closing a list item
                     next_char_index = i + 1
                     while next_char_index < len(processed_text) and processed_text[next_char_index] == ' ':
-                        next_char_index += 1  # Skip spaces to find the real following character
+                        next_char_index += 1
 
                     if next_char_index < len(processed_text) and processed_text[next_char_index] not in [',', ']']:
-                        continue  # Skip incorrect quote
+                        continue
                 else:
                     # Starting a quote, skip incorrect quotes
                     prev_char_index = i - 1
                     while prev_char_index >= 0 and processed_text[prev_char_index] == ' ':
-                        prev_char_index -= 1  # Skip spaces to find the real preceding character
+                        prev_char_index -= 1
 
                     if prev_char_index >= 0 and processed_text[prev_char_index] not in [',', '[']:
                         continue
@@ -67,9 +78,6 @@ def preprocess_string(text):
     except Exception as e:
         print(f"Error in preprocessing string: {e}")
         return text
-
-
-
 
 
 def convert_to_list(text):
