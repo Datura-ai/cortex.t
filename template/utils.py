@@ -62,7 +62,7 @@ async def get_list(list_type, theme=None):
     list_type_mapping = {
         "text_themes": {
             "default": template.question_themes,
-            "prompt": "Create a Python list of 50 unique and thought-provoking themes, each suitable for generating meaningful text-based questions. Limit each theme to a maximum of four words. The themes should be diverse and encompass a range of topics, including technology, philosophy, society, history, science, and art. Format the themes as elements in a Python list, and provide only the list without any additional text or explanations."    
+            "prompt": "Create a Python list of 50 unique and thought-provoking themes, each suitable for generating meaningful text-based questions. Limit each theme to a maximum of four words. The themes should be diverse and encompass a range of topics, including technology, philosophy, society, history, science, and art. Format the themes as elements in a Python list, and provide only the list without any additional text or explanations."
         },
         "images_themes": {
             "default": template.image_themes,
@@ -91,7 +91,7 @@ async def get_list(list_type, theme=None):
     for retry in range(max_retries):
         try:
             random_seed = random.randint(1, 10000)
-            answer = await call_openai(messages, .33, "gpt-3.5-turbo", random_seed)
+            answer = await call_openai(messages, 1, "gpt-3.5-turbo", random_seed)
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
@@ -160,7 +160,7 @@ async def get_question(category):
 
 def preprocess_string(text):
     try:
-        text = text.replace("\t", " ")
+        processed_text = text.replace("\t", " ")
 
         # Placeholder for single quotes within words
         placeholder = "___SINGLE_QUOTE___"
@@ -193,27 +193,28 @@ def preprocess_string(text):
         bt.logging.error(f"Error in preprocessing string: {traceback.format_exc()}")
         return text
 
+def convert_to_list(text):
+    pattern = r'\d+\.\s'
+    items = [item.strip() for item in re.split(pattern, text) if item]
+    return items
+
 
 def extract_python_list(text: str):
     try:
+        if re.match(r'\d+\.\s', text):
+            return convert_to_list(text)
         text = preprocess_string(text)
-        # Improved regex to match more complex list structures including multiline strings
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
         if match:
             list_str = match.group()
 
-            # Using ast.literal_eval to safely evaluate the string as a Python literal
             evaluated = ast.literal_eval(list_str)
             if isinstance(evaluated, list):
                 return evaluated
-    except SyntaxError as e:
-        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
-    except ValueError as e:
-        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
+
     except Exception as e:
         bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
-    # Return None if the list cannot be extracted
     return None
 
 
