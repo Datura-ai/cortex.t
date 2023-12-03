@@ -157,7 +157,7 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
             return weight
 
         else: 
-             bt.logging.info(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
+             bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
              return 0
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
