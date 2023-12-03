@@ -5,11 +5,8 @@ import traceback
 
 import re
 
-import re
-
 def preprocess_string(text):
     try:
-        # Replace tabs and handle apostrophes
         processed_text = text.replace("\t", "")
         placeholder = "___SINGLE_QUOTE___"
         processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
@@ -17,51 +14,33 @@ def preprocess_string(text):
 
         cleaned_text = []
         inside_quotes = False
-        inside_comment = False
         found_first_bracket = False
 
-        for i, char in enumerate(processed_text):
-            # Skip processing until the first '[' is found
+        i = 0
+        while i < len(processed_text):
+            char = processed_text[i]
+
             if not found_first_bracket:
                 if char == '[':
                     found_first_bracket = True
-                else:
-                    continue
-
-            # Handle comment toggling
-            if char == '#' and not inside_quotes:
-                inside_comment = not inside_comment
+                i += 1
                 continue
 
-            # Skip characters in comments
-            if inside_comment:
+            if char == '#':
+                # Skip until the end of the line or the string
+                while i < len(processed_text) and processed_text[i] not in ['\n', '"']:
+                    i += 1
                 continue
 
-            # Handle quote toggling and removal of incorrect quotes
             if char == '"':
-                if inside_quotes:
-                    # Check if quote is correctly placed before closing a list item
-                    next_char_index = i + 1
-                    while next_char_index < len(processed_text) and processed_text[next_char_index] == ' ':
-                        next_char_index += 1
-
-                    if next_char_index < len(processed_text) and processed_text[next_char_index] not in [',', ']']:
-                        continue
-                else:
-                    # Starting a quote, skip incorrect quotes
-                    prev_char_index = i - 1
-                    while prev_char_index >= 0 and processed_text[prev_char_index] == ' ':
-                        prev_char_index -= 1
-
-                    if prev_char_index >= 0 and processed_text[prev_char_index] not in [',', '[']:
-                        continue
                 inside_quotes = not inside_quotes
 
-            # Skip extra spaces outside quotes
-            if not inside_quotes and char == ' ':
+            if not inside_quotes and char == ' ' and (i == 0 or processed_text[i - 1] == ' '):
+                i += 1
                 continue
 
             cleaned_text.append(char)
+            i += 1
 
         cleaned_str = ''.join(cleaned_text)
 
@@ -78,6 +57,7 @@ def preprocess_string(text):
     except Exception as e:
         print(f"Error in preprocessing string: {e}")
         return text
+
 
 
 def convert_to_list(text):
