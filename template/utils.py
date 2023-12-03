@@ -55,10 +55,10 @@ def get_validators_with_runs_in_all_projects():
     # Find common validators across all projects
     common_validators = set.intersection(*validators_runs.values())
     return common_validators
+    
 
-
-async def get_list(list_type, theme=None):
-
+async def get_list(list_type, num_questions_needed, theme=None):
+    prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_themes": {
             "default": template.INSTRUCT_DEFAULT_THEMES,
@@ -74,54 +74,54 @@ async def get_list(list_type, theme=None):
         },
         "images_questions": {
             "default": template.IMAGE_DEFAULT_QUESTIONS,
-            "prompt": f"Provide a Python list of 20 creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+            "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
     }
 
-     # Check if list_type is valid
-    if list_type not in list_type_mapping:
-        bt.logging.error("no valid list_type provided")
-        return
-    
-    default = list_type_mapping[list_type]["default"]
-
     if list_type == "text_questions":
-        if instruct_questions == []:
+        if len(instruct_questions) < num_questions_needed:
             for theme in template.INSTRUCT_DEFAULT_THEMES:
                 for complexity_level in range(1, 11): 
                     for relevance_level in range(1, 11):
-                        prompt = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                        prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
                         instruct_questions.append(prompt)
-            prompt = instruct_questions[0]
-            print(instruct_questions)
+
+    selected_prompts = []
+    for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
+        if list_type == "text_questions":
+            prompt = random.choice(instruct_questions)
+            instruct_questions.remove(prompt)
+        elif list_type == "image_questions":
+            prompt = list_type_mapping[list_type]["prompt"]
+
+        selected_prompts.append(prompt)
+
+    bt.logging.info(f"num_questions_needed is {num_questions_needed}")
+    bt.logging.info(f"list_type is {list_type}")
+    bt.logging.info(f"selected_prompts is {selected_prompts}")
+
+    tasks = []
+    for prompt in selected_prompts:
+        random_seed = random.randint(1, 10000)
+        messages = [{'role': "user", 'content': prompt}]
+        task = call_openai(messages, 1, "gpt-3.5-turbo", random_seed)
+        tasks.append(task)
+
+    # Run all tasks concurrently and wait for them to complete
+    responses = await asyncio.gather(*tasks)
+    
+    extracted_lists = []
+    for answer in responses:
+        answer = answer.replace("\n", " ") if answer else ""
+        extracted_list = extract_python_list(answer)
+        if extracted_list:
+            bt.logging.success(f"Received new {list_type}")
+            bt.logging.info(f"questions are {extracted_list}")
+            extracted_lists += extracted_list
         else:
-            prompt = instruct_questions[0]
-            
-    else:
-        prompt = list_type_mapping[list_type]["prompt"]
-
-    messages = [{'role': "user", 'content': prompt}]
-    max_retries = 3
-    for retry in range(max_retries):
-        try:
-            random_seed = random.randint(1, 10000)
-            answer = await call_openai(messages, 1, "gpt-3.5-turbo", random_seed)
-            answer = answer.replace("\n", " ") if answer else ""
-            extracted_list = extract_python_list(answer)
-            if extracted_list:
-                if list_type == "text_questions":
-                    instruct_questions.pop(0)
-                bt.logging.success(f"Received new {list_type}")
-                bt.logging.debug(f"questions are {extracted_list}")
-                return extracted_list
-            else:
-                bt.logging.info(f"No valid python list found, retry count: {retry + 1} {answer}")
-        except Exception as e:
-            retry += 1
-            bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}")
-
-    bt.logging.error(f"No list found after {max_retries} retries, using default list.")
-    return default
+            bt.logging.info(f"No valid python list found in {answer}")
+    
+    return extracted_lists
 
 
 async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
@@ -130,7 +130,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
             if category == "images":
-                return await get_list(f"{category}_themes")
+                return await get_list(f"{category}_themes", num_questions_needed)
             else:
                 return template.INSTRUCT_DEFAULT_THEMES
         else:
@@ -138,7 +138,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             if theme is None:
                 theme = await get_current_theme(category)
 
-            return await get_list(f"{category}_questions", theme)
+            return await get_list(f"{category}_questions", num_questions_needed, theme)
 
     async def get_current_theme(category):
         themes = state[category]["themes"]
