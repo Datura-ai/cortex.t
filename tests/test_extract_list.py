@@ -1,4 +1,5 @@
 import re
+import ast
 import regex
 import traceback
 
@@ -65,9 +66,6 @@ def extract_python_list(text: str):
     return text
 
 
-extract_python_list(text1)
-
-
 text1 = """
 ```python entertainment_complex_questions = [     # Question 1     "Develop a comprehensive algorithm to predict the box office success of movies across different genres and global markets, considering variables such as cast popularity, marketing budget, release timing, and historical data of similar movies.",          # Question 2     "Create a neural network model that can generate original scripts for a TV series that match the linguistic style and thematic depth of a given showrunner, such as Aaron Sorkin or Shonda Rhimes, and test its effectiveness by comparing it with human-written scripts.",          # Question 3     "Design a virtual reality experience that integrates live performances with interactive audience participation, ensuring the experience is adaptable to multiple entertainment genres including concerts, theater, and sport events." ] ```
 """
@@ -77,4 +75,6 @@ text2 = """
 text3 = """
 
 """
+
+extract_python_list(text1)
 
