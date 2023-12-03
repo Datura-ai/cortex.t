@@ -1,3 +1,6 @@
+import re
+import regex
+import traceback
 
 
 def preprocess_string(text):
@@ -32,7 +35,7 @@ def preprocess_string(text):
         return processed_text
 
     except Exception as e:
-        bt.logging.error(f"Error in preprocessing string: {traceback.format_exc()}")
+        print(f"Error in preprocessing string: {traceback.format_exc()}")
         return text
 
 def convert_to_list(text):
@@ -45,9 +48,9 @@ def extract_python_list(text: str):
     try:
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
-        bt.logging.info(f"Preprocessed text = {text}")
+        print(f"Preprocessed text = {text}")
         text = preprocess_string(text)
-        bt.logging.info(f"Postprocessed text = {text}")
+        print(f"Postprocessed text = {text}")
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
         if match:
             list_str = match.group()
@@ -57,6 +60,21 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
-        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        print(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
     return text
+
+
+extract_python_list(text1)
+
+
+text1 = """
+```python entertainment_complex_questions = [     # Question 1     "Develop a comprehensive algorithm to predict the box office success of movies across different genres and global markets, considering variables such as cast popularity, marketing budget, release timing, and historical data of similar movies.",          # Question 2     "Create a neural network model that can generate original scripts for a TV series that match the linguistic style and thematic depth of a given showrunner, such as Aaron Sorkin or Shonda Rhimes, and test its effectiveness by comparing it with human-written scripts.",          # Question 3     "Design a virtual reality experience that integrates live performances with interactive audience participation, ensuring the experience is adaptable to multiple entertainment genres including concerts, theater, and sport events." ] ```
+"""
+text2 = """
+ ```python economy_related_tasks = [     "Write a program that simulates the impact of a small tax cut on a simplified supply-demand model, considering only three industries, with relevance to broader economic factors being minimal.",     "Create a Monte Carlo simulation to project the potential variations in a local market's commodity prices, with little consideration for macroeconomic indicators such as GDP or employment rates.",     "Develop a script that scrapes data from a social media platform to gauge consumer sentiment on a new tech gadget, ignoring the broader economic implications of consumer electronics on the economy.",     "Implement an algorithm that predicts the stock price of a fictional company based on random fluctuations, without any connection to economic indicators like inflation or interest rates." ] ```
+"""
+text3 = """
+
+"""
+
