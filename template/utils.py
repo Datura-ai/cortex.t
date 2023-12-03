@@ -11,7 +11,7 @@ import bittensor as bt
 from . import client
 
 list_update_lock = asyncio.Lock()
-
+instruct_questions = []
 
 def load_state_from_file(filename="state.json"):
     if os.path.exists(filename):
@@ -70,7 +70,7 @@ async def get_list(list_type, theme=None):
         },
         "text_questions": {
             "default": template.INSTRUCT_DEfAULT_QUESTIONS,
-            "prompt" = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+            "prompt": "placeholder"
         },
         "images_questions": {
             "default": template.IMAGE_DEFAULT_QUESTIONS,
@@ -84,15 +84,19 @@ async def get_list(list_type, theme=None):
         return
     
     default = list_type_mapping[list_type]["default"]
-    prompt = list_type_mapping[list_type]["prompt"]
 
     if list_type == "text_questions":
-        questions = []
-        for complexity_level in range(1, 11): 
-            for relevance_level in range(1, 11):
-                prompt = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
-                questions += await generate_questions(prompt)
-        return questions if questions else default
+        if instruct_questions == []:
+            for theme in template.INSTRUCT_DEFAULT_THEMES:
+                for complexity_level in range(1, 11): 
+                    for relevance_level in range(1, 11):
+                        prompt = f"Generate a Python list of 5 questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                        instruct_questions.append(prompt)
+            prompt = instruct_questions[0]
+            print(instruct_questions)
+        else:
+            prompt = instruct_questions[0]
+            
     else:
         prompt = list_type_mapping[list_type]["prompt"]
 
@@ -105,6 +109,8 @@ async def get_list(list_type, theme=None):
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
+                if list_type == "text_questions":
+                    instruct_questions.pop(0)
                 bt.logging.success(f"Received new {list_type}")
                 bt.logging.debug(f"questions are {extracted_list}")
                 return extracted_list
@@ -118,18 +124,20 @@ async def get_list(list_type, theme=None):
     return default
 
 
-async def update_counters_and_get_new_list(category, item_type, theme=None):
+async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
     global list_update_lock
 
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
-            return await get_list(f"{category}_themes")
+            if category == "images":
+                return await get_list(f"{category}_themes")
+            else:
+                return template.INSTRUCT_DEFAULT_THEMES
         else:
             # Ensure theme is always available for 'questions'
             if theme is None:
                 theme = await get_current_theme(category)
-                if theme is None:
-                    raise ValueError("No theme available for questions")
+
             return await get_list(f"{category}_questions", theme)
 
     async def get_current_theme(category):
@@ -160,11 +168,11 @@ async def update_counters_and_get_new_list(category, item_type, theme=None):
     return item
 
 
-async def get_question(category, questions_needed):
+async def get_question(category, num_questions_needed):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
-    question = await update_counters_and_get_new_list(category, "questions")
+    question = await update_counters_and_get_new_list(category, "questions", num_questions_needed)
     return question
 
 
