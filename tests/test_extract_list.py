@@ -5,6 +5,8 @@ import traceback
 
 import re
 
+import re
+
 def preprocess_string(text):
     try:
         processed_text = text.replace("\t", "")
@@ -23,6 +25,7 @@ def preprocess_string(text):
             if not found_first_bracket:
                 if char == '[':
                     found_first_bracket = True
+                    cleaned_text.append(char)  # Add the opening bracket
                 i += 1
                 continue
 
@@ -57,6 +60,7 @@ def preprocess_string(text):
     except Exception as e:
         print(f"Error in preprocessing string: {e}")
         return text
+
 
 
 
