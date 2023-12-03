@@ -1,6 +1,7 @@
 import re
 import os
 import ast
+import math
 import json
 import wandb
 import random
@@ -83,7 +84,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
             for theme in template.INSTRUCT_DEFAULT_THEMES:
                 for complexity_level in range(1, 11): 
                     for relevance_level in range(1, 11):
-                        prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                        prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
                         instruct_questions.append(prompt)
 
     selected_prompts = []
@@ -91,7 +92,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
         if list_type == "text_questions":
             prompt = random.choice(instruct_questions)
             instruct_questions.remove(prompt)
-        elif list_type == "image_questions":
+        elif list_type == "images_questions":
             prompt = list_type_mapping[list_type]["prompt"]
 
         selected_prompts.append(prompt)
@@ -104,7 +105,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
     for prompt in selected_prompts:
         random_seed = random.randint(1, 10000)
         messages = [{'role': "user", 'content': prompt}]
-        task = call_openai(messages, 1, "gpt-3.5-turbo", random_seed)
+        task = call_openai(messages, 0.8, "gpt-4-1106-preview", random_seed)
         tasks.append(task)
 
     # Run all tasks concurrently and wait for them to complete
@@ -221,7 +222,9 @@ def extract_python_list(text: str):
     try:
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
+        bt.logging.info(f"Preprocessed text = {text}")
         text = preprocess_string(text)
+        bt.logging.info(f"Postprocessed text = {text}")
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
         if match:
             list_str = match.group()
@@ -233,7 +236,7 @@ def extract_python_list(text: str):
     except Exception as e:
         bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
-    return None
+    return text
 
 
 async def call_openai(messages, temperature, model, seed=1234):
