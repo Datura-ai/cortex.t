@@ -57,8 +57,8 @@ PROJECT_NAME = 'multi-modality'
 
 
 # Instruct themes used in https://arxiv.org/pdf/2304.12244.pdf to train WizardLM
-initial_intruct_themes = ['Philosopy', 'Technology', 'Physics', 'Ethics', 'Academic Writing', 'Economy', 'History', 'Medicine', 'Toxicity', 'Roleplay', 'Entertainment', 'Biology', 'Counterfactual', 'Literature', 'Chemistry', 'Writing', 'Sport', 'Law', 'Language', 'Computer Science', 'Multilangual', 'Common Sense', 'Art', 'Complex Format' 'Code Generation', 'Math', 'Code Debug', 'Reasoning']
-more_instrcut_themes = [
+initial_instruct_themes = ['Philosopy', 'Technology', 'Physics', 'Ethics', 'Academic Writing', 'Economy', 'History', 'Medicine', 'Toxicity', 'Roleplay', 'Entertainment', 'Biology', 'Counterfactual', 'Literature', 'Chemistry', 'Writing', 'Sport', 'Law', 'Language', 'Computer Science', 'Multilangual', 'Common Sense', 'Art', 'Complex Format' 'Code Generation', 'Math', 'Code Debug', 'Reasoning']
+more_instruct_themes = [
     "Global Cultures and Societies",
     "Modern and Ancient Civilizations",
     "Innovations in Science and Technology",
