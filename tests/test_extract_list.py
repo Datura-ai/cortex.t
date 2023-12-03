@@ -1,7 +1,19 @@
 import re
+import os
 import ast
-import regex
+import math
+import json
+import wandb
+import random
+import asyncio
+import template
 import traceback
+import bittensor as bt
+
+from template import client
+
+
+instruct_questions = []
 
 def preprocess_string(text):
     processed_text = text.replace("\t", "")
@@ -124,5 +136,106 @@ my_list = [     # Question 1     "Develop a comprehensive "algorithm" to make pr
 """
 
 print(extract_python_list(text1))
+
+
+async def get_list(list_type, num_questions_needed, theme=None):
+    prompts_in_question = {'text_questions': 10, 'images_questions': 20}
+    list_type_mapping = {
+        "text_themes": {
+            "default": template.INSTRUCT_DEFAULT_THEMES,
+            "prompt": "Please generate a list of broad, informational themes suitable for creating a diverse range of instructive prompts. These themes should be ideal for training an LLM to produce detailed, educational, and insightful content. They should span across multiple disciplines and be general enough to allow for the generation of many sub-topics. Each theme should be a seed for countless questions that delve into the specifics of the subject matter, aiming to inform and educate users about complex topics in an accessible way. Avoid themes that are too narrow or niche and focus on those that could be universally recognized and widely applicable for educational purposes."
+        },
+        "images_themes": {
+            "default": template.IMAGE_DEFAULT_THEMES,
+            "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
+        },
+        "text_questions": {
+            "default": template.INSTRUCT_DEfAULT_QUESTIONS,
+            "prompt": "placeholder"
+        },
+        "images_questions": {
+            "default": template.IMAGE_DEFAULT_QUESTIONS,
+            "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+        }
+    }
+
+    if list_type == "text_questions":
+        if len(instruct_questions) < num_questions_needed:
+            for theme in template.INSTRUCT_DEFAULT_THEMES:
+                for complexity_level in range(1, 11): 
+                    for relevance_level in range(1, 11):
+                        prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                        instruct_questions.append(prompt)
+
+    selected_prompts = []
+    for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
+        if list_type == "text_questions":
+            prompt = random.choice(instruct_questions)
+            instruct_questions.remove(prompt)
+        elif list_type == "images_questions":
+            prompt = list_type_mapping[list_type]["prompt"]
+
+        selected_prompts.append(prompt)
+
+    bt.logging.info(f"num_questions_needed is {num_questions_needed}")
+    bt.logging.info(f"list_type is {list_type}")
+    bt.logging.info(f"selected_prompts is {selected_prompts}")
+
+    tasks = []
+    for prompt in selected_prompts:
+        random_seed = random.randint(1, 10000)
+        messages = [{'role': "user", 'content': prompt}]
+        task = call_openai(messages, 1, "gpt-4-1106-preview", random_seed)
+        tasks.append(task)
+
+    # Run all tasks concurrently and wait for them to complete
+    responses = await asyncio.gather(*tasks)
+    
+    extracted_lists = []
+    for answer in responses:
+        answer = answer.replace("\n", " ") if answer else ""
+        extracted_list = extract_python_list(answer)
+        if extracted_list:
+            bt.logging.success(f"Received new {list_type}")
+            bt.logging.info(f"questions are {extracted_list}")
+            extracted_lists += extracted_list
+        else:
+            bt.logging.info(f"No valid python list found in {answer}")
+    
+    return extracted_lists
+
+
+async def call_openai(messages, temperature, model, seed=1234):
+    for attempt in range(2):
+        bt.logging.debug("Calling Openai ")
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                seed=seed,
+            )
+            response = response.choices[0].message.content
+            bt.logging.debug(f"validator response is {response}")
+            return response
+
+        except Exception as e:
+            bt.logging.error(f"Error when calling OpenAI: {e}")
+            await asyncio.sleep(0.5) 
+    
+    return None
+
+
+category = "text"
+num_questions_needed = 30
+themes = template.INSTRUCT_DEFAULT_THEMES
+theme = random.choice(themes)
+
+async def main():
+    await get_list(f"{category}_questions", num_questions_needed, theme)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
 
 
