@@ -93,31 +93,6 @@ def initialize_validators(vali_config):
     # embed_vali = EmbeddingsValidator(**vali_config)
 
 
-@app.post("/text-validator/")
-async def text_validator_endpoint(data: str): 
-    try:
-        validation_result = await text_vali.get_and_score(request_data.text)
-        return validation_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/image-validator/")
-async def image_validator_endpoint(data: str): 
-    try:
-        validation_result = await image_vali.get_and_score(request_data.text)
-        return validation_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/embeddings-validator/")
-async def embeddings_validator_endpoint(data: str):
-    try:
-        validation_result = await embed_vali.get_and_score(request_data.text)
-        return validation_result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 async def check_uid(dendrite, axon, uid):
     """Asynchronously check if a UID is available."""
     try:
@@ -188,15 +163,15 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
             
-            iterations_per_set_weights = 4
+            iterations_per_set_weights = 10
             iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
             bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 
-            if steps_passed + 1 % iterations_per_set_weights == 0:
+            if iterations_until_update == 1:
                 update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
-            await asyncio.sleep(3)
+            await asyncio.sleep(0.5)
 
         except Exception as e:
             bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")

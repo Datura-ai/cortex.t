@@ -59,7 +59,7 @@ async def openai_score(openai_answer: str, response: str, weight: float) -> floa
     words_in_response = len(response.split())
     words_in_openai = len(openai_answer.split())
     # linear similarity requirement based on length of response
-    min_similarity = max(1 - 0.0004 * (words_in_response - 1), 0.79)
+    min_similarity = max(1 - 0.0005 * (words_in_response - 1), 0.75)
     bt.logging.debug(f"similarity for len {words_in_response} / {words_in_openai}: {similarity}, min_similarity is {min_similarity}")
 
     return weight if similarity >= min_similarity else 0
@@ -132,7 +132,7 @@ def calculate_image_similarity(image, description, max_length=77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.24):
+async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.26):
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
