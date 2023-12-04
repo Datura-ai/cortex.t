@@ -7,7 +7,7 @@ from template.utils import get_version, send_discord_alert
 default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
 webhook_url = ""
 
-def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address):
+def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
     while True:
         current_version = template.__version__
         latest_version = get_version()
