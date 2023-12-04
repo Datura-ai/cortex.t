@@ -50,7 +50,7 @@ class TextValidator(BaseValidator):
         for resp in responses:
             async for chunk in resp:
                 if isinstance(chunk, str):  # Now expecting chunk to be a string
-                    bt.logging.debug(chunk)
+                    bt.logging.trace(chunk)
                     full_response += chunk
             bt.logging.debug(f"full_response for uid {uid}: {full_response}")
             break
@@ -63,7 +63,7 @@ class TextValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/10
+        will_score_all = random_number < 1/1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
 
         for uid, response in query_responses:
@@ -84,9 +84,13 @@ class TextValidator(BaseValidator):
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
 
-        for (uid, _), score in zip(scoring_tasks, scored_responses):
-            scores[uid] = score if score is not None else 0
-            uid_scores_dict[uid] = scores[uid]
+        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
+            if scored_response is not None:
+                scores[uid] = scored_response
+                uid_scores_dict[uid] = scored_response
+            else:
+                scores[uid] = 0
+                uid_scores_dict[uid] = 0
             # self.wandb_data["scores"][uid] = score
 
         bt.logging.info(f"text_scores is {uid_scores_dict}")
