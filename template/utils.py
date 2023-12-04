@@ -296,7 +296,7 @@ def extract_python_list(text: str):
     except Exception as e:
         bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
-    return text
+    return None
 
 
 async def call_openai(messages, temperature, model, seed=1234):
