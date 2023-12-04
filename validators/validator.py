@@ -181,14 +181,17 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
         try:
             metagraph = await sync_metagraph(subtensor, config)
             available_uids = await get_available_uids(dendrite, metagraph)
-            if steps_passed % 3 == 0 or steps_passed % 3 == 1:
+
+            if steps_passed % 4 in [0, 1, 2]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali
 
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
-            update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
+
+            if steps_passed % 10 == 0:
+                update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
             await asyncio.sleep(3)

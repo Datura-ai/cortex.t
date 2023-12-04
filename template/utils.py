@@ -89,7 +89,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
 
         selected_prompts.append(prompt)
 
-    bt.logging.info(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
 
     # Initial batch request
     tasks = [
@@ -279,9 +279,9 @@ def extract_python_list(text: str):
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
         
-        bt.logging.info(f"Preprocessed text = {text}")
+        bt.logging.debug(f"Preprocessed text = {text}")
         text = preprocess_string(text)
-        bt.logging.info(f"Postprocessed text = {text}")
+        bt.logging.debug(f"Postprocessed text = {text}")
 
         # Extracting list enclosed in square brackets
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text, re.DOTALL)
