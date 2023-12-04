@@ -465,7 +465,7 @@ def get_valid_hotkeys(config):
 
                     bt.logging.debug(f"hotkey is running {version}")
                     if latest_version != None and version != latest_version:
-                        bt.logging.debugf'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
                         continue
                     
                     bt.logging.debug("version matches or github api failed")
