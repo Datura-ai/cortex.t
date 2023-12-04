@@ -16,7 +16,7 @@ from template import client
 instruct_questions = []
 
 def preprocess_string(text):
-    processed_text = text.replace("\t", "")
+    processed_text = text.replace("\t", "").replace("\n", "")
     placeholder = "___SINGLE_QUOTE___"
     processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
     processed_text = processed_text.replace("'", '"').replace(placeholder, "'")
@@ -131,13 +131,6 @@ def extract_python_list(text: str):
     return text
 
 
-text1 = """
-my_list = [     # Question 1     "Develop a comprehensive "algorithm" to make predictions, considering variables such as cast 'popularity' and marketing budget.",          # Question 2     "Create a neural network model that can generate ""original"" scripts for a TV series" ] 
-"""
-
-print(extract_python_list(text1))
-
-
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
@@ -231,11 +224,22 @@ num_questions_needed = 30
 themes = template.INSTRUCT_DEFAULT_THEMES
 theme = random.choice(themes)
 
-async def main():
-    await get_list(f"{category}_questions", num_questions_needed, theme)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+text1 = """
+my_list = [     # Question 1     "Develop a comprehensive "algorithm" to make predictions, considering variables such as cast 'popularity' and marketing budget.",          # Question 2     "Create a neural network model that can generate ""original"" scripts for a TV series" ] 
+"""
+
+text2 = """
+    ["1. Identify the syntax error in the following code: for i in range(10): print(i)", "2. Debug the code below to correctly calculate the factorial of a given number:\ndef factorial(n):\n    if n == 0:\n        return 1\n    else:\n        return n * factorial(n-1)", "3. Fix the logical error in this code snippet that is intended to check if a number is prime:\ndef is_prime(n):\n    for i in range(2, n):\n        if n % i == 0:\n            return False\n    return True", "4. Analyze the code and identify the source of the IndexError:\ndef print_last_element(lst):\n    print(lst[-1])\n\nnumbers = [1, 2, 3]\nprint_last_element(numbers[3])", "5. Debug the code to correct the indentation error and ensure the print statement is executed:\ndef greet(name):\nprint(Hello, ", name)\ngreet(John)", "6. Identify and rectify the logical error in the code that is intended to find the sum of all even numbers in a list:\ndef sum_even_numbers(numbers):\ntotal = 0\nfor num in numbers:\nif num % 2 == 0:\ntotal += num\nreturn total", "7. Debug the code to resolve the TypeError:\ndef concatenate_strings(a, b):\nreturn a + b\n\nname = Alice\nage = 25\nresult = concatenate_strings(name, age)", "8. Analyze the code and identify and fix the NameError:\ndef calculate_average(numbers):\ntotal = sum(numbers)\naverage = total / count\nreturn average\n\ngrades = [90, 85, 95]\naverage_grade = calculate_average(grades)", "9. Debug the code to correctly reverse a given string:\ndef reverse_string(string):\nreversed_str = \nfor i in range(len(string)-1, -1, -1):\nreversed_str += string[i]\nreturn reversed_str\n\nprint(reverse_string(Python))", "10. Identify and fix the logical error in the code that is intended to sort a list of numbers in descending order:\ndef sort_descending(numbers):\nsorted_numbers = []\nfor num in numbers:\nif num > sorted_numbers[0]:\nsorted_numbers.insert(0, num)\nelse:\nsorted_numbers.append(num)\nreturn sorted_numbers"]
+"""
+
+print(extract_python_list(text2))
+
+# async def main():
+#     await get_list(f"{category}_questions", num_questions_needed, theme)
+
+# if __name__ == "__main__":
+#     asyncio.run(main())
 
 
 
