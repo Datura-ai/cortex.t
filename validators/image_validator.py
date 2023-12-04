@@ -70,13 +70,14 @@ class ImageValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score image responses: {will_score_all}")
 
         for uid, response in query_responses:
-            if response and will_score_all:
+            if response:
                 response = response[0]
                 completion = response.completion
                 if completion is not None:
                     bt.logging.info(f"UID {uid} response is {completion}")
                     image_url = completion["url"]
-
+                
+                if will_score_all:
                     # Schedule the image download as an async task
                     download_task = asyncio.create_task(self.download_image(image_url))
                     messages_for_uid = uid_to_messages[uid]
@@ -88,7 +89,7 @@ class ImageValidator(BaseValidator):
                     scores[uid] = 0
                     uid_scores_dict[uid] = 0
             else:
-                bt.logging.info(f"No response for UID {uid} or scoring skipped")
+                bt.logging.debug(f"No response for UID {uid}")
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
 
