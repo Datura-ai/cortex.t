@@ -123,10 +123,10 @@ async def check_uid(dendrite, axon, uid):
     try:
         response = await dendrite(axon, IsAlive(), deserialize=False, timeout=4)
         if response.is_success:
-            bt.logging.debug(f"UID {uid} is active")
+            bt.logging.trace(f"UID {uid} is active")
             return uid
         else:
-            bt.logging.debug(f"UID {uid} is not active")
+            bt.logging.trace(f"UID {uid} is not active")
             return None
     except Exception as e:
         bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
@@ -143,7 +143,7 @@ async def get_available_uids(dendrite, metagraph):
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
     global moving_average_scores
-    # alpha of .3 means that each new score has a 30% weight of the current weights
+    # alpha of .3 means that each new score replaces 30% of the weight of the previous weights
     alpha = .3
     if moving_average_scores is None:
         moving_average_scores = scores.clone()
@@ -159,7 +159,7 @@ async def sync_metagraph(subtensor, config):
 
 
 async def process_modality(config, selected_validator, available_uids):
-    bt.logging.info(f"starting {selected_validator} get_and_score for {available_uids}")
+    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
     scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
     if config.wandb_on:
         wandb.log(wandb_data)
@@ -190,7 +190,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
 
-            if steps_passed % 10 == 0:
+            if steps_passed + 1 % 10 == 0:
                 update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1

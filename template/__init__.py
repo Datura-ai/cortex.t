@@ -31,7 +31,7 @@ AsyncOpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not AsyncOpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=60.0)
+client = AsyncOpenAI(timeout=90.0)
 
 # Blacklist variables
 ALLOW_NON_REGISTERED = False
