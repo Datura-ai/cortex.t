@@ -112,8 +112,8 @@ class ImageValidator(BaseValidator):
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
             # self.wandb_data["scores"][uid] = scored_response
-
-        bt.logging.info(f"image_scores = {uid_scores_dict}")
+        if uid_scores_dict != {}:
+            bt.logging.info(f"image_scores = {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):

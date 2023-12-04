@@ -187,8 +187,12 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
+            
+            iterations_per_set_weights = 4
+            iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
+            bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 
-            if steps_passed + 1 % 10 == 0:
+            if steps_passed + 1 % iterations_per_set_weights == 0:
                 update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
