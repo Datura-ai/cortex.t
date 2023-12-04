@@ -14,7 +14,7 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate
         print(f"Current version: {current_version}")
         print(f"Latest version: {latest_version}")
 
-        if current_version != latest_version:
+        if current_version != latest_version and latest_version != None:
             if not autoupdate:
                 send_discord_alert(f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}", webhook_url)
                 continue
