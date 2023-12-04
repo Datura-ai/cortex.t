@@ -1,15 +1,19 @@
+import re
 import os
 import time
 import copy
 import wandb
+import base64
 import asyncio
 import template
 import argparse
+import requests
 import threading
 import traceback
 import numpy as np
 import pandas as pd
 import bittensor as bt
+
 from openai import OpenAI
 from functools import partial
 from collections import deque
@@ -443,6 +447,26 @@ class StreamingTemplateMiner(StreamMiner):
         return synapse.create_streaming_response(token_streamer)
 
 
+def get_version(line_number = 22):
+    url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
+    response = requests.get(url)
+    if response.status_code == 200:
+        content = response.json()['content']
+        decoded_content = base64.b64decode(content).decode('utf-8')
+        lines = decoded_content.split('\n')
+        if line_number <= len(lines):
+            version_line = lines[line_number - 1]
+            version_match = re.search(r'__version__ = "(.*?)"', version_line)
+            if version_match:
+                return version_match.group(1)
+            else:
+                raise Exception("Version information not found in the specified line")
+        else:
+            raise Exception("Line number exceeds file length")
+    else:
+        bt.logging.error("github api call failed")
+        return None
+
 def get_valid_hotkeys(config):
     global valid_hotkeys
     api = wandb.Api()
@@ -450,12 +474,21 @@ def get_valid_hotkeys(config):
     while True:
         metagraph = subtensor.metagraph(18)
         runs = api.runs(f"{template.PROJECT_NAME}")
+        latest_version = get_version()
         for run in runs:
             if run.state == "running":
                 try:
                     # Extract hotkey and signature from the run's configuration
                     hotkey = run.config['hotkey']
                     signature = run.config['signature']
+                    version = run.config['version']
+
+                    bt.logging.info(f"hotkey is running {version}")
+                    if latest_version != None and version != latest_version:
+                        print(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        continue
+                    
+                    bt.logging.info("version matches or github api failed")
 
                     # Check if the hotkey is registered in the metagraph
                     if hotkey not in metagraph.hotkeys:
