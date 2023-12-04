@@ -1,15 +1,20 @@
 import re
 import os
 import ast
+import math
 import json
+import wandb
+import base64
+import random
+import asyncio
+import template
+import requests
 import traceback
 import bittensor as bt
+from . import client
 
-
-def save_state_to_file(state, filename="state.json"):
-    with open(filename, "w") as file:
-        bt.logging.success(f"saved global state to {filename}")
-        json.dump(state, file)
+list_update_lock = asyncio.Lock()
+instruct_questions = []
 
 def load_state_from_file(filename="state.json"):
     if os.path.exists(filename):
@@ -23,45 +28,333 @@ def load_state_from_file(filename="state.json"):
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
         }
 
+state = load_state_from_file()
+
+
+def get_state():
+    global state
+    if state is None:
+        load_state_from_file()
+    return state
+
+
+def save_state_to_file(state, filename="state.json"):
+    with open(filename, "w") as file:
+        bt.logging.success(f"saved global state to {filename}")
+        json.dump(state, file)
+
+
+def get_validators_with_runs_in_all_projects():
+    api = wandb.Api()
+    validators_runs = {project: set() for project in projects}
+
+    # Retrieve runs for each project and store validator UIDs
+    for project in template.PROJECT_NAMES:
+        runs = api.runs(f"cortex-t/{project}")
+        for run in runs:
+            if run.config['type'] == 'validator':
+                validators_runs[project].add(run.config['uid'])
+
+    # Find common validators across all projects
+    common_validators = set.intersection(*validators_runs.values())
+    return common_validators
+    
+
+async def get_list(list_type, num_questions_needed, theme=None):
+    prompts_in_question = {'text_questions': 10, 'images_questions': 20}
+    list_type_mapping = {
+        "text_questions": {
+            "default": template.INSTRUCT_DEfAULT_QUESTIONS,
+            "prompt": "placeholder"
+        },
+        "images_questions": {
+            "default": template.IMAGE_DEFAULT_QUESTIONS,
+            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-seperated, quote-encapsulated strings in a single Python list."
+        }
+    }
+
+    if list_type == "text_questions":
+        if len(instruct_questions) < num_questions_needed:
+            for theme in template.INSTRUCT_DEFAULT_THEMES:
+                for complexity_level in range(1, 11): 
+                    for relevance_level in range(1, 11):
+                        prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
+                        instruct_questions.append(prompt)
+
+    selected_prompts = []
+    for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
+        if list_type == "text_questions":
+            prompt = random.choice(instruct_questions)
+            instruct_questions.remove(prompt)
+        else:
+            prompt = list_type_mapping[list_type]["prompt"]
+
+        selected_prompts.append(prompt)
+
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+
+    # Initial batch request
+    tasks = [
+        call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
+        for prompt in selected_prompts
+    ]
+    responses = await asyncio.gather(*tasks)
+
+    extracted_lists = []
+    max_retries = 5
+
+    for i, answer in enumerate(responses):
+        try:
+            answer = answer.replace("\n", " ") if answer else ""
+            extracted_list = extract_python_list(answer)
+            if extracted_list:
+                extracted_lists += extracted_list
+            else:
+                # Retry logic for each prompt if needed
+                for retry in range(max_retries):
+                    try:
+                        random_seed = random.randint(1, 10000)
+                        messages = [{'role': "user", 'content': selected_prompts[i]}]
+                        new_answer = await call_openai(messages, 0.85, "gpt-4-1106-preview", random_seed)
+                        new_answer = new_answer.replace("\n", " ") if new_answer else ""
+                        new_extracted_list = extract_python_list(new_answer)
+                        if new_extracted_list:
+                            extracted_lists += new_extracted_list
+                            break
+                    except Exception as e:
+                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+        except Exception as e:
+            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+
+    if not extracted_lists:
+        bt.logging.error(f"No valid lists found after processing and retries, using default list.")
+        return template.INSTRUCT_DEFAULT_QUESTIONS
+
+    return extracted_lists
+
+
+async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
+    global list_update_lock
+
+    async def get_items(category, item_type, theme=None):
+        if item_type == "themes":
+            if category == "images":
+                return template.IMAGE_THEMES
+            else:
+                return template.INSTRUCT_DEFAULT_THEMES
+        else:
+            # Ensure theme is always available for 'questions'
+            if theme is None:
+                theme = await get_current_theme(category)
+
+            return await get_list(f"{category}_questions", num_questions_needed, theme)
+
+    async def get_current_theme(category):
+        themes = state[category]["themes"]
+        if not themes:
+            themes = await get_items(category, "themes")
+            state[category]["themes"] = themes
+        return themes.pop() if themes else None
+
+    list_type = f"{category}_{item_type}"
+
+    async with list_update_lock:
+        items = state[category][item_type]
+
+        # Logging the current state before fetching new items
+        bt.logging.debug(f"Queue for {list_type}: {len(items) if items else 0} items")
+
+        # Fetch new items if the list is empty
+        if not items:
+            items = await get_items(category, item_type, theme)
+            state[category][item_type] = items
+            bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
+
+        item = items.pop() if items else None
+        if not items:
+            state[category][item_type] = None
+
+    return item
+
+
+async def get_question(category, num_questions_needed):
+    if category not in ["text", "images"]:
+        raise ValueError("Invalid category. Must be 'text' or 'images'.")
+
+    question = await update_counters_and_get_new_list(category, "questions", num_questions_needed)
+    return question
+
+
 def preprocess_string(text):
-    try:
-        # Placeholder for single quotes within words
-        placeholder = "___SINGLE_QUOTE___"
+    processed_text = text.replace("\t", "")
+    placeholder = "___SINGLE_QUOTE___"
+    processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
+    processed_text = processed_text.replace("'", '"').replace(placeholder, "'")
 
-        # Replace single quotes within words with the placeholder
-        processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, text)
+    # First, remove all comments, ending at the next quote
+    no_comments_text = ""
+    i = 0
+    in_comment = False
+    while i < len(processed_text):
+        if processed_text[i] == '#':
+            in_comment = True
+        elif processed_text[i] == '"' and in_comment:
+            in_comment = False
+            no_comments_text += processed_text[i]  # Keep the quote that ends the comment
+            i += 1
+            continue
+        if not in_comment:
+            no_comments_text += processed_text[i]
+        i += 1
 
-        # Replace single quotes used for enclosing strings with double quotes
-        processed_text = processed_text.replace("'", '"')
+    # Now process the text without comments for quotes
+    cleaned_text = []
+    inside_quotes = False
+    found_first_bracket = False
 
-        # Restore the original single quotes from the placeholder
-        processed_text = processed_text.replace(placeholder, "'")
+    i = 0
+    while i < len(no_comments_text):
+        char = no_comments_text[i]
 
-        return processed_text
-    except Exception as e:
-        bt.logging.error(f"Error in preprocessing string: {e}")
-        return text
+        if not found_first_bracket:
+            if char == '[':
+                found_first_bracket = True
+            cleaned_text.append(char)
+            i += 1
+            continue
+
+        if char == '"':
+            # Look for preceding comma or bracket, skipping spaces
+            preceding_char_index = i - 1
+            found_comma_or_bracket = False
+
+            while preceding_char_index >= 0:
+                if no_comments_text[preceding_char_index] in '[,':  # Check for comma or opening bracket
+                    found_comma_or_bracket = True
+                    break
+                elif no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
+                    break
+                preceding_char_index -= 1
+
+            following_char_index = i + 1
+            while following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in ' \n':
+                following_char_index += 1
+
+            if found_comma_or_bracket or \
+               (following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in '],'):
+                inside_quotes = not inside_quotes
+            else:
+                i += 1
+                continue  # Skip this quote
+
+            cleaned_text.append(char)
+            i += 1
+            continue
+
+        if char == ' ':
+            # Skip spaces if not inside quotes and if the space is not between words
+            if not inside_quotes and (i == 0 or no_comments_text[i - 1] in ' ,[' or no_comments_text[i + 1] in ' ,]'):
+                i += 1
+                continue
+
+        cleaned_text.append(char)
+        i += 1
+
+    cleaned_str = ''.join(cleaned_text)
+    cleaned_str = re.sub(r"\[\s+", "[", cleaned_str)
+    cleaned_str = re.sub(r"\s+\]", "]", cleaned_str)
+    cleaned_str = re.sub(r"\s*,\s*", ", ", cleaned_str)  # Ensure single space after commas
+
+    start, end = cleaned_str.find('['), cleaned_str.rfind(']')
+    if start != -1 and end != -1 and end > start:
+        cleaned_str = cleaned_str[start:end + 1]
+
+    return cleaned_str
+
+def convert_to_list(text):
+    pattern = r'\d+\.\s'
+    items = [item.strip() for item in re.split(pattern, text) if item]
+    return items
 
 def extract_python_list(text: str):
     try:
+        if re.match(r'\d+\.\s', text):
+            return convert_to_list(text)
+        
+        bt.logging.debug(f"Preprocessed text = {text}")
         text = preprocess_string(text)
-        # Improved regex to match more complex list structures including multiline strings
-        match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text)
-        if match:
-            list_str = match.group()
+        bt.logging.debug(f"Postprocessed text = {text}")
 
-            # Using ast.literal_eval to safely evaluate the string as a Python literal
-            evaluated = ast.literal_eval(list_str)
+        # Extracting list enclosed in square brackets
+        match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text, re.DOTALL)
+        if match:
+            list_str = match.group(1)
+
+            # Using ast.literal_eval to safely evaluate the string as a list
+            evaluated = ast.literal_eval('[' + list_str + ']')
             if isinstance(evaluated, list):
                 return evaluated
-    except SyntaxError as e:
-        bt.logging.error(f"Syntax error when extracting list: {e}\n{traceback.format_exc()}")
-    except ValueError as e:
-        bt.logging.error(f"Value error when extracting list: {e}\n{traceback.format_exc()}")
+
     except Exception as e:
         bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
-    # Return None if the list cannot be extracted
     return None
 
 
+async def call_openai(messages, temperature, model, seed=1234):
+    for attempt in range(2):
+        bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                seed=seed,
+            )
+            response = response.choices[0].message.content
+            bt.logging.debug(f"validator response is {response}")
+            return response
+
+        except Exception as e:
+            bt.logging.error(f"Error when calling OpenAI: {e}")
+            await asyncio.sleep(0.5) 
+    
+    return None
+
+
+
+# Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
+def get_version(line_number = 22):
+    url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
+    response = requests.get(url)
+    if response.status_code == 200:
+        content = response.json()['content']
+        decoded_content = base64.b64decode(content).decode('utf-8')
+        lines = decoded_content.split('\n')
+        if line_number <= len(lines):
+            version_line = lines[line_number - 1]
+            version_match = re.search(r'__version__ = "(.*?)"', version_line)
+            if version_match:
+                return version_match.group(1)
+            else:
+                raise Exception("Version information not found in the specified line")
+        else:
+            raise Exception("Line number exceeds file length")
+    else:
+        bt.logging.error("github api call failed")
+        return None
+
+
+def send_discord_alert(message, webhook_url):
+    data = {
+        "content": f"@everyone {message}",
+        "username": "Subnet18 Updates"
+    }
+    try:
+        response = requests.post(webhook_url, json=data)
+        if response.status_code == 204:
+            print("Discord alert sent successfully!")
+        else:
+            print(f"Failed to send Discord alert. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"Failed to send Discord alert: {e}", exc_info=True)

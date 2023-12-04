@@ -16,25 +16,31 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-import logging
 from transformers import logging as hf_logging
 hf_logging.set_verbosity_error()
-import typing
-import openai
-import aiohttp
-import bittensor as bt
-import difflib
-from sklearn.feature_extraction.text import TfidfVectorizer
-import asyncio
-from sklearn.metrics.pairwise import cosine_similarity
-import torch
-from transformers import CLIPProcessor, CLIPModel
-from PIL import Image
-import io
-import requests
+
+
 import re
+import io
+import torch
+import openai
+import typing
+import difflib
+import asyncio
+import logging
+import aiohttp
+import requests
+from PIL import Image
+import bittensor as bt
+from typing import List
+from scipy.spatial.distance import cosine
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+from transformers import CLIPProcessor, CLIPModel
+
 
 # ==== TEXT ====
+
 def calculate_text_similarity(text1, text2):
     # Initialize the TF-IDF Vectorizer
     vectorizer = TfidfVectorizer()
@@ -50,11 +56,17 @@ def calculate_text_similarity(text1, text2):
 async def openai_score(openai_answer: str, response: str, weight: float) -> float:
     loop = asyncio.get_running_loop()
     similarity = await loop.run_in_executor(None, calculate_text_similarity, openai_answer, response)
-    bt.logging.info(f"similarity is {similarity}")
+    words_in_response = len(response.split())
+    words_in_openai = len(openai_answer.split())
+    # linear similarity requirement based on length of response
+    min_similarity = max(1 - 0.0005 * (words_in_response - 1), 0.75)
+    bt.logging.debug(f"similarity for len {words_in_response} / {words_in_openai}: {similarity}, min_similarity is {min_similarity}")
 
-    return weight if similarity > .75 else 0
+    return weight if similarity >= min_similarity else 0
+
 
 # ==== IMAGES =====
+
 # Load the CLIP model and processor
 model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
 processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -120,7 +132,7 @@ def calculate_image_similarity(image, description, max_length=77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.24):
+async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.26):
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
@@ -144,12 +156,39 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
         if similarity > similarity_threshold:
-            bt.logging.info(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
+            bt.logging.debug(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
             return weight
 
         else: 
-             bt.logging.info(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
+             bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
              return 0
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
+
+
+# ==== Embeddings =====
+
+async def embeddings_score(openai_answer: List, response: List, weight: float, threshold=.95) -> float:
+    if len(openai_answer) != len(response):
+        bt.logging.info("The number of embeddings in openai_answer and response do not match.")
+        return 0
+
+    # Calculate similarity for each pair of embeddings
+    similarities = []
+    for oa_emb, resp_emb in zip(openai_answer, response):
+        similarity = 1 - cosine(oa_emb, resp_emb)
+        similarities.append(similarity)
+
+    # Average the similarities
+    avg_similarity = sum(similarities) / len(similarities)
+    bt.logging.info(f"Average similarity: {avg_similarity}")
+
+    # Check against threshold
+    if avg_similarity > threshold: 
+        bt.logging.info("Average embeddings similarity exceeds threshold!")
+        return weight
+    else:
+        bt.logging.info(f"Average embeddings similarity does not exceed threshold: {avg_similarity}")
+        return 0
+
