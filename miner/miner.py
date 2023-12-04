@@ -479,8 +479,9 @@ def get_valid_hotkeys(config):
                     if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
                         print(f'Failed Signature: The signature: {signature} is not valid')
                         continue
-
-                    valid_hotkeys.append(hotkey)
+                        
+                    if hotkey not in valid_hotkeys:
+                        valid_hotkeys.append(hotkey)
                 except Exception as e:
                     bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
