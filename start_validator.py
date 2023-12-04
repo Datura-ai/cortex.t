@@ -8,13 +8,14 @@ default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
 webhook_url = ""
 
 def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
+    subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
     while True:
         current_version = template.__version__
         latest_version = get_version()
         print(f"Current version: {current_version}")
         print(f"Latest version: {latest_version}")
 
-        if current_version != latest_version:
+        if current_version != latest_version and latest_version != None:
             if not autoupdate:
                 send_discord_alert(f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}", webhook_url)
                 continue
@@ -24,7 +25,8 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
 
-            time.sleep(300)
+        print("All up to date!")
+        time.sleep(300)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
