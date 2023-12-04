@@ -343,3 +343,18 @@ def get_version(line_number = 22):
     else:
         bt.logging.error("github api call failed")
         return None
+
+
+def send_discord_alert(message, webhook_url):
+    data = {
+        "content": f"@everyone {message}",
+        "username": "Subnet18 Updates"
+    }
+    try:
+        response = requests.post(webhook_url, json=data)
+        if response.status_code == 204:
+            print("Discord alert sent successfully!")
+        else:
+            print(f"Failed to send Discord alert. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"Failed to send Discord alert: {e}", exc_info=True)
