@@ -10,3 +10,8 @@ template/__init__.py
 template/protocol.py
 template/reward.py
 template/utils.py
+tests/test_embeddings.py
+tests/test_extract_list.py
+tests/test_image_limit.py
+tests/test_images.py
+tests/test_openai.py

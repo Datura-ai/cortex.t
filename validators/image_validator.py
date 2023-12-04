@@ -110,8 +110,6 @@ class ImageValidator(BaseValidator):
         bt.logging.info(f"image_scores = {self.wandb_data['scores']}")
         return scores, uid_scores_dict, self.wandb_data
 
-
-
     async def get_and_score(self, available_uids):
         query_responses, uid_to_messages = await self.start_query(available_uids)
         return await self.score_responses(query_responses, uid_to_messages)
