@@ -67,7 +67,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
         },
         "images_questions": {
             "default": template.IMAGE_DEFAULT_QUESTIONS,
-            "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
+            "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise but descriptive situation, designed to inspire visually rich stories. Format these as elements as a Python list."
         }
     }
 
@@ -76,7 +76,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
             for theme in template.INSTRUCT_DEFAULT_THEMES:
                 for complexity_level in range(1, 11): 
                     for relevance_level in range(1, 11):
-                        prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
+                        prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
                         instruct_questions.append(prompt)
 
     selected_prompts = []
@@ -97,7 +97,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
     for prompt in selected_prompts:
         random_seed = random.randint(1, 10000)
         messages = [{'role': "user", 'content': prompt}]
-        task = call_openai(messages, 0.8, "gpt-4-1106-preview", random_seed)
+        task = call_openai(messages, 1.5, "gpt-4-1106-preview", random_seed)
         tasks.append(task)
 
     # Run all tasks concurrently and wait for them to complete
