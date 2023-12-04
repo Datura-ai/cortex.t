@@ -42,7 +42,6 @@ def get_config():
         os.makedirs(config.full_path, exist_ok=True)
     return config
 
-
 def init_wandb(config, my_uid, wallet):
     if config.wandb_on:
         run_name = f'validator-{my_uid}-{template.__version__}'
@@ -128,15 +127,6 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights.")
-    
-
-async def process_modality(config, selected_validator, available_uids):
-    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
-    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
-    if config.wandb_on:
-        wandb.log(wandb_data)
-        bt.logging.success("wandb_log successful")
-    return scores, uid_scores_dict
 
 
 def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph):
@@ -156,6 +146,15 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator class
     # Weights get normalized anyways in weight_utils
     set_weights(avg_scores, config, subtensor, wallet, metagraph)
+    
+
+async def process_modality(config, selected_validator, available_uids):
+    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
+    if config.wandb_on:
+        wandb.log(wandb_data)
+        bt.logging.success("wandb_log successful")
+    return scores, uid_scores_dict
 
 
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
