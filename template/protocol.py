@@ -130,7 +130,6 @@ class StreamPrompting( bt.StreamingSynapse ):
         async for chunk in response.content.iter_any():
             tokens = chunk.decode("utf-8")
             for token in tokens:
-                bt.logging.debug(f"yielding tokens {tokens}")
                 if token:
                     self.completion += token
             yield tokens

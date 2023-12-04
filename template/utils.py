@@ -67,7 +67,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
         },
         "images_questions": {
             "default": template.IMAGE_DEFAULT_QUESTIONS,
-            "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise but descriptive situation, designed to inspire visually rich stories. Format these as elements as a Python list."
+            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-seperated, quote-encapsulated strings in a single Python list."
         }
     }
 
@@ -89,41 +89,45 @@ async def get_list(list_type, num_questions_needed, theme=None):
 
         selected_prompts.append(prompt)
 
-    bt.logging.info(f"num_questions_needed is {num_questions_needed}")
-    bt.logging.info(f"list_type is {list_type}")
-    bt.logging.info(f"selected_prompts is {selected_prompts}")
+    bt.logging.info(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
 
-    tasks = []
-    for prompt in selected_prompts:
-        random_seed = random.randint(1, 10000)
-        messages = [{'role': "user", 'content': prompt}]
-        task = call_openai(messages, 1.5, "gpt-4-1106-preview", random_seed)
-        tasks.append(task)
-
-    # Run all tasks concurrently and wait for them to complete
+    # Initial batch request
+    tasks = [
+        call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
+        for prompt in selected_prompts
+    ]
     responses = await asyncio.gather(*tasks)
-    
+
     extracted_lists = []
-    max_retries = 10
-    for retry in range(max_retries):
-        for answer in responses:
-            try:
-                answer = answer.replace("\n", " ") if answer else ""
-                extracted_list = extract_python_list(answer)
-                if extracted_list:
-                    bt.logging.success(f"Received new {list_type}")
-                    bt.logging.info(f"questions are {extracted_list}")
-                    extracted_lists += extracted_list
-                else:
-                    bt.logging.info(f"No valid python list found in {answer}, retry count: {retry + 1}")
+    max_retries = 5
 
-            except Exception as e:
-                retry += 1
-                bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}")
+    for i, answer in enumerate(responses):
+        try:
+            answer = answer.replace("\n", " ") if answer else ""
+            extracted_list = extract_python_list(answer)
+            if extracted_list:
+                extracted_lists += extracted_list
+            else:
+                # Retry logic for each prompt if needed
+                for retry in range(max_retries):
+                    try:
+                        random_seed = random.randint(1, 10000)
+                        messages = [{'role': "user", 'content': selected_prompts[i]}]
+                        new_answer = await call_openai(messages, 0.85, "gpt-4-1106-preview", random_seed)
+                        new_answer = new_answer.replace("\n", " ") if new_answer else ""
+                        new_extracted_list = extract_python_list(new_answer)
+                        if new_extracted_list:
+                            extracted_lists += new_extracted_list
+                            break
+                    except Exception as e:
+                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+        except Exception as e:
+            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
 
-    bt.logging.error(f"No list found after {max_retries} retries, using default list.")
-    extracted_list = template.INSTRUCT_DEfAULT_QUESTIONS
-    
+    if not extracted_lists:
+        bt.logging.error(f"No valid lists found after processing and retries, using default list.")
+        return template.INSTRUCT_DEFAULT_QUESTIONS
+
     return extracted_lists
 
 
@@ -297,7 +301,7 @@ def extract_python_list(text: str):
 
 async def call_openai(messages, temperature, model, seed=1234):
     for attempt in range(2):
-        bt.logging.debug("Calling Openai ")
+        bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
         try:
             response = await client.chat.completions.create(
                 model=model,

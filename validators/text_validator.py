@@ -14,7 +14,7 @@ from template.utils import call_openai, get_question
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=30)
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=40)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
@@ -63,8 +63,8 @@ class TextValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/1.05
-        bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
+        will_score_all = random_number < 1/2
+        bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
 
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
