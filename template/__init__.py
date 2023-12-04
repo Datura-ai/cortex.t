@@ -18,7 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 
-
+# version must stay on line 22
 __version__ = "2.5.0"
 version_split = __version__.split(".")
 __spec_version__ = (
