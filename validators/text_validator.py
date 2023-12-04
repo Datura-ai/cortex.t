@@ -93,7 +93,8 @@ class TextValidator(BaseValidator):
                 uid_scores_dict[uid] = 0
             # self.wandb_data["scores"][uid] = score
 
-        bt.logging.info(f"text_scores is {uid_scores_dict}")
+        if uid_scores_dict != {}:
+            bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):
