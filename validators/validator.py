@@ -158,51 +158,44 @@ async def sync_metagraph(subtensor, config):
     return subtensor.metagraph(config.netuid)
 
 
-async def process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed):
-    # Calculate and return scores and uid_scores_dict
-    validator_index = steps_passed % len(validators)
-    validator = validators[validator_index]
-    scores, uid_scores_dict, wandb_data = await validator.get_and_score(available_uids)
+async def process_modality(config, selected_validator, available_uids):
+    bt.logging.info(f"starting {selected_validator} get_and_score for {available_uids}")
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
     if config.wandb_on:
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
 
-def update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph):
+def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph):
     # Update weights based on total scores
-    if steps_passed % len(validators) == len(validators) - 1:
-        avg_scores = total_scores / (steps_passed + 1)
-        set_weights(avg_scores, config, subtensor, wallet, metagraph)
+    avg_scores = total_scores / (steps_passed + 1)
+    set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
 
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    # Validators to use in the loop
-    validators = [text_vali, image_vali, embed_vali][:2] # Splice here because embeddings modality isn't perfect yet
-
+    validators = [text_vali, image_vali, embed_vali]
     while True:
         try:
             metagraph = await sync_metagraph(subtensor, config)
             available_uids = await get_available_uids(dendrite, metagraph)
-            bt.logging.info(f"available_uids = {available_uids}")
+            if steps_passed % 3 == 0 or steps_passed % 3 == 1:
+                selected_validator = text_vali
+            else:
+                selected_validator = image_vali
 
-            if not available_uids:
-                time.sleep(5)
-                continue
-
-            scores, uid_scores_dict = await process_modality(config, dendrite, metagraph, validators, available_uids, steps_passed)
+            scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
-            update_weights(total_scores, steps_passed, validators, config, subtensor, wallet, metagraph)
+            update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
-            time.sleep(3)
+            await asyncio.sleep(3)
 
         except Exception as e:
             bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")
-            time.sleep(100)
-
+            await asyncio.sleep(100)
 
 def main():
     global validators
