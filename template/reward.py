@@ -57,8 +57,9 @@ async def openai_score(openai_answer: str, response: str, weight: float) -> floa
     loop = asyncio.get_running_loop()
     similarity = await loop.run_in_executor(None, calculate_text_similarity, openai_answer, response)
     bt.logging.debug(f"similarity is {similarity}")
+    min_similarity = 1 * (.99 * len(response))
 
-    return weight if similarity > .75 else 0
+    return weight if similarity > min_similarity else 0
 
 
 

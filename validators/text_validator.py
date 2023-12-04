@@ -14,7 +14,7 @@ from template.utils import call_openai, get_question
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=40)
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=36)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
@@ -87,9 +87,9 @@ class TextValidator(BaseValidator):
         for (uid, _), score in zip(scoring_tasks, scored_responses):
             scores[uid] = score if score is not None else 0
             uid_scores_dict[uid] = scores[uid]
-            self.wandb_data["scores"][uid] = score
+            # self.wandb_data["scores"][uid] = score
 
-        bt.logging.info(f"text_scores is {self.wandb_data['scores']}")
+        bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):
