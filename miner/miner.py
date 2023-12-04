@@ -463,21 +463,21 @@ def get_valid_hotkeys(config):
                     signature = run.config['signature']
                     version = run.config['version']
 
-                    bt.logging.info(f"hotkey is running {version}")
+                    bt.logging.debug(f"hotkey is running {version}")
                     if latest_version != None and version != latest_version:
-                        print(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        bt.logging.debugf'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
                         continue
                     
-                    bt.logging.info("version matches or github api failed")
+                    bt.logging.debug("version matches or github api failed")
 
                     # Check if the hotkey is registered in the metagraph
                     if hotkey not in metagraph.hotkeys:
-                        print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
+                        bt.logging.debug(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
                         continue
 
                     # Verify the signature using the hotkey
                     if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
-                        print(f'Failed Signature: The signature: {signature} is not valid')
+                        bt.logging.debug(f'Failed Signature: The signature: {signature} is not valid')
                         continue
                         
                     if hotkey not in valid_hotkeys:
