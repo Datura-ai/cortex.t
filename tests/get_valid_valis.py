@@ -1,9 +1,13 @@
 import os
+import time
 import wandb
 import traceback
 import template
 import argparse
 import bittensor as bt
+from template.utils import get_version
+
+valid_hotkeys = []
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -21,35 +25,45 @@ def get_config():
     return config
 
 def get_valid_hotkeys(config):
+    global valid_hotkeys
     api = wandb.Api()
-    valid_hotkeys = []
     subtensor = bt.subtensor(config=config)
-    metagraph = subtensor.metagraph(18)
-    runs = api.runs(f"{template.PROJECT_NAME}")
+    while True:
+        metagraph = subtensor.metagraph(18)
+        runs = api.runs(f"{template.PROJECT_NAME}")
+        latest_version = get_version()
+        for run in runs:
+            if run.state == "running":
+                try:
+                    # Extract hotkey and signature from the run's configuration
+                    hotkey = run.config['hotkey']
+                    signature = run.config['signature']
+                    version = run.config['version']
 
-    for run in runs:
-        if run.state == "running":
-            try:
-                # Extract hotkey and signature from the run's configuration
-                hotkey = run.config['hotkey']
-                signature = run.config['signature']
+                    bt.logging.info(f"hotkey is running {version}")
+                    if latest_version != None and version != latest_version:
+                        print(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        continue
+                    
+                    bt.logging.info("version matches or github api failed")
 
-                # Check if the hotkey is registered in the metagraph
-                if hotkey not in metagraph.hotkeys:
-                    print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
-                    continue
+                    # Check if the hotkey is registered in the metagraph
+                    if hotkey not in metagraph.hotkeys:
+                        print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
+                        continue
 
-                # Verify the signature using the hotkey
-                if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
-                    print(f'Failed Signature: The signature: {signature} is not valid')
-                    continue
+                    # Verify the signature using the hotkey
+                    if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
+                        print(f'Failed Signature: The signature: {signature} is not valid')
+                        continue
 
-                valid_hotkeys.append(hotkey)
-            except Exception as e:
-                bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
+                    valid_hotkeys.append(hotkey)
+                except Exception as e:
+                    bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
-    return valid_hotkeys
-
+        bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
+        time.sleep(10)
+        return valid_hotkeys
 
 config = get_config()
 valid_hotkeys = get_valid_hotkeys(config)
