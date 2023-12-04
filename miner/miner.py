@@ -485,7 +485,7 @@ def get_valid_hotkeys(config):
                     bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
         bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
-        time.sleep(10)
+        time.sleep(180)
 
 
 if __name__ == "__main__":
