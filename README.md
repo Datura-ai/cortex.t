@@ -61,14 +61,14 @@ In order to run a miner or validator you must first set your OpenAI key to your 
 
 You can launch your miners via pm2 using the following command. 
 
-`pm2 start ./neurons/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
+`pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
 
 
 ## Validating
 
 You can launch your validator via pm2 using the following command.
 
-`pm2 start ./neurons/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>`
+`pm2 start ./validators/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>`
 
 
 ## Logging
