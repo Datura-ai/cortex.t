@@ -138,12 +138,21 @@ async def process_modality(config, selected_validator, available_uids):
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
-
 def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph):
-    # Update weights based on total scores
+    """ Update weights based on total scores, using min-max normalization for display"""
     avg_scores = total_scores / (steps_passed + 1)
-    bt.logging.info(f"total_scores = {total_scores}, avg_scores = {avg_scores}")
-    set_weights(avg_scores, config, subtensor, wallet, metagraph)
+
+    # Normalize avg_scores to a range of 0 to 1
+    min_score = torch.min(avg_scores)
+    max_score = torch.max(avg_scores)
+    
+    if max_score - min_score != 0:
+        normalized_scores = (avg_scores - min_score) / (max_score - min_score)
+    else:
+        normalized_scores = torch.zeros_like(avg_scores)
+
+    bt.logging.info(f"normalized_scores = {normalized_scores}")
+    set_weights(normalized_scores, config, subtensor, wallet, metagraph)
 
 
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
@@ -163,7 +172,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
             
-            iterations_per_set_weights = 10
+            iterations_per_set_weights = 4
             iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
             bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 
