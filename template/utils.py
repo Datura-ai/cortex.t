@@ -104,15 +104,25 @@ async def get_list(list_type, num_questions_needed, theme=None):
     responses = await asyncio.gather(*tasks)
     
     extracted_lists = []
-    for answer in responses:
-        answer = answer.replace("\n", " ") if answer else ""
-        extracted_list = extract_python_list(answer)
-        if extracted_list:
-            bt.logging.success(f"Received new {list_type}")
-            bt.logging.info(f"questions are {extracted_list}")
-            extracted_lists += extracted_list
-        else:
-            bt.logging.info(f"No valid python list found in {answer}")
+    max_retries = 10
+    for retry in range(max_retries):
+        for answer in responses:
+            try:
+                answer = answer.replace("\n", " ") if answer else ""
+                extracted_list = extract_python_list(answer)
+                if extracted_list:
+                    bt.logging.success(f"Received new {list_type}")
+                    bt.logging.info(f"questions are {extracted_list}")
+                    extracted_lists += extracted_list
+                else:
+                    bt.logging.info(f"No valid python list found in {answer}, retry count: {retry + 1}")
+
+            except Exception as e:
+                retry += 1
+                bt.logging.error(f"Got exception when calling openai {e}\n{traceback.format_exc()}")
+
+    bt.logging.error(f"No list found after {max_retries} retries, using default list.")
+    extracted_list = template.INSTRUCT_DEfAULT_QUESTIONS
     
     return extracted_lists
 
