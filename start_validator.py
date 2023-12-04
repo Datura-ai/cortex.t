@@ -20,7 +20,7 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address):
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
 
-            time.sleep(10)
+            time.sleep(300)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
