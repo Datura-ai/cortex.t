@@ -22,7 +22,7 @@ class ImageValidator(BaseValidator):
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
-        self.weight = 1
+        self.weight = .33
         self.size = "1792x1024"
         self.quality = "standard"
         self.style = "vivid"
@@ -66,7 +66,7 @@ class ImageValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/8
+        will_score_all = random_number < 1/3
         bt.logging.info(f"Random Number: {random_number}, Will score image responses: {will_score_all}")
 
         for uid, response in query_responses:
@@ -76,14 +76,13 @@ class ImageValidator(BaseValidator):
                 if completion is not None:
                     bt.logging.info(f"UID {uid} response is {completion}")
                     image_url = completion["url"]
-                
-                if will_score_all:
-                    # Schedule the image download as an async task
                     download_task = asyncio.create_task(self.download_image(image_url))
                     messages_for_uid = uid_to_messages[uid]
-                    score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
+                    if will_score_all:
+                        score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
+                        score_tasks.append((uid, score_task))
+
                     download_tasks.append((uid, download_task, image_url))
-                    score_tasks.append((uid, score_task))
                 else:
                     bt.logging.info(f"Completion is None for UID {uid}")
                     scores[uid] = 0
@@ -99,6 +98,7 @@ class ImageValidator(BaseValidator):
             # Log the image to wandb
             self.wandb_data["images"][uid] = wandb.Image(image)
             self.wandb_data["responses"][uid] = {"url": image_url}
+            # self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
 
         # Await all scoring tasks concurrently
         scored_responses = await asyncio.gather(*[task for _, task in score_tasks])
@@ -111,10 +111,9 @@ class ImageValidator(BaseValidator):
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
-            self.wandb_data["scores"][uid] = scored_response
-            self.wandb_data["timestamps"][uid] = datetime.datetime.now().isoformat()
+            # self.wandb_data["scores"][uid] = scored_response
 
-        bt.logging.info(f"image_scores = {self.wandb_data['scores']}")
+        bt.logging.info(f"image_scores = {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids):
