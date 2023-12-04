@@ -3,7 +3,6 @@ import os
 import time
 import copy
 import wandb
-import base64
 import asyncio
 import template
 import argparse
@@ -23,6 +22,8 @@ from abc import ABC, abstractmethod
 from transformers import GPT2Tokenizer
 from config import get_config, check_config
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
+
+from template.utils import get_version
 from template.protocol import StreamPrompting, IsAlive, ImageResponse, Embeddings
 
 
@@ -445,28 +446,6 @@ class StreamingTemplateMiner(StreamMiner):
 
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
-
-
-# Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
-def get_version(line_number = 22):
-    url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
-    response = requests.get(url)
-    if response.status_code == 200:
-        content = response.json()['content']
-        decoded_content = base64.b64decode(content).decode('utf-8')
-        lines = decoded_content.split('\n')
-        if line_number <= len(lines):
-            version_line = lines[line_number - 1]
-            version_match = re.search(r'__version__ = "(.*?)"', version_line)
-            if version_match:
-                return version_match.group(1)
-            else:
-                raise Exception("Version information not found in the specified line")
-        else:
-            raise Exception("Line number exceeds file length")
-    else:
-        bt.logging.error("github api call failed")
-        return None
 
 def get_valid_hotkeys(config):
     global valid_hotkeys
