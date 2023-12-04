@@ -154,9 +154,6 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
     bt.logging.success("Successfully set weights based on moving average.")
     
-async def sync_metagraph(subtensor, config):
-    return subtensor.metagraph(config.netuid)
-
 
 async def process_modality(config, selected_validator, available_uids):
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
@@ -170,6 +167,7 @@ async def process_modality(config, selected_validator, available_uids):
 def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph):
     # Update weights based on total scores
     avg_scores = total_scores / (steps_passed + 1)
+    bt.logging.info(f"total_scores = {total_scores}, avg_scores = {avg_scores}")
     set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
 
@@ -179,7 +177,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     validators = [text_vali, image_vali, embed_vali]
     while True:
         try:
-            metagraph = await sync_metagraph(subtensor, config)
+            metagraph = await asyncio.to_thread(subtensor.metagraph, config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
             if steps_passed % 4 in [0, 1, 2]:
