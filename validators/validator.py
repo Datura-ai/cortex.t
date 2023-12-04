@@ -127,7 +127,7 @@ def set_weights(scores, config, subtensor, wallet, metagraph):
     moving_average_scores = alpha * scores + (1 - alpha) * moving_average_scores
     bt.logging.info(f"Updated moving average of weights: {moving_average_scores}")
     subtensor.set_weights(netuid=config.netuid, wallet=wallet, uids=metagraph.uids, weights=moving_average_scores, wait_for_inclusion=False)
-    bt.logging.success("Successfully set weights based on moving average.")
+    bt.logging.success("Successfully set weights.")
     
 
 async def process_modality(config, selected_validator, available_uids):
@@ -137,6 +137,7 @@ async def process_modality(config, selected_validator, available_uids):
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
+
 
 def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph):
     """ Update weights based on total scores, using min-max normalization for display"""
@@ -152,7 +153,9 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
         normalized_scores = torch.zeros_like(avg_scores)
 
     bt.logging.info(f"normalized_scores = {normalized_scores}")
-    set_weights(normalized_scores, config, subtensor, wallet, metagraph)
+    # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator class
+    # Weights get normalized anyways in weight_utils
+    set_weights(avg_scores, config, subtensor, wallet, metagraph)
 
 
 async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
@@ -172,7 +175,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
             
-            iterations_per_set_weights = 4
+            iterations_per_set_weights = 10
             iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
             bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 

@@ -1,6 +1,7 @@
 import os
 import time
 import copy
+import wandb
 import asyncio
 import template
 import argparse
@@ -20,11 +21,13 @@ from config import get_config, check_config
 from typing import List, Dict, Tuple, Union, Callable, Awaitable
 from template.protocol import StreamPrompting, IsAlive, ImageResponse, Embeddings
 
+
 OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
 client = AsyncOpenAI(timeout=30.0)
+valid_hotkeys = []
 
 
 class StreamMiner(ABC):
@@ -95,6 +98,8 @@ class StreamMiner(ABC):
         self.thread: threading.Thread = None
         self.lock = asyncio.Lock()
         self.request_timestamps: Dict = {}
+        thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
+        thread.start()
 
     @abstractmethod
     def config(self) -> "bt.Config":
@@ -103,17 +108,13 @@ class StreamMiner(ABC):
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
-    def base_blacklist(self, synapse, blacklist_amt = 10000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in template.WHITELISTED_KEYS:
-                return False, f"accepting {synapse_type} from {hotkey}"
-
-            # Check if the key is black listed.
-            if hotkey in template.BLACKLISTED_KEYS:
-                return True, f"Blacklisted a {synapse_type} request from blacklisted hotkey: {hotkey}"
+            if hotkey not in valid_hotkeys and hotkey not in template.WHITELISTED_KEYS:
+                return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
             axon = None
@@ -128,6 +129,7 @@ class StreamMiner(ABC):
 
             # check the stake
             tao = self.metagraph.neurons[uid].stake.tao
+            # metagraph.neurons[uid].S
             if tao < blacklist_amt:
                 return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
 
@@ -158,12 +160,12 @@ class StreamMiner(ABC):
     
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
-        bt.logging.debug(blacklist[1])
+        bt.logging.info(blacklist[1])
         return blacklist    
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
+        bt.logging.debug(blacklist[1])
         return blacklist
         
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
@@ -441,7 +443,40 @@ class StreamingTemplateMiner(StreamMiner):
         return synapse.create_streaming_response(token_streamer)
 
 
+def get_valid_hotkeys(config):
+    global valid_hotkeys
+    api = wandb.Api()
+    subtensor = bt.subtensor(config=config)
+    while True:
+        metagraph = subtensor.metagraph(18)
+        runs = api.runs(f"{template.PROJECT_NAME}")
+        for run in runs:
+            if run.state == "running":
+                try:
+                    # Extract hotkey and signature from the run's configuration
+                    hotkey = run.config['hotkey']
+                    signature = run.config['signature']
+
+                    # Check if the hotkey is registered in the metagraph
+                    if hotkey not in metagraph.hotkeys:
+                        print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
+                        continue
+
+                    # Verify the signature using the hotkey
+                    if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
+                        print(f'Failed Signature: The signature: {signature} is not valid')
+                        continue
+
+                    valid_hotkeys.append(hotkey)
+                except Exception as e:
+                    bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
+
+        bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
+        time.sleep(10)
+
+
 if __name__ == "__main__":
+
     with StreamingTemplateMiner():
         while True:
             time.sleep(1)

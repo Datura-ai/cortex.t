@@ -38,19 +38,14 @@ ALLOW_NON_REGISTERED = False
 PROMPT_BLACKLIST_STAKE = 20000
 IMAGE_BLACKLIST_STAKE = 20000
 EMBEDDING_BLACKLIST_STAKE = 20000
-ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE)
+ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE, EMBEDDING_BLACKLIST_STAKE)
 MIN_REQUEST_PERIOD = 2
-MAX_REQUESTS = 40
+MAX_REQUESTS = 30
 # must have the test_key whitelisted to avoid a global blacklist
 testnet_key = "5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"
 test_key = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
-corcel = "5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8"
-WHITELISTED_KEYS = [testnet_key, test_key, corcel]
-
-weight_copiers = [117,224,214,104,2,102,7,135,114,251,4]
-threat_keys = [251]
-BLACKLISTED_KEYS = weight_copiers + threat_keys + []
-validators_running_wandb = [0, 1, 16, 26, 81, 103, 109, 113, 124, 178, 244]
+WHITELISTED_KEYS = [testnet_key, test_key]
+BLACKLISTED_KEYS = []
 
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
