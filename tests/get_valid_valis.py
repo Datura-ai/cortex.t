@@ -30,7 +30,7 @@ def get_valid_hotkeys(config):
     subtensor = bt.subtensor(config=config)
     while True:
         metagraph = subtensor.metagraph(18)
-        runs = api.runs(f"{template.PROJECT_NAME}")
+        runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
         latest_version = get_version()
         for run in runs:
             if run.state == "running":
