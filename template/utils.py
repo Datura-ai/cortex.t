@@ -61,14 +61,6 @@ def get_validators_with_runs_in_all_projects():
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
-        "text_themes": {
-            "default": template.INSTRUCT_DEFAULT_THEMES,
-            "prompt": "Please generate a list of broad, informational themes suitable for creating a diverse range of instructive prompts. These themes should be ideal for training an LLM to produce detailed, educational, and insightful content. They should span across multiple disciplines and be general enough to allow for the generation of many sub-topics. Each theme should be a seed for countless questions that delve into the specifics of the subject matter, aiming to inform and educate users about complex topics in an accessible way. Avoid themes that are too narrow or niche and focus on those that could be universally recognized and widely applicable for educational purposes."
-        },
-        "images_themes": {
-            "default": template.IMAGE_DEFAULT_THEMES,
-            "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
-        },
         "text_questions": {
             "default": template.INSTRUCT_DEfAULT_QUESTIONS,
             "prompt": "placeholder"
@@ -92,7 +84,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
         if list_type == "text_questions":
             prompt = random.choice(instruct_questions)
             instruct_questions.remove(prompt)
-        elif list_type == "images_questions":
+        else:
             prompt = list_type_mapping[list_type]["prompt"]
 
         selected_prompts.append(prompt)
@@ -131,7 +123,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
             if category == "images":
-                return await get_list(f"{category}_themes", num_questions_needed)
+                return template.IMAGE_THEMES
             else:
                 return template.INSTRUCT_DEFAULT_THEMES
         else:
