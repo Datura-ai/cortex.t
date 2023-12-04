@@ -447,6 +447,7 @@ class StreamingTemplateMiner(StreamMiner):
         return synapse.create_streaming_response(token_streamer)
 
 
+# Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
 def get_version(line_number = 22):
     url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
     response = requests.get(url)
@@ -505,7 +506,7 @@ def get_valid_hotkeys(config):
                     bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
         bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
-        time.sleep(10)
+        time.sleep(60)
 
 
 if __name__ == "__main__":
