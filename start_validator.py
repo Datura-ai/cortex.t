@@ -21,12 +21,13 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate
                 send_discord_alert(f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}", webhook_url)
             print("Updating to the latest version...")
             subprocess.run(["pm2", "delete", pm2_name])
+            subprocess.run(["git", "reset", "--hard"])
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
             current_version = latest_version
         print("All up to date!")
-        time.sleep(300)
+        time.sleep(180)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
