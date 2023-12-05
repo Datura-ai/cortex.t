@@ -1,8 +1,8 @@
 import subprocess
 
-num_miners = 10
+num_miners = 2
 base_port = 15000
-start_num = 1
+start_num = 6
 pm2_commands = []
 
 for i in range(num_miners):
