@@ -16,7 +16,7 @@ from . import client
 list_update_lock = asyncio.Lock()
 instruct_questions = []
 
-def load_state_from_file(filename="state.json"):
+def load_state_from_file(filename="validators/state.json"):
     if os.path.exists(filename):
         with open(filename, "r") as file:
             bt.logging.info("loaded previous state")

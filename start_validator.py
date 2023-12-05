@@ -6,11 +6,12 @@ from template.utils import get_version, send_discord_alert
 
 default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
 webhook_url = ""
+current_version = template.__version__
 
 def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
+    global current_version
     subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
     while True:
-        current_version = template.__version__
         latest_version = get_version()
         print(f"Current version: {current_version}")
         print(f"Latest version: {latest_version}")
@@ -18,13 +19,12 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate
         if current_version != latest_version and latest_version != None:
             if not autoupdate:
                 send_discord_alert(f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}", webhook_url)
-                continue
             print("Updating to the latest version...")
             subprocess.run(["pm2", "delete", pm2_name])
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
-
+            current_version = latest_version
         print("All up to date!")
         time.sleep(300)
 
