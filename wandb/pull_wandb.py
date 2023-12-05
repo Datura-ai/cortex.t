@@ -2,7 +2,7 @@ import wandb
 import pandas as pd
 
 api = wandb.Api()
-run = api.run("/cortex-t/multi-modality/runs/38x8yl1g")
+run = api.run("/cortex-t/multi-modality/runs/9p6dtakf")
 history = run.history()
 
 # Write the history to a file in JSON format using pandas
