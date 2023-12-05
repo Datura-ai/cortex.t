@@ -3,6 +3,7 @@ import os
 import time
 import copy
 import wandb
+import pathlib
 import asyncio
 import template
 import argparse
@@ -31,7 +32,16 @@ OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=30.0)
+netrc_path = pathlib.Path.home() / '.netrc'
+wandb_api_key = os.getenv('WANDB_API_KEY')
+
+print("WANDB_API_KEY is set:", bool(wandb_api_key))
+print("~/.netrc exists:", netrc_path.exists())
+
+if not wandb_api_key and not netrc_path.exists():
+    raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
+
+client = AsyncOpenAI(timeout=60.0)
 valid_hotkeys = []
 
 
@@ -118,7 +128,10 @@ class StreamMiner(ABC):
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey not in valid_hotkeys and hotkey not in template.WHITELISTED_KEYS:
+            if hotkey in template.WHITELISTED_KEYS:
+                return False,  f"accepting {synapse_type} request from {hotkey}"
+
+            if hotkey not in valid_hotkeys:
                 return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
@@ -461,14 +474,15 @@ def get_valid_hotkeys(config):
                     # Extract hotkey and signature from the run's configuration
                     hotkey = run.config['hotkey']
                     signature = run.config['signature']
-                    # version = run.config['version']
+                    version = run.config['version']
 
-                    # bt.logging.debug(f"hotkey is running {version}")
-                    # if latest_version != None and version != latest_version:
-                    #     bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
-                    #     continue
+                    if latest_version == None:
+                        bt.logging.errer(f'Github API call failed!')
+
                     
-                    # bt.logging.debug("version matches or github api failed")
+                    if version != latest_version and latest_verion != None:
+                        bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        continue
 
                     # Check if the hotkey is registered in the metagraph
                     if hotkey not in metagraph.hotkeys:
@@ -490,7 +504,6 @@ def get_valid_hotkeys(config):
 
 
 if __name__ == "__main__":
-
     with StreamingTemplateMiner():
         while True:
             time.sleep(1)
