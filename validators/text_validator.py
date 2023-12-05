@@ -14,7 +14,7 @@ from template.utils import call_openai, get_question
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=36)
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=60)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"

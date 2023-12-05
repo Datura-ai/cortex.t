@@ -18,7 +18,7 @@ from template.protocol import ImageResponse
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=30)
+        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=60)
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
