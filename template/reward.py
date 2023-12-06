@@ -30,8 +30,10 @@ import asyncio
 import logging
 import aiohttp
 import requests
-from PIL import Image
+import numpy as np
+from numpy.linalg import norm
 import bittensor as bt
+from PIL import Image
 from typing import List
 from scipy.spatial.distance import cosine
 from sklearn.metrics.pairwise import cosine_similarity
@@ -174,6 +176,7 @@ async def embeddings_score(openai_answer: List, response: List, weight: float, t
         bt.logging.info("The number of embeddings in openai_answer and response do not match.")
         return 0
 
+
     # Calculate similarity for each pair of embeddings
     similarities = []
     for oa_emb, resp_emb in zip(openai_answer, response):
@@ -184,7 +187,8 @@ async def embeddings_score(openai_answer: List, response: List, weight: float, t
     avg_similarity = sum(similarities) / len(similarities)
     bt.logging.info(f"Average similarity: {avg_similarity}")
 
-    # Check against threshold
+    # Check against thresholdls
+    
     if avg_similarity > threshold: 
         bt.logging.info("Average embeddings similarity exceeds threshold!")
         return weight
@@ -192,3 +196,30 @@ async def embeddings_score(openai_answer: List, response: List, weight: float, t
         bt.logging.info(f"Average embeddings similarity does not exceed threshold: {avg_similarity}")
         return 0
 
+async def embeddings_score_dot(openai_answer: List, response: List, weight: float, threshold=.95) -> float:
+    if len(openai_answer) != len(response):
+        bt.logging.warning("The number of embeddings in openai_answer and response do not match.")
+        return 0
+
+    # Calculate cosine similarity for each pair of embeddings
+    cosine_similarities = []
+    for oa_emb, resp_emb in zip(openai_answer, response):
+        if norm(oa_emb) == 0 or norm(resp_emb) == 0:
+            bt.logging.error("One of the embeddings is a zero vector.")
+            return 0
+        cosine_similarity = np.dot(oa_emb, resp_emb) / (norm(oa_emb) * norm(resp_emb))
+        cosine_similarity = min(1.0, max(cosine_similarity, -1.0))  # Clamp the value to the range [-1, 1]
+
+        cosine_similarities.append(cosine_similarity)
+
+    # Average the cosine similarities
+    avg_cosine_similarity = sum(cosine_similarities) / len(cosine_similarities)
+    bt.logging.info(f"Average similarity: {avg_cosine_similarity}")
+
+    # Check against threshold
+    if avg_cosine_similarity > threshold: 
+        bt.logging.info("Average embeddings cosine similarity exceeds threshold!")
+        return weight
+    else:
+        bt.logging.info(f"Average embeddings cosine similarity does not exceed threshold: {avg_cosine_similarity}")
+        return 0
