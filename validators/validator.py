@@ -168,14 +168,13 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet, validato
             metagraph = await asyncio.to_thread(subtensor.metagraph, config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            # if steps_passed % 3 == 0:
-            #     selected_validator = text_vali
-            # elif steps_passed % 3 == 1:
-            #     selected_validator = image_vali
-            # else:
-            #     selected_validator = embed_vali
-            
-            selected_validator = embed_vali
+            if steps_passed % 3 == 0:
+                selected_validator = text_vali
+            elif steps_passed % 3 == 1:
+                selected_validator = image_vali
+            else:
+                selected_validator = embed_vali
+
 
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
             total_scores += scores
