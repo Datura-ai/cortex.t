@@ -1,6 +1,7 @@
 import os
 import time
 import wandb
+import json
 import traceback
 import template
 import argparse
@@ -30,41 +31,46 @@ def get_valid_hotkeys(config):
     subtensor = bt.subtensor(config=config)
     while True:
         metagraph = subtensor.metagraph(18)
-        runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
-        latest_version = get_version()
-        for run in runs:
-            if run.state == "running":
-                try:
-                    # Extract hotkey and signature from the run's configuration
-                    hotkey = run.config['hotkey']
-                    signature = run.config['signature']
-                    version = run.config['version']
+        try:
+            runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
+            latest_version = get_version()
+            for run in runs:
+                if run.state == "running":
+                    try:
+                        # Extract hotkey and signature from the run's configuration
+                        hotkey = run.config['hotkey']
+                        signature = run.config['signature']
+                        version = run.config['version']
+                        print(f"found running run of hotkey {hotkey}, {version} ")
 
-                    bt.logging.info(f"hotkey is running {version}")
-                    if latest_version != None and version != latest_version:
-                        print(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
-                        continue
-                    
-                    bt.logging.info("version matches or github api failed")
+                        if latest_version == None:
+                            bt.logging.error(f'Github API call failed!')
+                            continue
+             
+                        if version != latest_version and latest_version != None:
+                            print(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                            continue
 
-                    # Check if the hotkey is registered in the metagraph
-                    if hotkey not in metagraph.hotkeys:
-                        print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
-                        continue
+                        # Check if the hotkey is registered in the metagraph
+                        if hotkey not in metagraph.hotkeys:
+                            print(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
+                            continue
 
-                    # Verify the signature using the hotkey
-                    if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
-                        print(f'Failed Signature: The signature: {signature} is not valid')
-                        continue
+                        # Verify the signature using the hotkey
+                        if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
+                            print(f'Failed Signature: The signature: {signature} is not valid')
+                            continue
+                            
+                        if hotkey not in valid_hotkeys:
+                            valid_hotkeys.append(hotkey)
+                    except Exception as e:
+                        print(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
-                    if hotkey not in valid_hotkeys:
-                        valid_hotkeys.append(hotkey)
-                except Exception as e:
-                    bt.logging.error(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
+            print(f"total valid hotkeys list = {valid_hotkeys}")
+            time.sleep(180)
 
-        bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
-        time.sleep(10)
-        return valid_hotkeys
+        except json.JSONDecodeError as e:
+            print(f"JSON decoding error: {e} {run.id}")
 
 config = get_config()
 valid_hotkeys = get_valid_hotkeys(config)
