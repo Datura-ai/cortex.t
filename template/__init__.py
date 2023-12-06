@@ -44,9 +44,10 @@ ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE, EMB
 MIN_REQUEST_PERIOD = 2
 MAX_REQUESTS = 30
 # must have the test_key whitelisted to avoid a global blacklist
-testnet_key = "5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"
-test_key = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
-WHITELISTED_KEYS = [testnet_key, test_key]
+testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
+test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
+valid_validators = ['5HeKSHGdsRCwVgyrHchijnZJnq4wiv6GqoDLNah8R5WMfnLB', '5DkwuzLYGrKNhYU9V7K99BAe6zprq8Z96oCgaymh2HeHmW5a', '5Dz8ShM6rtPw1GBAaqxjycT9LF1TC3iDpzpUH9gKr85Nizo6', '5CXRfP2ekFhe62r7q3vppRajJmGhTi7vwvb2yr79jveZ282w', '5HK5tp6t2S59DywmHRWPBVJeJ86T61KjurYqeooqj8sREpeN', '5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v', '5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8', '5EhvL1FVkQPpMjZX4MAADcW42i3xPSF1KiCpuaxTYVr28sux', '5F4tQyWrhfGVcNhoqeiNsR6KjD4wMZ2kfhLj4oHYuyHbZAc3', '5CaNj3BarTHotEK1n513aoTtFeXcjf6uvKzAyzNuv9cirUoW', '5HEo565WAy4Dbq3Sv271SAi7syBSofyfhhwRNjFNSM2gP9M2', '5HNQURvmjjYhTSksi8Wfsw676b4owGwfLR2BFAQzG7H3HhYf', '5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed']
+WHITELISTED_KEYS = testnet_key + test_key + valid_validators
 BLACKLISTED_KEYS = []
 
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']

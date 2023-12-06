@@ -114,8 +114,8 @@ class StreamMiner(ABC):
         self.thread: threading.Thread = None
         self.lock = asyncio.Lock()
         self.request_timestamps: Dict = {}
-        thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        thread.start()
+        # thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
+        # thread.start()
 
     @abstractmethod
     def config(self) -> "bt.Config":
@@ -130,7 +130,7 @@ class StreamMiner(ABC):
             synapse_type = type(synapse).__name__
 
             if hotkey in template.WHITELISTED_KEYS:
-                return False,  f"accepting {synapse_type} request from {hotkey}"
+                return False, f"Accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
                 return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
@@ -441,7 +441,7 @@ class StreamingTemplateMiner(StreamMiner):
                                 "more_body": True,
                             }
                         )
-                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                        bt.logging.trace(f"Streamed tokens: {joined_buffer}")
                         buffer = []
 
                 if buffer:
@@ -483,9 +483,9 @@ def get_valid_hotkeys(config):
                             bt.logging.error(f'Github API call failed!')
                             continue
              
-                        if version != latest_version and latest_version != None:
-                            bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
-                            continue
+                        # if version != latest_version and latest_version != None:
+                        #     bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+                        #     continue
 
                         # Check if the hotkey is registered in the metagraph
                         if hotkey not in metagraph.hotkeys:
