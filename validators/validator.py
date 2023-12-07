@@ -163,7 +163,7 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
     validators = [text_vali, image_vali, embed_vali]
     while True:
         try:
-            metagraph = await asyncio.to_thread(subtensor.metagraph, config.netuid)
+            metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
             if steps_passed % 4 in [0, 1, 2]:
