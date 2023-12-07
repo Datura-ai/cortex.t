@@ -44,9 +44,9 @@ ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE, EMB
 MIN_REQUEST_PERIOD = 2
 MAX_REQUESTS = 30
 # must have the test_key whitelisted to avoid a global blacklist
-testnet_key = "5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"
-test_key = "5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"
-WHITELISTED_KEYS = [testnet_key, test_key]
+testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
+test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
+WHITELISTED_KEYS = testnet_key + test_key
 BLACKLISTED_KEYS = []
 
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
