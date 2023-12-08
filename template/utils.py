@@ -61,6 +61,7 @@ def get_validators_with_runs_in_all_projects():
     
 
 async def get_list(list_type, num_questions_needed, theme=None):
+    global instruct_questions
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_questions": {
