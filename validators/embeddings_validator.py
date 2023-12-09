@@ -10,8 +10,8 @@ from template.protocol import Embeddings
 from base_validator import BaseValidator
 
 class EmbeddingsValidator(BaseValidator):
-    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=15)
+    def __init__(self, dendrite, config, subtensor, wallet):
+        super().__init__(dendrite, config, subtensor, wallet, timeout=15)
         self.streaming = False
         self.query_type = "embeddings"
         self.model = "text-embedding-ada-002"
@@ -65,7 +65,7 @@ class EmbeddingsValidator(BaseValidator):
         texts = [item['text'] for item in dataset['train']] 
         return random.sample(texts, num_samples)
 
-    async def start_query(self, available_uids):
+    async def start_query(self, available_uids, metagraph):
         if not available_uids:
             return [], {}
         
@@ -83,7 +83,7 @@ class EmbeddingsValidator(BaseValidator):
             uid_to_question[uid] = prompt
             syn = Embeddings(model=self.model, texts=prompt)
             bt.logging.info(f"Sending {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.texts[0]}")
-            task = self.query_miner(self.metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["texts"][uid] = prompt
 
@@ -91,7 +91,7 @@ class EmbeddingsValidator(BaseValidator):
         return query_responses, uid_to_question
 
     async def score_responses(self, query_responses, uid_to_question):
-        scores = torch.zeros(len(self.metagraph.hotkeys))
+        scores = torch.zeros(len(range(265)))
         uid_scores_dict = {}
         embedding_score_tasks = []
         scoring_tasks = []
@@ -133,7 +133,7 @@ class EmbeddingsValidator(BaseValidator):
 
         return scores, uid_scores_dict, self.wandb_data
 
-    async def get_and_score(self, available_uids):
-        query_responses, uid_to_question = await self.start_query(available_uids)
+    async def get_and_score(self, available_uids, metagraph):
+        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
         return await self.score_responses(query_responses, uid_to_question)
     
