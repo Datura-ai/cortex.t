@@ -109,11 +109,14 @@ async def check_uid(dendrite, axon, uid):
 
 
 async def get_available_uids(dendrite, metagraph):
-    """Get a list of available UIDs asynchronously."""
-    tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
-    uids = await asyncio.gather(*tasks)
-    # Filter out None values (inactive UIDs)
-    return [uid for uid in uids if uid is not None]
+    """Get a dictionary of available UIDs and their axons asynchronously."""
+    tasks = [(uid.item(), check_uid(dendrite, metagraph.axons[uid.item()], uid.item())) for uid in metagraph.uids]
+    results = await asyncio.gather(*[task[1] for task in tasks])
+
+    # Create a dictionary of UID to axon for active UIDs
+    available_uids = {uid: axon for uid, axon in zip([task[0] for task in tasks], results) if axon is not None}
+    
+    return available_uids
 
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
@@ -151,6 +154,7 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
 
 async def process_modality(config, selected_validator, available_uids):
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
+    uid_list = available_uids.keys()
     scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
     if config.wandb_on:
         wandb.log(wandb_data)
