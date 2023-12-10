@@ -58,8 +58,8 @@ class ImageValidator(BaseValidator):
                 content = await response.read()
                 return Image.open(BytesIO(content))
 
-    async def score_responses(self, query_responses, uid_to_messages):
-        scores = torch.zeros(len(range(265)))
+    async def score_responses(self, query_responses, uid_to_messages, metagraph):
+        scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         download_tasks = []
         score_tasks = []
@@ -118,4 +118,4 @@ class ImageValidator(BaseValidator):
 
     async def get_and_score(self, available_uids, metagraph):
         query_responses, uid_to_messages = await self.start_query(available_uids, metagraph)
-        return await self.score_responses(query_responses, uid_to_messages)
+        return await self.score_responses(query_responses, uid_to_messages, metagraph)

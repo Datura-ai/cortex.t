@@ -81,7 +81,7 @@ def initialize_components(config):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-    return wallet, subtensor, dendrite, my_uid
+    return wallet, subtensor, metagraph, dendrite, my_uid
 
 
 def initialize_validators(vali_config):
@@ -152,8 +152,8 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     
 
 async def process_modality(config, selected_validator, available_uids, metagraph):
-    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
     uid_list = available_uids.keys()
+    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
     scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids, metagraph)
     if config.wandb_on:
         wandb.log(wandb_data)
@@ -161,9 +161,9 @@ async def process_modality(config, selected_validator, available_uids, metagraph
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, subtensor, config, wallet, validators):
+async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validators):
     steps_passed = 0
-    total_scores = torch.zeros(len(range(265))) # should do len(metagraph.hotkeys) if metagraph is initialized
+    total_scores = torch.zeros(len(metagraph.hotkeys))
     text_vali, image_vali = validators
     while True:
         try:
@@ -195,7 +195,7 @@ async def query_synapse(dendrite, subtensor, config, wallet, validators):
 def main():
     global validators
     config = get_config()
-    wallet, subtensor, dendrite, my_uid = initialize_components(config)
+    wallet, subtensor, metagraph, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
         "config": config,
@@ -207,7 +207,7 @@ def main():
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, subtensor, config, wallet, validators))
+        loop.run_until_complete(query_synapse(dendrite, subtensor, metagraph, config, wallet, validators))
 
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")

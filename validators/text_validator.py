@@ -56,8 +56,8 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def score_responses(self, query_responses, uid_to_question):
-        scores = torch.zeros(len(range(265)))
+    async def score_responses(self, query_responses, uid_to_question, metagraph):
+        scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         openai_response_tasks = []
 
@@ -99,4 +99,4 @@ class TextValidator(BaseValidator):
 
     async def get_and_score(self, available_uids, metagraph):
         query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
-        return await self.score_responses(query_responses, uid_to_question)
+        return await self.score_responses(query_responses, uid_to_question, metagraph)
