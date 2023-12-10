@@ -115,7 +115,7 @@ class StreamMiner(ABC):
         self.lock = asyncio.Lock()
         self.request_timestamps: Dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        # thread.start()
+        thread.start()
 
     @abstractmethod
     def config(self) -> "bt.Config":
