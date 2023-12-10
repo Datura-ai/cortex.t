@@ -12,9 +12,10 @@ import requests
 import traceback
 import bittensor as bt
 from . import client
+from collections import deque
 
 list_update_lock = asyncio.Lock()
-instruct_questions = []
+_text_questions_buffer = deque()
 
 def load_state_from_file(filename="validators/state.json"):
     if os.path.exists(filename):
@@ -61,6 +62,7 @@ def get_validators_with_runs_in_all_projects():
     
 
 async def get_list(list_type, num_questions_needed, theme=None):
+    global instruct_questions
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_questions": {
@@ -72,20 +74,27 @@ async def get_list(list_type, num_questions_needed, theme=None):
             "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-seperated, quote-encapsulated strings in a single Python list."
         }
     }
-
+    # The reason for this is because math.ceil(num_questions_needed / prompts_in_question[list_type]) removes (N+10)/10 questions
+    # From _text_questions_buffer. We could have in theory N of these loops running async at the same time
+    # So we always need at least N * (N+10) / 10 questions in _text_questions_buffer to handle this
+    minimum_number_of_questions_needed_in_buffer = (
+        num_questions_needed * (num_questions_needed + 10) / 10
+    )
     if list_type == "text_questions":
-        if len(instruct_questions) < num_questions_needed:
+        if len(_text_questions_buffer) < minimum_number_of_questions_needed_in_buffer:
+            new_questions = []
             for theme in template.INSTRUCT_DEFAULT_THEMES:
                 for complexity_level in range(1, 11): 
                     for relevance_level in range(1, 11):
                         prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
-                        instruct_questions.append(prompt)
+                        new_questions.append(prompt)
+            random.shuffle(new_questions)
+            _text_questions_buffer.extend(new_questions)
 
     selected_prompts = []
     for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
         if list_type == "text_questions":
-            prompt = random.choice(instruct_questions)
-            instruct_questions.remove(prompt)
+            prompt = _text_questions_buffer.popleft()
         else:
             prompt = list_type_mapping[list_type]["prompt"]
 
@@ -134,7 +143,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
 
 
 async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
-    global list_update_lock
 
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":

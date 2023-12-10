@@ -17,8 +17,8 @@ from template.protocol import ImageResponse
 
 
 class ImageValidator(BaseValidator):
-    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=60)
+    def __init__(self, dendrite, config, subtensor, wallet):
+        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
@@ -36,7 +36,7 @@ class ImageValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, available_uids):
+    async def start_query(self, available_uids, metagraph):
         # Query all images concurrently
         query_tasks = []
         uid_to_messages = {}
@@ -45,7 +45,7 @@ class ImageValidator(BaseValidator):
             uid_to_messages[uid] = messages  # Store messages for each UID
             syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
             bt.logging.info(f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}")
-            task = self.query_miner(self.metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = messages
 
@@ -58,8 +58,8 @@ class ImageValidator(BaseValidator):
                 content = await response.read()
                 return Image.open(BytesIO(content))
 
-    async def score_responses(self, query_responses, uid_to_messages):
-        scores = torch.zeros(len(self.metagraph.hotkeys))
+    async def score_responses(self, query_responses, uid_to_messages, metagraph):
+        scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         download_tasks = []
         score_tasks = []
@@ -116,6 +116,6 @@ class ImageValidator(BaseValidator):
             bt.logging.info(f"image_scores = {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
-    async def get_and_score(self, available_uids):
-        query_responses, uid_to_messages = await self.start_query(available_uids)
-        return await self.score_responses(query_responses, uid_to_messages)
+    async def get_and_score(self, available_uids, metagraph):
+        query_responses, uid_to_messages = await self.start_query(available_uids, metagraph)
+        return await self.score_responses(query_responses, uid_to_messages, metagraph)

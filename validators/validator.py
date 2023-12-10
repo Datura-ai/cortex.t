@@ -81,15 +81,16 @@ def initialize_components(config):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-    return wallet, subtensor, dendrite, metagraph, my_uid
+    return wallet, subtensor, metagraph, dendrite, my_uid
 
 
 def initialize_validators(vali_config):
-    global text_vali, image_vali, embed_vali
+    # global text_vali, image_vali, embed_vali
 
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     # embed_vali = EmbeddingsValidator(**vali_config)
+    return text_vali, image_vali
 
 
 async def check_uid(dendrite, axon, uid):
@@ -98,7 +99,7 @@ async def check_uid(dendrite, axon, uid):
         response = await dendrite(axon, IsAlive(), deserialize=False, timeout=4)
         if response.is_success:
             bt.logging.trace(f"UID {uid} is active")
-            return uid
+            return axon  # Return the axon info instead of the UID
         else:
             bt.logging.trace(f"UID {uid} is not active")
             return None
@@ -106,13 +107,15 @@ async def check_uid(dendrite, axon, uid):
         bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
         return None
 
-
 async def get_available_uids(dendrite, metagraph):
-    """Get a list of available UIDs asynchronously."""
-    tasks = [check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids]
-    uids = await asyncio.gather(*tasks)
-    # Filter out None values (inactive UIDs)
-    return [uid for uid in uids if uid is not None]
+    """Get a dictionary of available UIDs and their axons asynchronously."""
+    tasks = {uid.item(): check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids}
+    results = await asyncio.gather(*tasks.values())
+
+    # Create a dictionary of UID to axon info for active UIDs
+    available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
+    
+    return available_uids
 
 
 def set_weights(scores, config, subtensor, wallet, metagraph):
@@ -148,30 +151,31 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     set_weights(avg_scores, config, subtensor, wallet, metagraph)
     
 
-async def process_modality(config, selected_validator, available_uids):
-    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {available_uids}")
-    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids)
+async def process_modality(config, selected_validator, available_uids, metagraph):
+    uid_list = available_uids.keys()
+    bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids, metagraph)
     if config.wandb_on:
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
+async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validators):
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    validators = [text_vali, image_vali, embed_vali]
+    text_vali, image_vali = validators
     while True:
         try:
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            if steps_passed % 4 in [0, 1, 2]:
+            if steps_passed % 3 in [0, 1, 2]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali
 
-            scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids)
+            scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids, metagraph)
             total_scores += scores
             
             iterations_per_set_weights = 10
@@ -191,20 +195,19 @@ async def query_synapse(dendrite, metagraph, subtensor, config, wallet):
 def main():
     global validators
     config = get_config()
-    wallet, subtensor, dendrite, metagraph, my_uid = initialize_components(config)
+    wallet, subtensor, metagraph, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
-        "metagraph": metagraph,
         "config": config,
         "subtensor": subtensor,
         "wallet": wallet
     }
-    initialize_validators(validator_config)
+    validators = initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, metagraph, subtensor, config, wallet))
+        loop.run_until_complete(query_synapse(dendrite, subtensor, metagraph, config, wallet, validators))
 
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")

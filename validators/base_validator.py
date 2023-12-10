@@ -5,9 +5,8 @@ from abc import ABC, abstractmethod
 
 
 class BaseValidator(ABC):
-    def __init__(self, dendrite, metagraph, config, subtensor, wallet, timeout):
+    def __init__(self, dendrite, config, subtensor, wallet, timeout):
         self.dendrite = dendrite
-        self.metagraph = metagraph
         self.config = config
         self.subtensor = subtensor
         self.wallet = wallet
@@ -34,6 +33,6 @@ class BaseValidator(ABC):
     async def score_responses(self, responses):
         pass
 
-    async def get_and_score(self, available_uids):
-        responses = await self.start_query(available_uids)
-        return await self.score_responses(responses)
+    async def get_and_score(self, available_uids, metagraph):
+        responses = await self.start_query(available_uids, metagraph)
+        return await self.score_responses(query_responses, uid_to_question, metagraph)

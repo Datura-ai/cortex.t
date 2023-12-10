@@ -19,7 +19,7 @@
 
 
 # version must stay on line 22
-__version__ = "2.5.5"
+__version__ = "2.5.6"
 version_split = __version__.split(".")
 __spec_version__ = (
     (1000 * int(version_split[0]))
@@ -46,12 +46,12 @@ MAX_REQUESTS = 30
 # must have the test_key whitelisted to avoid a global blacklist
 testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
-WHITELISTED_KEYS = testnet_key + test_key
-BLACKLISTED_KEYS = []
+VALID_VALIDATORS = ['5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v', '5EhvL1FVkQPpMjZX4MAADcW42i3xPSF1KiCpuaxTYVr28sux', '5CXRfP2ekFhe62r7q3vppRajJmGhTi7vwvb2yr79jveZ282w', '5CaNj3BarTHotEK1n513aoTtFeXcjf6uvKzAyzNuv9cirUoW', '5HK5tp6t2S59DywmHRWPBVJeJ86T61KjurYqeooqj8sREpeN', '5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed', '5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T', '5Dz8ShM6rtPw1GBAaqxjycT9LF1TC3iDpzpUH9gKr85Nizo6', '5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8', '5HNQURvmjjYhTSksi8Wfsw676b4owGwfLR2BFAQzG7H3HhYf', '5HEo565WAy4Dbq3Sv271SAi7syBSofyfhhwRNjFNSM2gP9M2', '5F4tQyWrhfGVcNhoqeiNsR6KjD4wMZ2kfhLj4oHYuyHbZAc3']
+WHITELISTED_KEYS = testnet_key + test_key + valid_validators
+BLACKLISTED_KEYS = ["5G1NjW9YhXLadMWajvTkfcJy6up3yH2q1YzMXDTi6ijanChe"]
 
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
-
 
 # Instruct themes used in https://arxiv.org/pdf/2304.12244.pdf to train WizardLM
 initial_instruct_themes = ['Philosopy', 'Technology', 'Physics', 'Ethics', 'Academic Writing', 'Economy', 'History', 'Medicine', 'Toxicity', 'Roleplay', 'Entertainment', 'Biology', 'Counterfactual', 'Literature', 'Chemistry', 'Writing', 'Sport', 'Law', 'Language', 'Computer Science', 'Multilangual', 'Common Sense', 'Art', 'Complex Format' 'Code Generation', 'Math', 'Code Debug', 'Reasoning']

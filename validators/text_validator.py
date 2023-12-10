@@ -13,8 +13,8 @@ from template.utils import call_openai, get_question
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, dendrite, metagraph, config, subtensor, wallet):
-        super().__init__(dendrite, metagraph, config, subtensor, wallet, timeout=60)
+    def __init__(self, dendrite, config, subtensor, wallet):
+        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
@@ -29,7 +29,7 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, available_uids):
+    async def start_query(self, available_uids, metagraph):
         query_tasks = []
         uid_to_question = {}
         for uid in available_uids:
@@ -38,7 +38,7 @@ class TextValidator(BaseValidator):
             messages = [{'role': 'user', 'content': prompt}]
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
-            task = self.query_miner(self.metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = prompt
 
@@ -56,8 +56,8 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def score_responses(self, query_responses, uid_to_question):
-        scores = torch.zeros(len(self.metagraph.hotkeys))
+    async def score_responses(self, query_responses, uid_to_question, metagraph):
+        scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         openai_response_tasks = []
 
@@ -97,6 +97,6 @@ class TextValidator(BaseValidator):
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
-    async def get_and_score(self, available_uids):
-        query_responses, uid_to_question = await self.start_query(available_uids)
-        return await self.score_responses(query_responses, uid_to_question)
+    async def get_and_score(self, available_uids, metagraph):
+        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
+        return await self.score_responses(query_responses, uid_to_question, metagraph)
