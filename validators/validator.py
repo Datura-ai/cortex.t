@@ -5,16 +5,19 @@ import wandb
 import string
 import random
 import asyncio
+import uvicorn
 import template
 import argparse
 import traceback
 import bittensor as bt
 import template.utils as utils
 
+from app import app
 from fastapi import FastAPI
 from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
+from fastapi import FastAPI, HTTPException
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 
@@ -23,6 +26,7 @@ moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
+metagraph = None
 wandb_runs = {}
 app = FastAPI()
 
@@ -70,6 +74,7 @@ def init_wandb(config, my_uid, wallet):
 
 
 def initialize_components(config):
+    global metagraph
     bt.logging(config=config, logging_dir=config.full_path)
     bt.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
     wallet = bt.wallet(config=config)
@@ -81,11 +86,11 @@ def initialize_components(config):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-    return wallet, subtensor, metagraph, dendrite, my_uid
+    return wallet, subtensor, dendrite, my_uid
 
 
 def initialize_validators(vali_config):
-    # global text_vali, image_vali, embed_vali
+    global text_vali, image_vali, embed_vali
 
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
@@ -149,6 +154,15 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator class
     # Weights get normalized anyways in weight_utils
     set_weights(avg_scores, config, subtensor, wallet, metagraph)
+
+
+@app.post("/text-validator/")
+async def process_text_validator(data: dict):
+    try:
+        scores, uid_scores_dict, wandb_data = await text_vali.get_and_score(available_uids, metagraph)
+        return {"scores": scores, "uid_scores_dict": uid_scores_dict, "wandb_data": wandb_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
 
 async def process_modality(config, selected_validator, available_uids, metagraph):
@@ -161,10 +175,10 @@ async def process_modality(config, selected_validator, available_uids, metagraph
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validators):
+async def query_synapse(dendrite, subtensor, config, wallet):
+    global metagraph
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    text_vali, image_vali = validators
     while True:
         try:
             metagraph = subtensor.metagraph(config.netuid)
@@ -195,19 +209,18 @@ async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validato
 def main():
     global validators
     config = get_config()
-    wallet, subtensor, metagraph, dendrite, my_uid = initialize_components(config)
+    wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
         "config": config,
         "subtensor": subtensor,
         "wallet": wallet
     }
-    validators = initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, subtensor, metagraph, config, wallet, validators))
+        loop.run_until_complete(query_synapse(dendrite, subtensor, config, wallet))
 
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
