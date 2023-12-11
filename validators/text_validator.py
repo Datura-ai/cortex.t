@@ -30,20 +30,25 @@ class TextValidator(BaseValidator):
         }
 
     async def start_query(self, available_uids, metagraph, messages=None):
+        # Example messages = {0: [{'role': 'user', 'content': "tell me a story"}], 1: [{'role': 'user', 'content': "1+1 = ?"}]}
         query_tasks = []
         uid_to_question = {}
-        for uid in available_uids:
-            if messages == None:
-                prompt = await get_question("text", len(available_uids))
-                messages = [{'role': 'user', 'content': prompt}]
-            
-            uid_to_question[uid] = prompt
 
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+        # Generate default messages if none are provided
+        if messages is None:
+            messages = {}
+            for uid in available_uids:
+                prompt = await get_question("text", len(available_uids))
+                messages[uid] = [{'role': 'user', 'content': prompt}]
+
+        # Assign messages to each uid and create tasks
+        for uid in available_uids:
+            uid_to_question[uid] = messages.get(uid, [])
+            syn = StreamPrompting(messages=uid_to_question[uid], model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
             task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = prompt
+            self.wandb_data["prompts"][uid] = messages[uid]
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
@@ -72,7 +77,7 @@ class TextValidator(BaseValidator):
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
-                messages = [{'role': 'user', 'content': uid_to_question[uid]}]
+                messages = uid_to_question[uid]
                 task = call_openai(messages, 0, self.model, self.seed)
                 openai_response_tasks.append((uid, task))
 
@@ -101,5 +106,5 @@ class TextValidator(BaseValidator):
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids, metagraph):
-        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
+        query_responses, uid_to_question = await self.start_query(available_uids, metagraph, messages=None)
         return await self.score_responses(query_responses, uid_to_question, metagraph)
