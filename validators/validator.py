@@ -12,7 +12,6 @@ import traceback
 import bittensor as bt
 import template.utils as utils
 
-from app import app
 from fastapi import FastAPI
 from template.protocol import IsAlive
 from base_validator import BaseValidator
@@ -206,35 +205,31 @@ async def query_synapse(dendrite, subtensor, config, wallet):
             bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")
             await asyncio.sleep(100)
 
-def main():
-    global validators
+
+async def main():
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
+    init_wandb(config, my_uid, wallet)
+
     validator_config = {
         "dendrite": dendrite,
         "config": config,
         "subtensor": subtensor,
         "wallet": wallet
     }
-    init_wandb(config, my_uid, wallet)
-    loop = asyncio.get_event_loop()
+    initialize_validators(validator_config)  # Correct variable name here
 
-    try:
-        loop.run_until_complete(query_synapse(dendrite, subtensor, config, wallet))
+    uvicorn_server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8000))
+    fastapi_task = asyncio.create_task(uvicorn_server.serve())
+    synapse_task = asyncio.create_task(query_synapse(dendrite, subtensor, config, wallet))
 
-    except KeyboardInterrupt:
-        bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-        tasks = asyncio.all_tasks(loop)
-        for task in tasks:
-            task.cancel()
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        state = utils.get_state()
-        utils.save_state_to_file(state)
-        if config.wandb_on: wandb.finish()
-
-    finally:
-        loop.close()
-
+    await asyncio.gather(fastapi_task, synapse_task)
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        bt.logging.info("Keyboard interrupt detected. Exiting validator.")
+        if config.wandb_on: wandb.finish()
+        state = utils.get_state()
+        utils.save_state_to_file(state)
