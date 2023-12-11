@@ -85,23 +85,15 @@ async def get_list(list_type, num_questions_needed, theme=None):
         random.shuffle(new_questions)
         _text_questions_buffer.extend(new_questions)
 
-    if list_type == "text_questions":
-        if len(_text_questions_buffer) < minimum_number_of_questions_needed_in_buffer:
-            get_text_questions()
-    # The reason for this is because math.ceil(num_questions_needed / prompts_in_question[list_type]) removes (N+10)/10 questions
-    # From _text_questions_buffer. We could have in theory N of these loops running async at the same time
-    # So we always need at least N * (N+10) / 10 questions in _text_questions_buffer to handle this
-    minimum_number_of_questions_needed_in_buffer = (
-        num_questions_needed * (num_questions_needed + 10) / 10
-    )
-
     selected_prompts = []
     for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
         if list_type == "text_questions":
             try:
                 prompt = _text_questions_buffer.popleft()
-            except:
+            except IndexError:
+                bt.logging.info("Empty list! Refilling list")
                 get_text_questions()
+                prompt = _text_questions_buffer.popleft()
         else:
             prompt = list_type_mapping[list_type]["prompt"]
 
