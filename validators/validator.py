@@ -170,7 +170,7 @@ async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validato
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            if steps_passed % 3 in [0, 1, 2]:
+            if steps_passed % 5 in [0, 1, 2, 3]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali

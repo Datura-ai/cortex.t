@@ -66,7 +66,7 @@ class ImageValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/3
+        will_score_all = random_number < 1/4
         bt.logging.info(f"Random Number: {random_number}, Will score image responses: {will_score_all}")
 
         for uid, response in query_responses:

@@ -63,7 +63,7 @@ class TextValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/8
+        will_score_all = random_number < 1/11
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
 
         for uid, response in query_responses:
