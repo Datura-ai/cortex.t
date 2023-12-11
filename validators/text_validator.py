@@ -29,13 +29,16 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, available_uids, metagraph):
+    async def start_query(self, available_uids, metagraph, messages=None):
         query_tasks = []
         uid_to_question = {}
         for uid in available_uids:
-            prompt = await get_question("text", len(available_uids))
+            if messages == None:
+                prompt = await get_question("text", len(available_uids))
+                messages = [{'role': 'user', 'content': prompt}]
+            
             uid_to_question[uid] = prompt
-            messages = [{'role': 'user', 'content': prompt}]
+
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
             task = self.query_miner(metagraph.axons[uid], uid, syn)
