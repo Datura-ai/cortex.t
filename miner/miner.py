@@ -341,21 +341,19 @@ class StreamingTemplateMiner(StreamMiner):
             for batch in batches:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
-                    print(filtered_batch)
-                    task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model))
+                    task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model, encoding_format='float'))
                     tasks.append(task)
                 else:
                     bt.logging.info("Skipped an empty batch.")
             
             all_embeddings = []
-            for task in asyncio.as_completed(tasks):
-                try:
-                    response = await task
-                    batch_embeddings = [item.embedding for item in response.data]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    bt.logging.error(f"Error in processing batch: {result}")
+                else:
+                    batch_embeddings = [item.embedding for item in result.data]
                     all_embeddings.extend(batch_embeddings)
-                except Exception as e:
-                    bt.logging.error(f"Error in processing batch: {e}")
-
             return all_embeddings
 
         try:
