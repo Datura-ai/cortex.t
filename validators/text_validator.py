@@ -29,10 +29,10 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, metagraph, available_uids=None, messages=None):
+    async def start_query(self, metagraph, available_uids=None, messages_dict=None):
         # Set available_uids to keys of messages if available_uids is not provided
         if available_uids is None:
-            if messages is not None:
+            if messages_dict is not None:
                 available_uids = list(messages.keys())
             else:
                 raise ValueError("Either available_uids or messages must be provided.")
@@ -41,20 +41,20 @@ class TextValidator(BaseValidator):
         uid_to_question = {}
 
         # Generate default messages if none are provided
-        if messages is None:
-            messages = {}
+        if messages_dict is None:
+            messages_dict = {}
             for uid in available_uids:
                 prompt = await get_question("text", len(available_uids))
-                messages[uid] = [{'role': 'user', 'content': prompt}]
+                messages_dict[uid] = [{'role': 'user', 'content': prompt}]
 
         # Assign messages to each uid and create tasks
         for uid in available_uids:
-            uid_to_question[uid] = messages.get(uid, [])
+            uid_to_question[uid] = messages_dict.get(uid, [])
             syn = StreamPrompting(messages=uid_to_question[uid], model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
             task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = messages[uid]
+            self.wandb_data["prompts"][uid] = messages_dict[uid]
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
@@ -112,5 +112,5 @@ class TextValidator(BaseValidator):
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids, metagraph):
-        query_responses, uid_to_question = await self.start_query(metagraph, available_uids=None, messages=None)
+        query_responses, uid_to_question = await self.start_query(metagraph, available_uids=None, messages_dict=None)
         return await self.score_responses(query_responses, uid_to_question, metagraph)
