@@ -66,7 +66,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_questions": {
-            "default": template.INSTRUCT_DEfAULT_QUESTIONS,
+            "default": template.INSTRUCT_DEFAULT_QUESTIONS,
             "prompt": "placeholder"
         },
         "images_questions": {
