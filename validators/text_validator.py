@@ -29,8 +29,14 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, available_uids, metagraph, messages=None):
-        # Example messages = {0: [{'role': 'user', 'content': "tell me a story"}], 1: [{'role': 'user', 'content': "1+1 = ?"}]}
+    async def start_query(self, metagraph, available_uids=None, messages=None):
+        # Set available_uids to keys of messages if available_uids is not provided
+        if available_uids is None:
+            if messages is not None:
+                available_uids = list(messages.keys())
+            else:
+                raise ValueError("Either available_uids or messages must be provided.")
+
         query_tasks = []
         uid_to_question = {}
 
@@ -106,5 +112,5 @@ class TextValidator(BaseValidator):
         return scores, uid_scores_dict, self.wandb_data
 
     async def get_and_score(self, available_uids, metagraph):
-        query_responses, uid_to_question = await self.start_query(available_uids, metagraph, messages=None)
+        query_responses, uid_to_question = await self.start_query(metagraph, available_uids=None, messages=None)
         return await self.score_responses(query_responses, uid_to_question, metagraph)
