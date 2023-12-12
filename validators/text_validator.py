@@ -111,6 +111,6 @@ class TextValidator(BaseValidator):
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
-    async def get_and_score(self, available_uids, metagraph, messages_dict=None):
-        query_responses, uid_to_question = await self.start_query(metagraph, available_uids=None, messages_dict=None)
+    async def get_and_score(self, metagraph, available_uids=None, messages_dict=None):
+        query_responses, uid_to_question = await self.start_query(metagraph, available_uids, messages_dict)
         return await self.score_responses(query_responses, uid_to_question, metagraph)

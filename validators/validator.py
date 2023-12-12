@@ -4,6 +4,7 @@ import torch
 import wandb
 import string
 import random
+import signal
 import asyncio
 import uvicorn
 import template
@@ -16,7 +17,6 @@ from fastapi import FastAPI
 from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
-from fastapi import FastAPI, HTTPException
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 
@@ -28,7 +28,6 @@ embed_vali = None
 metagraph = None
 wandb_runs = {}
 app = FastAPI()
-
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -94,7 +93,7 @@ def initialize_validators(vali_config):
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     # embed_vali = EmbeddingsValidator(**vali_config)
-    return text_vali, image_vali
+    bt.logging.info("initialized_validators")
 
 
 async def check_uid(dendrite, axon, uid):
@@ -153,37 +152,28 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator class
     # Weights get normalized anyways in weight_utils
     set_weights(avg_scores, config, subtensor, wallet, metagraph)
-
-
-@app.post("/text-validator/")
-async def process_text_validator(data: dict):
-    try:
-        scores, uid_scores_dict, wandb_data = await text_vali.get_and_score(available_uids, metagraph)
-        return {"scores": scores, "uid_scores_dict": uid_scores_dict, "wandb_data": wandb_data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
     
 
 async def process_modality(config, selected_validator, available_uids, metagraph):
-    uid_list = available_uids.keys()
+    uid_list = list(available_uids.keys())
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids, metagraph)
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(metagraph, available_uids=uid_list)
     if config.wandb_on:
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, subtensor, config, wallet):
+async def query_synapse(dendrite, subtensor, config, wallet, shutdown_event):
     global metagraph
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    while True:
+    while not shutdown_event.is_set():
         try:
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            if steps_passed % 5 in [0, 1, 2, 3]:
+            if steps_passed % 3 in [0, 1, 2]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali
@@ -206,30 +196,39 @@ async def query_synapse(dendrite, subtensor, config, wallet):
             await asyncio.sleep(100)
 
 
-async def main():
+shutdown_event = asyncio.Event()
+
+def handle_shutdown(*args):
+    shutdown_event.set()
+
+def main():
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
-    init_wandb(config, my_uid, wallet)
-
     validator_config = {
         "dendrite": dendrite,
         "config": config,
         "subtensor": subtensor,
         "wallet": wallet
     }
-    initialize_validators(validator_config)  # Correct variable name here
+    initialize_validators(validator_config)
+    init_wandb(config, my_uid, wallet)
 
+    loop = asyncio.get_event_loop()
+
+    # Register the signal handler for graceful shutdown
+    loop.add_signal_handler(signal.SIGINT, handle_shutdown)
+
+    # Start the FastAPI server as an asyncio task
     uvicorn_server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8000))
-    fastapi_task = asyncio.create_task(uvicorn_server.serve())
-    synapse_task = asyncio.create_task(query_synapse(dendrite, subtensor, config, wallet))
+    fastapi_task = loop.create_task(uvicorn_server.serve())
 
-    await asyncio.gather(fastapi_task, synapse_task)
+    # Run the query_synapse coroutine along with the FastAPI server
+    loop.run_until_complete(asyncio.gather(
+        fastapi_task,
+        query_synapse(dendrite, subtensor, config, wallet, shutdown_event)
+    ))
+
+    loop.close()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-        if config.wandb_on: wandb.finish()
-        state = utils.get_state()
-        utils.save_state_to_file(state)
+    main()
