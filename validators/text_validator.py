@@ -30,31 +30,32 @@ class TextValidator(BaseValidator):
         }
 
     async def start_query(self, metagraph, available_uids=None, messages_dict=None):
+        # example messages_dict = {36: [{'role': 'user', 'content': "who are you"}]}
         # Set available_uids to keys of messages if available_uids is not provided
         if available_uids is None:
             if messages_dict is not None:
-                available_uids = list(messages.keys())
+                available_uids = list(messages_dict.keys())
             else:
                 raise ValueError("Either available_uids or messages must be provided.")
 
         query_tasks = []
         uid_to_question = {}
 
-        # Generate default messages if none are provided
-        if messages_dict is None:
-            messages_dict = {}
-            for uid in available_uids:
-                prompt = await get_question("text", len(available_uids))
-                messages_dict[uid] = [{'role': 'user', 'content': prompt}]
-
-        # Assign messages to each uid and create tasks
+        # Check and set messages for each UID
         for uid in available_uids:
-            uid_to_question[uid] = messages_dict.get(uid, [])
-            syn = StreamPrompting(messages=uid_to_question[uid], model=self.model, seed=self.seed)
-            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            # Use existing message if available, otherwise generate a new one
+            if messages_dict is not None and uid in messages_dict:
+                message = messages_dict[uid]
+            else:
+                prompt = await get_question("text", len(available_uids))
+                message = [{'role': 'user', 'content': prompt}]
+
+            uid_to_question[uid] = message
+            syn = StreamPrompting(messages=message, model=self.model, seed=self.seed)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
             task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = messages_dict[uid]
+            self.wandb_data["prompts"][uid] = message
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question

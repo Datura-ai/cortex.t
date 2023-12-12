@@ -201,8 +201,8 @@ async def query_synapse(dendrite, subtensor, config, wallet, shutdown_event):
 @app.post("/text-validator/")
 async def process_text_validator(data: dict):
     try:
-        data_with_int_keys = {int(k): v for k, v in data.items()}
-        scores, uid_scores_dict, wandb_data = await text_vali.get_and_score(metagraph, data_with_int_keys)
+        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
+        scores, uid_scores_dict, wandb_data = await text_vali.get_and_score(metagraph, messages_dict=messages_dict)
         return {"scores": scores, "uid_scores_dict": uid_scores_dict, "wandb_data": wandb_data}
     except Exception as e:
         bt.logging.info(f"error in text api {traceback.format_exc()}")
