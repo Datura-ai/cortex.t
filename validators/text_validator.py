@@ -29,36 +29,21 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, metagraph, available_uids=None, messages_dict=None):
-        # example messages_dict = {36: [{'role': 'user', 'content': "who are you"}]}
-        # Set available_uids to keys of messages if available_uids is not provided
-        if available_uids is None:
-            if messages_dict is not None:
-                available_uids = list(messages_dict.keys())
-            else:
-                raise ValueError("Either available_uids or messages must be provided.")
+    async def organic(self, metagraph, query):
+        for uid, messages in query.items():
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            self.wandb_data["prompts"][uid] = messages
+            responses = await self.dendrite(metagraph.axons[uid], syn, deserialize=False, timeout=self.timeout, streaming=self.streaming)
+            
+            async for response in self.return_tokens(uid, responses):
+                yield response
 
-        query_tasks = []
-        uid_to_question = {}
-
-        # Check and set messages for each UID
-        for uid in available_uids:
-            # Use existing message if available, otherwise generate a new one
-            if messages_dict is not None and uid in messages_dict:
-                message = messages_dict[uid]
-            else:
-                prompt = await get_question("text", len(available_uids))
-                message = [{'role': 'user', 'content': prompt}]
-
-            uid_to_question[uid] = message
-            syn = StreamPrompting(messages=message, model=self.model, seed=self.seed)
-            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
-            task = self.query_miner(metagraph.axons[uid], uid, syn)
-            query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = message
-
-        query_responses = await asyncio.gather(*query_tasks)
-        return query_responses, uid_to_question
+    async def return_tokens(self, uid, responses):
+        async for resp in responses:
+            if isinstance(resp, str):
+                bt.logging.trace(resp)
+                yield uid, resp
 
     async def handle_response(self, uid, responses):
         full_response = ""
@@ -70,6 +55,22 @@ class TextValidator(BaseValidator):
             bt.logging.debug(f"full_response for uid {uid}: {full_response}")
             break
         return uid, full_response
+
+    async def start_query(self, available_uids, metagraph):
+        query_tasks = []
+        uid_to_question = {}
+        for uid in available_uids:
+            prompt = await get_question("text", len(available_uids))
+            uid_to_question[uid] = prompt
+            messages = [{'role': 'user', 'content': prompt}]
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            query_tasks.append(task)
+            self.wandb_data["prompts"][uid] = prompt
+
+        query_responses = await asyncio.gather(*query_tasks)
+        return query_responses, uid_to_question
 
     async def score_responses(self, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
@@ -112,6 +113,6 @@ class TextValidator(BaseValidator):
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
 
-    async def get_and_score(self, metagraph, available_uids=None, messages_dict=None):
-        query_responses, uid_to_question = await self.start_query(metagraph, available_uids, messages_dict)
+    async def get_and_score(self, available_uids, metagraph):
+        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
         return await self.score_responses(query_responses, uid_to_question, metagraph)

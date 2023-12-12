@@ -14,12 +14,12 @@ import traceback
 import bittensor as bt
 import template.utils as utils
 
-from fastapi import FastAPI
-from fastapi import HTTPException
 from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
 from image_validator import ImageValidator
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from embeddings_validator import EmbeddingsValidator
 
 
@@ -200,13 +200,16 @@ async def query_synapse(dendrite, subtensor, config, wallet, shutdown_event):
 
 @app.post("/text-validator/")
 async def process_text_validator(data: dict):
-    try:
-        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
-        scores, uid_scores_dict, wandb_data = await text_vali.get_and_score(metagraph, messages_dict=messages_dict)
-        return {"scores": scores, "uid_scores_dict": uid_scores_dict, "wandb_data": wandb_data}
-    except Exception as e:
-        bt.logging.info(f"error in text api {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+    async def response_stream():
+        try:
+            messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
+            async for response in text_vali.organic(metagraph, messages_dict):
+                uid, content = response
+                yield f"{content}"
+        except Exception as e:
+            bt.logging.info(f"error in text api {traceback.format_exc()}")
+
+    return StreamingResponse(response_stream())
 
 def run_fastapi():
     uvicorn.run(app, host="0.0.0.0", port=8000)
