@@ -14,7 +14,7 @@ from template.utils import call_openai, get_question
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
@@ -31,6 +31,7 @@ class TextValidator(BaseValidator):
 
     async def organic(self, metagraph, query):
         for uid, messages in query.items():
+            messages.append()
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
             self.wandb_data["prompts"][uid] = messages

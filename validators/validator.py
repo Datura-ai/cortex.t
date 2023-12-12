@@ -18,10 +18,9 @@ from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
 from image_validator import ImageValidator
-from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
 from embeddings_validator import EmbeddingsValidator
-
 
 moving_average_scores = None
 text_vali = None
@@ -30,6 +29,8 @@ embed_vali = None
 metagraph = None
 wandb_runs = {}
 app = FastAPI()
+EXPECTED_ACCESS_KEY = "hello" 
+
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -159,7 +160,7 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
 async def process_modality(config, selected_validator, available_uids, metagraph):
     uid_list = list(available_uids.keys())
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(metagraph, available_uids=uid_list)
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(uid_list, metagraph)
     if config.wandb_on:
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
@@ -199,7 +200,12 @@ async def query_synapse(dendrite, subtensor, config, wallet, shutdown_event):
 
 
 @app.post("/text-validator/")
-async def process_text_validator(data: dict):
+async def process_text_validator(request: Request, data: dict):
+    # Check access key
+    access_key = request.headers.get("access-key")
+    if access_key != EXPECTED_ACCESS_KEY:
+        raise HTTPException(status_code=401, detail="Invalid access key")
+
     async def response_stream():
         try:
             messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
@@ -207,7 +213,7 @@ async def process_text_validator(data: dict):
                 uid, content = response
                 yield f"{content}"
         except Exception as e:
-            bt.logging.info(f"error in text api {traceback.format_exc()}")
+            bt.logging.error(f"error in response_stream {traceback.format_exc()}")
 
     return StreamingResponse(response_stream())
 
