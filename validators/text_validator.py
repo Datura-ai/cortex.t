@@ -31,7 +31,6 @@ class TextValidator(BaseValidator):
 
     async def organic(self, metagraph, query):
         for uid, messages in query.items():
-            messages.append()
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
             self.wandb_data["prompts"][uid] = messages
