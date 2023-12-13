@@ -10,7 +10,7 @@ import argparse
 import traceback
 import bittensor as bt
 import template.utils as utils
-
+import random
 from fastapi import FastAPI
 from template.protocol import IsAlive
 from base_validator import BaseValidator
@@ -112,9 +112,9 @@ async def get_available_uids(dendrite, metagraph):
     tasks = {uid.item(): check_uid(dendrite, metagraph.axons[uid.item()], uid.item()) for uid in metagraph.uids}
     results = await asyncio.gather(*tasks.values())
 
-    # Create a dictionary of UID to axon info for active UIDs
+    # Create an array of UIDs to axon info for active UIDs
     available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
-    
+    available_uids = random.shuffle(available_uids)
     return available_uids
 
 
