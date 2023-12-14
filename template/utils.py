@@ -75,7 +75,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
         }
     }
 
-    def get_text_questions():
+    async def get_text_questions():
         new_questions = []
         for theme in template.INSTRUCT_DEFAULT_THEMES:
             for complexity_level in range(1, 11): 
@@ -88,12 +88,16 @@ async def get_list(list_type, num_questions_needed, theme=None):
     selected_prompts = []
     for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
         if list_type == "text_questions":
+            if not _text_questions_buffer:
+                bt.logging.info("Empty list! Refilling list")
+                await get_text_questions()
+
             try:
                 prompt = _text_questions_buffer.popleft()
-            except IndexError:
-                bt.logging.info("Empty list! Refilling list")
-                get_text_questions()
-                prompt = _text_questions_buffer.popleft()
+            except IndexError as e:
+                bt.logging.error(f"Unexpected IndexError: {e}")
+                prompt = f"Generate a python-formatted list of 10 questions or instruct tasks related to the theme acedemics, each with a complexity level of 7 out of 10 and a relevance level to the theme of 2 out of 10. These tasks should varyingly explore acedemics in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about academics. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
+                continue
         else:
             prompt = list_type_mapping[list_type]["prompt"]
 

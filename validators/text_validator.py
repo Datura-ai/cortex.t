@@ -14,7 +14,7 @@ from template.utils import call_openai, get_question
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
         self.model = "gpt-4-1106-preview"
@@ -28,6 +28,33 @@ class TextValidator(BaseValidator):
             "scores": {},
             "timestamps": {},
         }
+
+    async def organic(self, metagraph, query):
+        for uid, messages in query.items():
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            self.wandb_data["prompts"][uid] = messages
+            responses = await self.dendrite(metagraph.axons[uid], syn, deserialize=False, timeout=self.timeout, streaming=self.streaming)
+            
+            async for response in self.return_tokens(uid, responses):
+                yield response
+
+    async def return_tokens(self, uid, responses):
+        async for resp in responses:
+            if isinstance(resp, str):
+                bt.logging.trace(resp)
+                yield uid, resp
+
+    async def handle_response(self, uid, responses):
+        full_response = ""
+        for resp in responses:
+            async for chunk in resp:
+                if isinstance(chunk, str):
+                    bt.logging.trace(chunk)
+                    full_response += chunk
+            bt.logging.debug(f"full_response for uid {uid}: {full_response}")
+            break
+        return uid, full_response
 
     async def start_query(self, available_uids, metagraph):
         query_tasks = []
@@ -45,17 +72,6 @@ class TextValidator(BaseValidator):
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
 
-    async def handle_response(self, uid, responses):
-        full_response = ""
-        for resp in responses:
-            async for chunk in resp:
-                if isinstance(chunk, str):
-                    bt.logging.trace(chunk)
-                    full_response += chunk
-            bt.logging.debug(f"full_response for uid {uid}: {full_response}")
-            break
-        return uid, full_response
-
     async def score_responses(self, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
@@ -69,7 +85,7 @@ class TextValidator(BaseValidator):
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
-                messages = [{'role': 'user', 'content': uid_to_question[uid]}]
+                messages = uid_to_question[uid]
                 task = call_openai(messages, 0, self.model, self.seed)
                 openai_response_tasks.append((uid, task))
 

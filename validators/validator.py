@@ -4,27 +4,32 @@ import torch
 import wandb
 import string
 import random
+import signal
 import asyncio
+import uvicorn
 import template
 import argparse
+import threading
 import traceback
 import bittensor as bt
 import template.utils as utils
 
-from fastapi import FastAPI
 from template.protocol import IsAlive
 from base_validator import BaseValidator
 from text_validator import TextValidator
 from image_validator import ImageValidator
+from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
 from embeddings_validator import EmbeddingsValidator
-
 
 moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
+metagraph = None
 wandb_runs = {}
 app = FastAPI()
+EXPECTED_ACCESS_KEY = "hello" 
 
 
 def get_config():
@@ -70,6 +75,7 @@ def init_wandb(config, my_uid, wallet):
 
 
 def initialize_components(config):
+    global metagraph
     bt.logging(config=config, logging_dir=config.full_path)
     bt.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
     wallet = bt.wallet(config=config)
@@ -81,16 +87,16 @@ def initialize_components(config):
         bt.logging.error(f"Your validator: {wallet} is not registered to chain connection: {subtensor}. Run btcli register --netuid 18 and try again.")
         exit()
 
-    return wallet, subtensor, metagraph, dendrite, my_uid
+    return wallet, subtensor, dendrite, my_uid
 
 
 def initialize_validators(vali_config):
-    # global text_vali, image_vali, embed_vali
+    global text_vali, image_vali, embed_vali
 
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     # embed_vali = EmbeddingsValidator(**vali_config)
-    return text_vali, image_vali
+    bt.logging.info("initialized_validators")
 
 
 async def check_uid(dendrite, axon, uid):
@@ -152,25 +158,26 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
     
 
 async def process_modality(config, selected_validator, available_uids, metagraph):
-    uid_list = available_uids.keys()
+    uid_list = list(available_uids.keys())
+    random.shuffle(uid_list)
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(available_uids, metagraph)
+    scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(uid_list, metagraph)
     if config.wandb_on:
         wandb.log(wandb_data)
         bt.logging.success("wandb_log successful")
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validators):
+async def query_synapse(dendrite, subtensor, config, wallet):
+    global metagraph
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    text_vali, image_vali = validators
     while True:
         try:
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            if steps_passed % 5 in [0, 1, 2, 3]:
+            if steps_passed % 3 in [0, 1, 2]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali
@@ -192,36 +199,49 @@ async def query_synapse(dendrite, subtensor, metagraph, config, wallet, validato
             bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")
             await asyncio.sleep(100)
 
+
+@app.post("/text-validator/")
+async def process_text_validator(request: Request, data: dict):
+    # Check access key
+    access_key = request.headers.get("access-key")
+    if access_key != EXPECTED_ACCESS_KEY:
+        raise HTTPException(status_code=401, detail="Invalid access key")
+
+    async def response_stream():
+        try:
+            messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
+            async for response in text_vali.organic(metagraph, messages_dict):
+                uid, content = response
+                yield f"{content}"
+        except Exception as e:
+            bt.logging.error(f"error in response_stream {traceback.format_exc()}")
+
+    return StreamingResponse(response_stream())
+
+def run_fastapi():
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
 def main():
-    global validators
     config = get_config()
-    wallet, subtensor, metagraph, dendrite, my_uid = initialize_components(config)
+    wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
         "config": config,
         "subtensor": subtensor,
         "wallet": wallet
     }
-    validators = initialize_validators(validator_config)
+    initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
-    loop = asyncio.get_event_loop()
 
     try:
-        loop.run_until_complete(query_synapse(dendrite, subtensor, metagraph, config, wallet, validators))
-
+        asyncio.run(query_synapse(dendrite, subtensor, config, wallet))
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-        tasks = asyncio.all_tasks(loop)
-        for task in tasks:
-            task.cancel()
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    finally:
         state = utils.get_state()
         utils.save_state_to_file(state)
-        if config.wandb_on: wandb.finish()
-
-    finally:
-        loop.close()
-
+        if config.wandb_on:
+            wandb.finish()
 
 if __name__ == "__main__":
     main()
