@@ -79,13 +79,14 @@ class TextValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/11
+        will_score_all = random_number < 1/12
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
 
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
-                messages = uid_to_question[uid]
+                prompt = uid_to_question[uid]
+                messages = [{'role': 'user', 'content': prompt}]
                 task = call_openai(messages, 0, self.model, self.seed)
                 openai_response_tasks.append((uid, task))
 

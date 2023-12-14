@@ -177,7 +177,7 @@ async def query_synapse(dendrite, subtensor, config, wallet):
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
 
-            if steps_passed % 3 in [0, 1, 2]:
+            if steps_passed % 5 in [0, 1, 2, 3]:
                 selected_validator = text_vali
             else:
                 selected_validator = image_vali
@@ -185,7 +185,7 @@ async def query_synapse(dendrite, subtensor, config, wallet):
             scores, uid_scores_dict = await process_modality(config, selected_validator, available_uids, metagraph)
             total_scores += scores
             
-            iterations_per_set_weights = 10
+            iterations_per_set_weights = 12
             iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
             bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 
