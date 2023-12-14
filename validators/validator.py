@@ -159,6 +159,7 @@ def update_weights(total_scores, steps_passed, config, subtensor, wallet, metagr
 
 async def process_modality(config, selected_validator, available_uids, metagraph):
     uid_list = list(available_uids.keys())
+    random.shuffle(uid_list)
     bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
     scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(uid_list, metagraph)
     if config.wandb_on:
@@ -167,11 +168,11 @@ async def process_modality(config, selected_validator, available_uids, metagraph
     return scores, uid_scores_dict
 
 
-async def query_synapse(dendrite, subtensor, config, wallet, shutdown_event):
+async def query_synapse(dendrite, subtensor, config, wallet):
     global metagraph
     steps_passed = 0
     total_scores = torch.zeros(len(metagraph.hotkeys))
-    while not shutdown_event.is_set():
+    while True:
         try:
             metagraph = subtensor.metagraph(config.netuid)
             available_uids = await get_available_uids(dendrite, metagraph)
@@ -220,10 +221,6 @@ async def process_text_validator(request: Request, data: dict):
 def run_fastapi():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-shutdown_event = asyncio.Event()
-def handle_shutdown(*args):
-    shutdown_event.set()
-
 def main():
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
@@ -236,33 +233,15 @@ def main():
     initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
 
-    # Start the FastAPI server in a separate thread
-    fastapi_thread = threading.Thread(target=run_fastapi)
-    fastapi_thread.start()
-
-    loop = asyncio.get_event_loop()
-    
-    # Register the signal handler for graceful shutdown
-    loop.add_signal_handler(signal.SIGINT, handle_shutdown)
-
-    # Run the query_synapse coroutine
     try:
-        # loop.run_until_complete(query_synapse(dendrite, subtensor, config, wallet, shutdown_event))
-        pass
+        asyncio.run(query_synapse(dendrite, subtensor, config, wallet))
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-        tasks = asyncio.all_tasks(loop)
-        for task in tasks:
-            task.cancel()
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+    finally:
         state = utils.get_state()
         utils.save_state_to_file(state)
-        if config.wandb_on: wandb.finish()
-    finally:
-        loop.close()
-
-    # Wait for the FastAPI server to finish (if you want to ensure it stops on shutdown)
-    fastapi_thread.join()
+        if config.wandb_on:
+            wandb.finish()
 
 if __name__ == "__main__":
     main()
