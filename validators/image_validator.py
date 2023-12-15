@@ -22,7 +22,7 @@ class ImageValidator(BaseValidator):
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
-        self.weight = .33
+        self.weight = .35
         self.size = "1792x1024"
         self.quality = "standard"
         self.style = "vivid"
@@ -66,7 +66,7 @@ class ImageValidator(BaseValidator):
 
         # Decide to score all UIDs this round based on a chance
         random_number = random.random()
-        will_score_all = random_number < 1/4
+        will_score_all = random_number < 1/5
         bt.logging.info(f"Random Number: {random_number}, Will score image responses: {will_score_all}")
 
         for uid, response in query_responses:

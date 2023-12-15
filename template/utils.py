@@ -15,7 +15,6 @@ from . import client
 from collections import deque
 
 list_update_lock = asyncio.Lock()
-_text_questions_buffer = deque()
 
 def load_state_from_file(filename="validators/state.json"):
     if os.path.exists(filename):
@@ -74,19 +73,23 @@ async def get_list(list_type, num_questions_needed, theme=None):
         }
     }
 
-    question_pool = []
+    selected_prompts = []
     if list_type == "text_questions":
+        question_pool = []
         for theme in template.INSTRUCT_DEFAULT_THEMES:
             for complexity_level in range(1, 11): 
                 for relevance_level in range(1, 11):
                     prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
                     question_pool.append(prompt)
+        
+        random.shuffle(question_pool)
+        num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
+        selected_prompts = random.sample(question_pool, num_questions_to_select)
+    else:
+        num_questions_to_select = math.ceil(num_questions_needed / prompts_in_question[list_type])
+        selected_prompts = [list_type_mapping[list_type]["prompt"]] * num_questions_to_select
 
-    random.shuffle(question_pool)
-    num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
-
-    selected_prompts = random.sample(question_pool, num_questions_to_select)
-    bt.logging.info(f"num_questions_needed: {num_questions_needed}, num_questions_to_select: {num_questions_to_select}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
 
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
