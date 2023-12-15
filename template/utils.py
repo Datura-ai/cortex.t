@@ -62,7 +62,6 @@ def get_validators_with_runs_in_all_projects():
     
 
 async def get_list(list_type, num_questions_needed, theme=None):
-    global instruct_questions
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_questions": {
@@ -71,41 +70,22 @@ async def get_list(list_type, num_questions_needed, theme=None):
         },
         "images_questions": {
             "default": template.IMAGE_DEFAULT_QUESTIONS,
-            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-seperated, quote-encapsulated strings in a single Python list."
+            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
         }
     }
 
-    async def get_text_questions():
-        new_questions = []
+    question_pool = []
+    if list_type == "text_questions":
         for theme in template.INSTRUCT_DEFAULT_THEMES:
             for complexity_level in range(1, 11): 
                 for relevance_level in range(1, 11):
-                    prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
-                    new_questions.append(prompt)
-        random.shuffle(new_questions)
-        _text_questions_buffer.extend(new_questions)
+                    prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
+                    question_pool.append(prompt)
 
-    selected_prompts = []
-    for _ in range(math.ceil(num_questions_needed / prompts_in_question[list_type])):
-        if list_type == "text_questions":
-            if not _text_questions_buffer:
-                bt.logging.info("Empty list! Refilling list")
-                await get_text_questions()
-
-            try:
-                prompt = _text_questions_buffer.popleft()
-            except IndexError as e:
-                bt.logging.error(f"Unexpected IndexError: {e}")
-                prompt = f"Generate a python-formatted list of 10 questions or instruct tasks related to the theme acedemics, each with a complexity level of 7 out of 10 and a relevance level to the theme of 2 out of 10. These tasks should varyingly explore acedemics in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about academics. Format the questions as comma-seperated, quote-encapsulated strings in a single Python list."
-                continue
-        else:
-            prompt = list_type_mapping[list_type]["prompt"]
-
-        selected_prompts.append(prompt)
-
+    random.shuffle(question_pool)
+    selected_prompts = random.sample(question_pool, math.ceil(num_questions_needed / prompts_in_question[list_type]))
     bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
 
-    # Initial batch request
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
         for prompt in selected_prompts
