@@ -83,13 +83,16 @@ async def get_list(list_type, num_questions_needed, theme=None):
                     question_pool.append(prompt)
 
     random.shuffle(question_pool)
-    selected_prompts = random.sample(question_pool, math.ceil(num_questions_needed / prompts_in_question[list_type]))
-    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+    num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
+
+    selected_prompts = random.sample(question_pool, num_questions_to_select)
+    bt.logging.info(f"num_questions_needed: {num_questions_needed}, num_questions_to_select: {num_questions_to_select}, list_type: {list_type}, selected_prompts: {selected_prompts}")
 
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
         for prompt in selected_prompts
     ]
+
     responses = await asyncio.gather(*tasks)
 
     extracted_lists = []
