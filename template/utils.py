@@ -72,15 +72,14 @@ async def get_list(list_type, num_questions_needed, theme=None):
             "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
         }
     }
-
+        
     selected_prompts = []
     if list_type == "text_questions":
         question_pool = []
-        for theme in template.INSTRUCT_DEFAULT_THEMES:
-            for complexity_level in range(1, 11): 
-                for relevance_level in range(1, 11):
-                    prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
-                    question_pool.append(prompt)
+        for complexity_level in range(1, 21): 
+            for relevance_level in range(1, 21):
+                prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 20 and a relevance level to the theme of {relevance_level} out of 20. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
+                question_pool.append(prompt)
         
         random.shuffle(question_pool)
         num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
@@ -97,10 +96,8 @@ async def get_list(list_type, num_questions_needed, theme=None):
     ]
 
     responses = await asyncio.gather(*tasks)
-
     extracted_lists = []
     max_retries = 5
-
     for i, answer in enumerate(responses):
         try:
             answer = answer.replace("\n", " ") if answer else ""
@@ -119,14 +116,15 @@ async def get_list(list_type, num_questions_needed, theme=None):
                         if new_extracted_list:
                             extracted_lists += new_extracted_list
                             break
+                        else: bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
                         bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
         except Exception as e:
             bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
 
     if not extracted_lists:
-        bt.logging.error(f"No valid lists found after processing and retries, using default list.")
-        return template.INSTRUCT_DEFAULT_QUESTIONS
+        bt.logging.error(f"No valid lists found after processing and retries, returning None")
+        return None
 
     return extracted_lists
 
@@ -140,18 +138,18 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             else:
                 return template.INSTRUCT_DEFAULT_THEMES
         else:
-            # Ensure theme is always available for 'questions'
-            if theme is None:
-                theme = await get_current_theme(category)
+            # Never fail here, retry until valid list is found
+            while True:
+                theme = await get_random_theme(category)
+                if theme is not None:
+                    return await get_list(f"{category}_questions", num_questions_needed, theme)
 
-            return await get_list(f"{category}_questions", num_questions_needed, theme)
-
-    async def get_current_theme(category):
+    async def get_random_theme(category):
         themes = state[category]["themes"]
         if not themes:
             themes = await get_items(category, "themes")
             state[category]["themes"] = themes
-        return themes.pop() if themes else None
+        return random.choice(themes)
 
     list_type = f"{category}_{item_type}"
 
