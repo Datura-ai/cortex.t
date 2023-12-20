@@ -1,13 +1,12 @@
-
-import math
-import torch
-import wandb
-import random
 import asyncio
-import template.reward
-import bittensor as bt
+import random
+from typing import AsyncIterator
 
+import bittensor as bt
+import torch
 from base_validator import BaseValidator
+
+import template.reward
 from template.protocol import StreamPrompting
 from template.utils import call_openai, get_question
 
@@ -29,23 +28,32 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def organic(self, metagraph, query):
+    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]):
         for uid, messages in query.items():
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
-            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            bt.logging.info(
+                f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+                f"timeout {self.timeout}: {syn.messages[0]['content']}"
+            )
             self.wandb_data["prompts"][uid] = messages
-            responses = await self.dendrite(metagraph.axons[uid], syn, deserialize=False, timeout=self.timeout, streaming=self.streaming)
-            
+            responses = await self.dendrite(
+                metagraph.axons[uid],
+                syn,
+                deserialize=False,
+                timeout=self.timeout,
+                streaming=self.streaming,
+            )
+
             async for response in self.return_tokens(uid, responses):
                 yield response
 
-    async def return_tokens(self, uid, responses):
+    async def return_tokens(self, uid: str, responses: AsyncIterator) -> AsyncIterator[str, str]:
         async for resp in responses:
             if isinstance(resp, str):
                 bt.logging.trace(resp)
                 yield uid, resp
 
-    async def handle_response(self, uid, responses):
+    async def handle_response(self, uid: str, responses) -> tuple[str, str]:
         full_response = ""
         for resp in responses:
             async for chunk in resp:
@@ -56,7 +64,7 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def start_query(self, available_uids, metagraph):
+    async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         query_tasks = []
         uid_to_question = {}
         for uid in available_uids:
@@ -64,7 +72,10 @@ class TextValidator(BaseValidator):
             uid_to_question[uid] = prompt
             messages = [{'role': 'user', 'content': prompt}]
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
-            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {syn.messages[0]['content']}")
+            bt.logging.info(
+                f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+                f"timeout {self.timeout}: {syn.messages[0]['content']}"
+            )
             task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = prompt
@@ -113,7 +124,3 @@ class TextValidator(BaseValidator):
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
-
-    async def get_and_score(self, available_uids, metagraph):
-        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
-        return await self.score_responses(query_responses, uid_to_question, metagraph)

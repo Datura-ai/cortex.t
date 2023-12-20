@@ -16,6 +16,7 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
+from __future__ import annotations
 from transformers import logging as hf_logging
 hf_logging.set_verbosity_error()
 
@@ -34,7 +35,6 @@ import numpy as np
 from numpy.linalg import norm
 import bittensor as bt
 from PIL import Image
-from typing import List
 from scipy.spatial.distance import cosine
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -43,7 +43,7 @@ from transformers import CLIPProcessor, CLIPModel
 
 # ==== TEXT ====
 
-def calculate_text_similarity(text1, text2):
+def calculate_text_similarity(text1: str, text2: str):
     # Initialize the TF-IDF Vectorizer
     vectorizer = TfidfVectorizer()
 
@@ -62,7 +62,10 @@ async def openai_score(openai_answer: str, response: str, weight: float) -> floa
     words_in_openai = len(openai_answer.split())
     # linear similarity requirement based on length of response
     min_similarity = max(1 - 0.001 * (words_in_response - 1), 0.75)
-    bt.logging.debug(f"similarity for len {words_in_response} / {words_in_openai}: {similarity}, min_similarity is {min_similarity}")
+    bt.logging.debug(
+        f"similarity for len {words_in_response} / {words_in_openai}: {similarity}, "
+        f"min_similarity is {min_similarity}"
+    )
 
     return weight if similarity >= min_similarity else 0
 
@@ -93,7 +96,8 @@ url_regex = (
     r'sig=[\w/%+=]+'
 )
 
-async def is_image_url(url):
+
+async def is_image_url(url: str) -> bool:
     """Check if the URL points to an image asynchronously."""
     try:
         async with aiohttp.ClientSession() as session:
@@ -103,7 +107,8 @@ async def is_image_url(url):
         bt.logging.info(f"Error checking URL: {e}")
         return False
 
-async def load_image_from_url(url):
+
+async def load_image_from_url(url: str):
     """Load an image from a URL asynchronously."""
     try:
         async with aiohttp.ClientSession() as session:
@@ -115,16 +120,20 @@ async def load_image_from_url(url):
                 return image
     except Exception as e:
         bt.logging.info(f"Failed to load image: {e}")
-        return None
 
-def get_image_size(image):
+
+def get_image_size(image) -> tuple[int, int]:
     """Get the size of an image."""
     return image.size  # Returns a tuple (width, height)
 
-def calculate_image_similarity(image, description, max_length=77):
+
+def calculate_image_similarity(image, description, max_length: int = 77):
     """Calculate the cosine similarity between a description and an image."""
     # Truncate the description
-    inputs = processor(text=description, images=None, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
+    inputs = processor(
+        text=description, images=None, return_tensors="pt",
+        padding=True, truncation=True, max_length=max_length,
+    )
     text_embedding = model.get_text_features(**inputs)
 
     # Process the image
@@ -134,7 +143,7 @@ def calculate_image_similarity(image, description, max_length=77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.23):
+async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.23) -> float:
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
@@ -158,12 +167,14 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
         if similarity > similarity_threshold:
-            bt.logging.debug(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. Score = {weight}")
+            bt.logging.debug(
+                f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. "
+                f"Score = {weight}"
+            )
             return weight
 
-        else: 
-             bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
-             return 0
+        bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
+        return 0
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
@@ -171,7 +182,7 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
 
 # ==== Embeddings =====
 
-async def embeddings_score(openai_answer: List, response: List, weight: float, threshold=.95) -> float:
+async def embeddings_score(openai_answer: list, response: list, weight: float, threshold: float = .95) -> float:
     if len(openai_answer) != len(response):
         bt.logging.info("The number of embeddings in openai_answer and response do not match.")
         return 0
@@ -188,15 +199,16 @@ async def embeddings_score(openai_answer: List, response: List, weight: float, t
     bt.logging.info(f"Average similarity: {avg_similarity}")
 
     # Check against thresholdls
-    
-    if avg_similarity > threshold: 
+
+    if avg_similarity > threshold:
         bt.logging.info("Average embeddings similarity exceeds threshold!")
         return weight
-    else:
-        bt.logging.info(f"Average embeddings similarity does not exceed threshold: {avg_similarity}")
-        return 0
 
-async def embeddings_score_dot(openai_answer: List, response: List, weight: float, threshold=.95) -> float:
+    bt.logging.info(f"Average embeddings similarity does not exceed threshold: {avg_similarity}")
+    return 0
+
+
+async def embeddings_score_dot(openai_answer: list, response: list, weight: float, threshold: float = .95) -> float:
     if len(openai_answer) != len(response):
         bt.logging.warning("The number of embeddings in openai_answer and response do not match.")
         return 0
@@ -217,9 +229,9 @@ async def embeddings_score_dot(openai_answer: List, response: List, weight: floa
     bt.logging.info(f"Average similarity: {avg_cosine_similarity}")
 
     # Check against threshold
-    if avg_cosine_similarity > threshold: 
+    if avg_cosine_similarity > threshold:
         bt.logging.info("Average embeddings cosine similarity exceeds threshold!")
         return weight
-    else:
-        bt.logging.info(f"Average embeddings cosine similarity does not exceed threshold: {avg_cosine_similarity}")
-        return 0
+
+    bt.logging.info(f"Average embeddings cosine similarity does not exceed threshold: {avg_cosine_similarity}")
+    return 0
