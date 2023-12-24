@@ -1,22 +1,28 @@
-import re
-import os
+from __future__ import annotations
+
 import ast
-import math
-import json
-import wandb
-import base64
-import random
 import asyncio
-import template
-import requests
+import base64
+import json
+import math
+import os
+import random
+import re
 import traceback
+from typing import Optional
+
 import bittensor as bt
+import requests
+import wandb
+
+import template
+
 from . import client
-from collections import deque
 
 list_update_lock = asyncio.Lock()
 
-def load_state_from_file(filename="validators/state.json"):
+
+def load_state_from_file(filename: str = "validators/state.json"):
     if os.path.exists(filename):
         with open(filename, "r") as file:
             bt.logging.info("loaded previous state")
@@ -58,7 +64,7 @@ def get_validators_with_runs_in_all_projects():
     # Find common validators across all projects
     common_validators = set.intersection(*validators_runs.values())
     return common_validators
-    
+
 
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
@@ -72,23 +78,34 @@ async def get_list(list_type, num_questions_needed, theme=None):
             "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
         }
     }
-        
+
     selected_prompts = []
     if list_type == "text_questions":
         question_pool = []
-        for complexity_level in range(1, 21): 
+        for complexity_level in range(1, 21):
             for relevance_level in range(1, 21):
-                prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 20 and a relevance level to the theme of {relevance_level} out of 20. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
+                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} questions "
+                          f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                          f"of {complexity_level} out of 20 and a relevance level to the theme "
+                          f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                          f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                          f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                          f"Format the questions as comma-separated, quote-encapsulated strings "
+                          f"in a single Python list.")
                 question_pool.append(prompt)
-        
+
         random.shuffle(question_pool)
-        num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
+        num_questions_to_select = min(
+            math.ceil(num_questions_needed / prompts_in_question[list_type]),
+            len(question_pool),
+        )
         selected_prompts = random.sample(question_pool, num_questions_to_select)
     else:
         num_questions_to_select = math.ceil(num_questions_needed / prompts_in_question[list_type])
         selected_prompts = [list_type_mapping[list_type]["prompt"]] * num_questions_to_select
 
-    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, "
+                     f"list_type: {list_type}, selected_prompts: {selected_prompts}")
 
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
@@ -116,14 +133,16 @@ async def get_list(list_type, num_questions_needed, theme=None):
                         if new_extracted_list:
                             extracted_lists += new_extracted_list
                             break
-                        else: bt.logging.error(f"no list found in {new_answer}")
+                        bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
-                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': "
+                                         f"{e}\n{traceback.format_exc()}")
         except Exception as e:
-            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': "
+                             f"{e}\n{traceback.format_exc()}")
 
     if not extracted_lists:
-        bt.logging.error(f"No valid lists found after processing and retries, returning None")
+        bt.logging.error("No valid lists found after processing and retries, returning None")
         return None
 
     return extracted_lists
@@ -135,8 +154,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         if item_type == "themes":
             if category == "images":
                 return template.IMAGE_THEMES
-            else:
-                return template.INSTRUCT_DEFAULT_THEMES
+            return template.INSTRUCT_DEFAULT_THEMES
         else:
             # Never fail here, retry until valid list is found
             while True:
@@ -180,7 +198,7 @@ async def get_question(category, num_questions_needed):
     return question
 
 
-def preprocess_string(text):
+def preprocess_string(text: str) -> str:
     processed_text = text.replace("\t", "")
     placeholder = "___SINGLE_QUOTE___"
     processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
@@ -227,7 +245,7 @@ def preprocess_string(text):
                 if no_comments_text[preceding_char_index] in '[,':  # Check for comma or opening bracket
                     found_comma_or_bracket = True
                     break
-                elif no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
+                if no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
                     break
                 preceding_char_index -= 1
 
@@ -266,16 +284,18 @@ def preprocess_string(text):
 
     return cleaned_str
 
-def convert_to_list(text):
+
+def convert_to_list(text: str) -> list[str]:
     pattern = r'\d+\.\s'
     items = [item.strip() for item in re.split(pattern, text) if item]
     return items
+
 
 def extract_python_list(text: str):
     try:
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
-        
+
         bt.logging.debug(f"Preprocessed text = {text}")
         text = preprocess_string(text)
         bt.logging.debug(f"Postprocessed text = {text}")
@@ -297,7 +317,7 @@ def extract_python_list(text: str):
 
 
 async def call_openai(messages, temperature, model, seed=1234):
-    for attempt in range(2):
+    for _ in range(2):
         bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
         try:
             response = await client.chat.completions.create(
@@ -312,32 +332,32 @@ async def call_openai(messages, temperature, model, seed=1234):
 
         except Exception as e:
             bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
-            await asyncio.sleep(0.5) 
-    
+            await asyncio.sleep(0.5)
+
     return None
 
 
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
-def get_version(line_number = 22):
-    url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
-    response = requests.get(url)
-    if response.status_code == 200:
-        content = response.json()['content']
-        decoded_content = base64.b64decode(content).decode('utf-8')
-        lines = decoded_content.split('\n')
-        if line_number <= len(lines):
-            version_line = lines[line_number - 1]
-            version_match = re.search(r'__version__ = "(.*?)"', version_line)
-            if version_match:
-                return version_match.group(1)
-            else:
-                raise Exception("Version information not found in the specified line")
-        else:
-            raise Exception("Line number exceeds file length")
-    else:
+def get_version(line_number: int = 22) -> Optional[str]:
+    url = "https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
+    response = requests.get(url, timeout=10)
+    if not response.ok:
         bt.logging.error("github api call failed")
         return None
+
+    content = response.json()['content']
+    decoded_content = base64.b64decode(content).decode('utf-8')
+    lines = decoded_content.split('\n')
+    if line_number > len(lines):
+        raise Exception("Line number exceeds file length")
+
+    version_line = lines[line_number - 1]
+    version_match = re.search(r'__version__ = "(.*?)"', version_line)
+    if not version_match:
+        raise Exception("Version information not found in the specified line")
+
+    return version_match.group(1)
 
 
 def send_discord_alert(message, webhook_url):
@@ -346,7 +366,7 @@ def send_discord_alert(message, webhook_url):
         "username": "Subnet18 Updates"
     }
     try:
-        response = requests.post(webhook_url, json=data)
+        response = requests.post(webhook_url, json=data, timeout=10)
         if response.status_code == 204:
             print("Discord alert sent successfully!")
         else:

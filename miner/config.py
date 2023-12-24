@@ -1,12 +1,13 @@
-import bittensor as bt
 import argparse
-import os
+from pathlib import Path
+
+import bittensor as bt
 
 
-def check_config(cls, config: "bt.Config"):
+def check_config(cls, config: bt.config):
     bt.axon.check_config(config)
     bt.logging.check_config(config)
-    full_path = os.path.expanduser(
+    full_path = Path.expanduser(
         "{}/{}/{}/{}".format(
             config.logging.logging_dir,
             config.wallet.get("name", bt.defaults.wallet.name),
@@ -14,12 +15,11 @@ def check_config(cls, config: "bt.Config"):
             config.miner.name,
         )
     )
-    config.miner.full_path = os.path.expanduser(full_path)
-    if not os.path.exists(config.miner.full_path):
-        os.makedirs(config.miner.full_path)
+    config.miner.full_path = str(full_path)
+    full_path.mkdir(parents=True, exist_ok=True)
 
 
-def get_config() -> "bt.Config":
+def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--axon.port", type=int, default=8098, help="Port to run the axon on."
@@ -105,7 +105,7 @@ def get_config() -> "bt.Config":
     config = bt.config(parser)
 
     # Logging captures events for diagnosis or understanding miner's behavior.
-    config.full_path = os.path.expanduser(
+    full_path = Path.expanduser(
         "{}/{}/{}/netuid{}/{}".format(
             config.logging.logging_dir,
             config.wallet.name,
@@ -114,7 +114,7 @@ def get_config() -> "bt.Config":
             "miner",
         )
     )
+    config.full_path = str(full_path)
     # Ensure the directory for logging exists, else create one.
-    if not os.path.exists(config.full_path):
-        os.makedirs(config.full_path, exist_ok=True)
+    full_path.mkdir(parents=True, exist_ok=True)
     return config

@@ -1,11 +1,8 @@
-
 import torch
 import wandb
 import random
 import asyncio
 import aiohttp
-import datetime
-import requests
 import template.reward
 import bittensor as bt
 
@@ -44,7 +41,10 @@ class ImageValidator(BaseValidator):
             messages = await get_question("images", len(available_uids))
             uid_to_messages[uid] = messages  # Store messages for each UID
             syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
-            bt.logging.info(f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}")
+            bt.logging.info(
+                f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request "
+                f"to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}"
+            )
             task = self.query_miner(metagraph.axons[uid], uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = messages
@@ -70,27 +70,28 @@ class ImageValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score image responses: {will_score_all}")
 
         for uid, response in query_responses:
-            if response:
-                response = response[0]
-                completion = response.completion
-                if completion is not None:
-                    bt.logging.info(f"UID {uid} response is {completion}")
-                    image_url = completion["url"]
-                    download_task = asyncio.create_task(self.download_image(image_url))
-                    messages_for_uid = uid_to_messages[uid]
-                    if will_score_all:
-                        score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
-                        score_tasks.append((uid, score_task))
-
-                    download_tasks.append((uid, download_task, image_url))
-                else:
-                    bt.logging.info(f"Completion is None for UID {uid}")
-                    scores[uid] = 0
-                    uid_scores_dict[uid] = 0
-            else:
+            if not response:
                 bt.logging.debug(f"No response for UID {uid}")
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
+                continue
+
+            completion = response[0].completion
+            if completion is None:
+                bt.logging.info(f"Completion is None for UID {uid}")
+                scores[uid] = 0
+                uid_scores_dict[uid] = 0
+                continue
+
+            bt.logging.info(f"UID {uid} response is {completion}")
+            image_url = completion["url"]
+            download_task = asyncio.create_task(self.download_image(image_url))
+            messages_for_uid = uid_to_messages[uid]
+            if will_score_all:
+                score_task = template.reward.image_score(uid, image_url, self.size, messages_for_uid, self.weight)
+                score_tasks.append((uid, score_task))
+
+            download_tasks.append((uid, download_task, image_url))
 
         # Wait for all download tasks to complete
         for uid, download_task, image_url in download_tasks:
@@ -105,17 +106,9 @@ class ImageValidator(BaseValidator):
 
         # Process the results of scoring tasks
         for (uid, _), scored_response in zip(score_tasks, scored_responses):
-            if scored_response is not None:
-                scores[uid] = scored_response
-                uid_scores_dict[uid] = scored_response
-            else:
-                scores[uid] = 0
-                uid_scores_dict[uid] = 0
+            scores[uid] = uid_scores_dict[uid] = scored_response if scored_response is not None else 0
             # self.wandb_data["scores"][uid] = scored_response
+
         if uid_scores_dict != {}:
             bt.logging.info(f"image_scores = {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
-
-    async def get_and_score(self, available_uids, metagraph):
-        query_responses, uid_to_messages = await self.start_query(available_uids, metagraph)
-        return await self.score_responses(query_responses, uid_to_messages, metagraph)
