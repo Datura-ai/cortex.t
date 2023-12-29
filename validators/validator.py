@@ -1,3 +1,6 @@
+import logging
+from typing import Tuple
+
 import base  # noqa
 
 import argparse
@@ -11,8 +14,10 @@ import torch
 import wandb
 from aiohttp import web
 from aiohttp.web_response import Response
+from bittensor.btlogging import logger
 from image_validator import ImageValidator
 from text_validator import TextValidator
+from envparse import env
 
 import template
 from template import utils
@@ -26,7 +31,10 @@ image_vali = None
 embed_vali = None
 metagraph = None
 wandb_runs = {}
-EXPECTED_ACCESS_KEY = "hello"
+# organic requests are scored, the tasks are stored in this queue
+# for later being consumed by `query_synapse` cycle:
+organic_scoring_tasks = set()
+EXPECTED_ACCESS_KEY = env('EXPECTED_ACCESS_KEY', default='hello')
 
 
 def get_config() -> bt.config:
@@ -175,36 +183,74 @@ async def process_modality(config, selected_validator, available_uids, metagraph
     return scores, uid_scores_dict
 
 
+class TotalScores:
+    def __init__(self, len_):
+        self.tensor = torch.zeros(len_)
+
+
 async def query_synapse(dendrite, subtensor, config, wallet):
     global metagraph
+    total_scores = TotalScores(len(metagraph.hotkeys))
+    iterations_per_set_weights = 12
+
+    async def consume_organic_scoring():
+        while True:
+            try:
+                if organic_scoring_tasks:
+                    completed, _ = await asyncio.wait(organic_scoring_tasks, timeout=1,
+                                                      return_when=asyncio.FIRST_COMPLETED)
+                    for task in completed:
+                        if task.exception():
+                            logger.error(
+                                f'Encountered in {text_vali.score_responses.__name__} task:\n'
+                                f'{"".join(traceback.format_exception(task.exception()))}'
+                            )
+                        else:
+                            success, data = task.result()
+                            if not success:
+                                continue
+                            total_scores.tensor += data[0]
+                    organic_scoring_tasks.difference_update(completed)
+                else:
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f'Encountered in {consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
+                await asyncio.sleep(10)
+
+    asyncio.create_task(consume_organic_scoring())
+
     steps_passed = 0
-    total_scores = torch.zeros(len(metagraph.hotkeys))
+
     while True:
         try:
             metagraph = subtensor.metagraph(config.netuid)
+
             available_uids = await get_available_uids(dendrite, metagraph)
-
-            if steps_passed % 5 in (0, 1, 2):
-                selected_validator = text_vali
-            else:
-                selected_validator = image_vali
-
+            selected_validator = text_vali if steps_passed % 5 in (0, 1, 2) else image_vali
             scores, _uid_scores_dict = await process_modality(config, selected_validator, available_uids, metagraph)
-            total_scores += scores
+            total_scores.tensor += scores
 
-            iterations_per_set_weights = 12
             iterations_until_update = iterations_per_set_weights - ((steps_passed + 1) % iterations_per_set_weights)
             bt.logging.info(f"Updating weights in {iterations_until_update} iterations.")
 
             if iterations_until_update == 1:
-                update_weights(total_scores, steps_passed, config, subtensor, wallet, metagraph)
+                update_weights(total_scores.tensor, steps_passed, config, subtensor, wallet, metagraph)
 
             steps_passed += 1
             await asyncio.sleep(0.5)
 
-        except Exception as e:
-            bt.logging.error(f"General exception: {e}\n{traceback.format_exc()}")
-            await asyncio.sleep(100)
+        except Exception:
+            logger.error(f'Encountered in {query_synapse.__name__} loop:\n{traceback.format_exc()}')
+            await asyncio.sleep(10)
+
+
+async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
+    try:
+        result = await asyncio.wait_for(coro, timeout)
+    except asyncio.TimeoutError:
+        logger.error('scoring task timed out')
+        return False, None
+    return True, result
 
 
 async def process_text_validator(request: web.Request):
@@ -221,12 +267,24 @@ async def process_text_validator(request: web.Request):
     response = web.StreamResponse()
     await response.prepare(request)
 
+    uid_to_response = dict.fromkeys(messages_dict, "")
     try:
         async for uid, content in text_vali.organic(metagraph, messages_dict):
+            uid_to_response[uid] += content
             await response.write(content.encode())
-    except Exception as e:
-        bt.logging.error(f"error in response_stream {traceback.format_exc()}")
-        return web.StreamResponse(status=500, reason='internal error')
+        organic_scoring_tasks.add(asyncio.create_task(
+            wait_for_coro_with_limit(
+                text_vali.score_responses(
+                    query_responses=list(uid_to_response.items()),
+                    uid_to_question=messages_dict,
+                    metagraph=metagraph,
+                ),
+                60
+            )
+        ))
+    except Exception:
+        logger.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
+        await response.write(b'<<internal error>>')
 
     return response
 

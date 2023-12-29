@@ -12,7 +12,7 @@ from template.utils import call_openai, get_question
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, dendrite, config, subtensor, wallet):
+    def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
@@ -28,7 +28,7 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]):
+    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
         for uid, messages in query.items():
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
             bt.logging.info(
@@ -44,12 +44,10 @@ class TextValidator(BaseValidator):
                 streaming=self.streaming,
             )
 
-            async for response in self.return_tokens(uid, responses):
-                yield response
+            async for resp in responses:
+                if not isinstance(resp, str):
+                    continue
 
-    async def return_tokens(self, uid: str, responses: AsyncIterator) -> AsyncIterator[Tuple[str, str]]:
-        async for resp in responses:
-            if isinstance(resp, str):
                 bt.logging.trace(resp)
                 yield uid, resp
 
@@ -83,7 +81,12 @@ class TextValidator(BaseValidator):
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
 
-    async def score_responses(self, query_responses, uid_to_question, metagraph):
+    async def score_responses(
+        self,
+        query_responses: list[tuple[int, str]],  # [(uid, response)]
+        uid_to_question: dict[int, str],  # uid -> prompt
+        metagraph: bt.metagraph,
+    ) -> tuple[torch.Tensor, dict[int, float], dict]:
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         openai_response_tasks = []

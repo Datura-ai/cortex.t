@@ -1,8 +1,13 @@
-from typing import AsyncIterator, Dict, List, Optional
+from enum import Enum
+from typing import AsyncIterator, Dict, List, Literal, Optional
 
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
+
+# from ..providers.image import DallE, Stability
+
+# from ..providers.text import Anthropic, GeminiPro, OpenAI
 
 
 class IsAlive( bt.Synapse ):
@@ -28,6 +33,18 @@ class ImageResponse(bt.Synapse):
         title="Messages",
         description="Messages related to the image response."
     )
+
+    class Provider(str, Enum):
+        """ A class to represent the provider options for the StreamPrompting object. """
+        dalle = 'DallE'
+        stability = 'Stability'
+
+    provider: Provider = pydantic.Field(
+        Provider.dalle,
+        title="provider",
+        description="The provider to use when calling for your response.",
+    )
+
 
     model: str = pydantic.Field(
         ...,
@@ -84,7 +101,7 @@ class Embeddings( bt.Synapse):
         description="The resulting list of embeddings, each corresponding to an input text."
     )
 
-class StreamPrompting( bt.StreamingSynapse ):
+class StreamPrompting(bt.StreamingSynapse):
 
     messages: List[Dict[str, str]] = pydantic.Field(
         ...,
@@ -107,6 +124,13 @@ class StreamPrompting( bt.StreamingSynapse ):
         description="Seed for text generation. This attribute is immutable and cannot be updated.",
     )
 
+    temperature: float = pydantic.Field(
+        0.0,
+        title="Temperature",
+        description="Temperature for text generation. "
+                    "This attribute is immutable and cannot be updated.",
+    )
+
     completion: str = pydantic.Field(
         "",
         title="Completion",
@@ -114,10 +138,22 @@ class StreamPrompting( bt.StreamingSynapse ):
                     "This attribute is mutable and can be updated.",
     )
 
+    class Provider(str, Enum):
+        """ A class to represent the provider options for the StreamPrompting object. """
+        openai = 'OpenAI'
+        anthropic = 'Anthropic'
+        gemini_pro = 'GeminiPro'
+
+    provider: Provider = pydantic.Field(
+        Provider.openai,
+        title="provider",
+        description="The provider to use when calling for your response.",
+    )
+
     model: str = pydantic.Field(
         "",
         title="model",
-        description="The model that which to use when calling openai for your response.",
+        description="The model to use when calling provider for your response.",
     )
 
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:

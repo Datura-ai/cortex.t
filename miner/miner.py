@@ -34,8 +34,8 @@ if not OpenAI.api_key:
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
 
-print("WANDB_API_KEY is set:", bool(wandb_api_key))
-print("~/.netrc exists:", netrc_path.exists())
+bt.logging.info("WANDB_API_KEY is set")
+bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
