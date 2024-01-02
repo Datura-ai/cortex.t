@@ -12,7 +12,7 @@ class Test(ActiveSubnetworkBaseTest):
     @classmethod
     def check_if_validator_is_up(cls):
         try:
-            requests.get(f'http://localhost:{VALIDATOR_PORT}/')
+            requests.get(f'http://localhost:{VALIDATOR_PORT}/', timeout=1)
         except requests.RequestException:
             return False
         return True
@@ -20,7 +20,7 @@ class Test(ActiveSubnetworkBaseTest):
     @classmethod
     def check_if_miner_is_up(cls):
         try:
-            websocket.create_connection(f'ws://localhost:{AXON_PORT}')
+            websocket.create_connection(f'ws://localhost:{AXON_PORT}', timeout=1)
         except ConnectionRefusedError:
             return False
         except websocket.WebSocketBadStatusException:
