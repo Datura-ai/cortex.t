@@ -41,7 +41,9 @@ class Test(ActiveSubnetworkBaseTest):
         resp = requests.post(
             f'http://localhost:{VALIDATOR_PORT}/text-validator/',
             headers={'access-key': 'hello'},
-            json={'1': 'please write a sentence using the word "cucumber"'}
+            json={'1': 'please write a sentence using the word "cucumber"'},
+            timeout=15,
         )
         resp.raise_for_status()
         assert "cucumber" in resp.text
+        print(resp.text)

@@ -29,6 +29,12 @@ By leveraging synthetic data, Cortex.t circumvents the traditional challenges of
 Join us at Cortex.t, your bridge to AI excellence, and democratise access to top-level AI capabilities. Be part of the AI revolution and stay at the forefront of innovation with SynthPairPro – Synthesizing Intelligence, Empowering the Future!
 
 
+## Development
+
+### Testing
+
+install `nox` (`pip install nox`) and run `nox -s test`.
+
 ## Setup
 
 ### Before you proceed
