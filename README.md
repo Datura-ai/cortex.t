@@ -52,23 +52,22 @@ Download the repository, navigate to the folder and then install the necessary r
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
 
-In order to run a miner or validator you must first set your OpenAI key to your profile with the following command.
-
-```echo "export OPENAI_API_KEY=your_api_key_here">>~/.bashrc && source ~/.bashrc```
-
+We recommend using [direnv](https://direnv.net). After installing it, copy `envrc.example` to `.envrc` and substitute
+all env vars with values appropriate for your accounts. After making changes to `.envrc` run `direnv allow` and start a 
+new terminal tab.
 
 ## Mining
 
 You can launch your miners via pm2 using the following command. 
 
-`pm2 start ./neurons/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
+`pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
 
 
 ## Validating
 
 You can launch your validator via pm2 using the following command.
 
-`pm2 start ./neurons/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>`
+`pm2 start ./validators/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>`
 
 
 ## Logging

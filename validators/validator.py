@@ -1,16 +1,16 @@
 import argparse
 import asyncio
+import io
 import random
 import traceback
 from pathlib import Path
-from typing import AsyncIterator
 
 import bittensor as bt
 import torch
 import uvicorn
 import wandb
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from aiohttp import web
+from aiohttp.web_response import Response
 from image_validator import ImageValidator
 from text_validator import TextValidator
 
@@ -19,13 +19,13 @@ from template import utils
 from template.protocol import IsAlive
 import sys
 
+
 moving_average_scores = None
 text_vali = None
 image_vali = None
 embed_vali = None
 metagraph = None
 wandb_runs = {}
-app = FastAPI()
 EXPECTED_ACCESS_KEY = "hello"
 
 
@@ -39,9 +39,9 @@ def get_config() -> bt.config:
     bt.wallet.add_args(parser)
     config = bt.config(parser)
     _args = parser.parse_args()
-    full_path = Path.expanduser(
+    full_path = Path(
         f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator"
-    )
+    ).expanduser()
     config.full_path = str(full_path)
     full_path.mkdir(parents=True, exist_ok=True)
     return config
@@ -206,26 +206,31 @@ async def query_synapse(dendrite, subtensor, config, wallet):
             await asyncio.sleep(100)
 
 
-@app.post("/text-validator/")
-async def process_text_validator(request: Request, data: dict) -> StreamingResponse:
+async def process_text_validator(request: web.Request):
     # Check access key
     access_key = request.headers.get("access-key")
     if access_key != EXPECTED_ACCESS_KEY:
-        raise HTTPException(status_code=401, detail="Invalid access key")
+        return Response(status=401, reason="Invalid access key")
 
-    async def response_stream() -> AsyncIterator[str]:
-        try:
-            messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in data.items()}
-            async for response in text_vali.organic(metagraph, messages_dict):
-                _uid, content = response
-                yield f"{content}"
-        except Exception:
-            bt.logging.error(f"error in response_stream {traceback.format_exc()}")
+    try:
+        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
+    except ValueError:
+        return Response(status=400)
 
-    return StreamingResponse(response_stream())
+    response = web.StreamResponse()
+    await response.prepare(request)
 
-def run_fastapi() -> None:
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    try:
+        async for uid, content in text_vali.organic(metagraph, messages_dict):
+            await response.write(content.encode())
+    except Exception as e:
+        bt.logging.error(f"error in response_stream {traceback.format_exc()}")
+        return web.StreamResponse(status=500, reason='internal error')
+
+    return response
+
+aio_app = web.Application()
+aio_app.add_routes([web.post('/text-validator/', process_text_validator)])
 
 
 def main() -> None:
@@ -239,9 +244,10 @@ def main() -> None:
     }
     initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
-
+    loop = asyncio.get_event_loop()
     try:
-        asyncio.run(query_synapse(dendrite, subtensor, config, wallet))
+        loop.create_task(query_synapse(dendrite, subtensor, config, wallet))
+        web.run_app(aio_app, port=8000, loop=loop)
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
@@ -249,6 +255,7 @@ def main() -> None:
         utils.save_state_to_file(state)
         if config.wandb_on:
             wandb.finish()
+
 
 if __name__ == "__main__":
     main()

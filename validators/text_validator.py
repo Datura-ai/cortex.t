@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import AsyncIterator
+from typing import AsyncIterator, Tuple
 
 import bittensor as bt
 import torch
@@ -47,7 +47,7 @@ class TextValidator(BaseValidator):
             async for response in self.return_tokens(uid, responses):
                 yield response
 
-    async def return_tokens(self, uid: str, responses: AsyncIterator) -> AsyncIterator[str, str]:
+    async def return_tokens(self, uid: str, responses: AsyncIterator) -> AsyncIterator[Tuple[str, str]]:
         async for resp in responses:
             if isinstance(resp, str):
                 bt.logging.trace(resp)

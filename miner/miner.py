@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import asyncio
 import copy
@@ -12,6 +10,7 @@ import traceback
 from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
+from typing import Tuple
 
 import bittensor as bt
 import wandb
@@ -21,11 +20,9 @@ from openai import AsyncOpenAI, OpenAI
 import template
 from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
 from template.utils import get_version
-from typing import TYPE_CHECKING
 import sys
 
-if TYPE_CHECKING:
-    from starlette.types import Send
+from starlette.types import Send
 
 
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
@@ -53,7 +50,7 @@ class StreamMiner(ABC):
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
         bt.logging.info(self.config)  # TODO: duplicate print?
-        self.prompt_cache: dict[str, tuple[str, int]] = {}
+        self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
 
         # Activating Bittensor's logging with the set configurations.
@@ -119,13 +116,13 @@ class StreamMiner(ABC):
         thread.start()
 
     @abstractmethod
-    def config(self) -> bt.Config:
+    def config(self) -> bt.config:
         ...
 
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         return self.prompt(synapse)
 
-    def base_blacklist(self, synapse, blacklist_amt = 20000) -> tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
@@ -177,22 +174,22 @@ class StreamMiner(ABC):
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
 
-    def blacklist_prompt( self, synapse: StreamPrompting ) -> tuple[bool, str]:
+    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_is_alive( self, synapse: IsAlive ) -> tuple[bool, str]:
+    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
-    def blacklist_images( self, synapse: ImageResponse ) -> tuple[bool, str]:
+    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_embeddings( self, synapse: Embeddings ) -> tuple[bool, str]:
+    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
@@ -325,7 +322,7 @@ class StreamMiner(ABC):
 
 
 class StreamingTemplateMiner(StreamMiner):
-    def config(self) -> bt.Config:
+    def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
         self.add_args(parser)
         return bt.config(parser)

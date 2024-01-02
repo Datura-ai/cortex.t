@@ -7,14 +7,8 @@ import bittensor as bt
 def check_config(cls, config: bt.config):
     bt.axon.check_config(config)
     bt.logging.check_config(config)
-    full_path = Path.expanduser(
-        "{}/{}/{}/{}".format(
-            config.logging.logging_dir,
-            config.wallet.get("name", bt.defaults.wallet.name),
-            config.wallet.get("hotkey", bt.defaults.wallet.hotkey),
-            config.miner.name,
-        )
-    )
+    full_path = Path(f'{config.logging.logging_dir}/{config.wallet.get("name", bt.defaults.wallet.name)}/'
+                     f'{config.wallet.get("hotkey", bt.defaults.wallet.hotkey)}/{config.miner.name}').expanduser()
     config.miner.full_path = str(full_path)
     full_path.mkdir(parents=True, exist_ok=True)
 
@@ -105,15 +99,8 @@ def get_config() -> bt.config:
     config = bt.config(parser)
 
     # Logging captures events for diagnosis or understanding miner's behavior.
-    full_path = Path.expanduser(
-        "{}/{}/{}/netuid{}/{}".format(
-            config.logging.logging_dir,
-            config.wallet.name,
-            config.wallet.hotkey,
-            config.netuid,
-            "miner",
-        )
-    )
+    full_path = Path(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}"
+                     f"/netuid{config.netuid}/miner").expanduser()
     config.full_path = str(full_path)
     # Ensure the directory for logging exists, else create one.
     full_path.mkdir(parents=True, exist_ok=True)
