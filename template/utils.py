@@ -316,7 +316,7 @@ def extract_python_list(text: str):
     return None
 
 
-async def call_openai(messages, temperature, model, seed=1234):
+async def call_openai(messages, temperature, model, seed=1234) -> str:
     for _ in range(2):
         bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
         try:

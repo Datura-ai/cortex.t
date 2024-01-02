@@ -9,7 +9,7 @@ import template.reward
 from template import client
 from datasets import load_dataset
 from template.protocol import Embeddings
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
 
 class EmbeddingsValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
@@ -89,7 +89,7 @@ class EmbeddingsValidator(BaseValidator):
                 f"Sending {self.query_type} request to uid: {uid} "
                 f"using {syn.model} with timeout {self.timeout}: {syn.texts[0]}"
             )
-            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph, uid, syn)
             query_tasks.append(task)
             self.wandb_data["texts"][uid] = prompt
 

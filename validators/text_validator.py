@@ -4,7 +4,7 @@ from typing import AsyncIterator, Tuple
 
 import bittensor as bt
 import torch
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
 
 import template.reward
 from template.protocol import StreamPrompting
@@ -62,11 +62,14 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
+    async def get_question(self, qty):
+        return await get_question("text", qty)
+
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         query_tasks = []
         uid_to_question = {}
         for uid in available_uids:
-            prompt = await get_question("text", len(available_uids))
+            prompt = await self.get_question(len(available_uids))
             uid_to_question[uid] = prompt
             messages = [{'role': 'user', 'content': prompt}]
             syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
@@ -74,12 +77,21 @@ class TextValidator(BaseValidator):
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
             )
-            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph, uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = prompt
 
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses, uid_to_question
+
+    def should_i_score(self):
+        random_number = random.random()
+        will_score_all = random_number < 1 / 12
+        bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
+        return will_score_all
+
+    async def call_openai(self, prompt: str) -> str:
+        return await call_openai([{'role': 'user', 'content': prompt}], 0, self.model, self.seed)
 
     async def score_responses(
         self,
@@ -92,17 +104,13 @@ class TextValidator(BaseValidator):
         openai_response_tasks = []
 
         # Decide to score all UIDs this round based on a chance
-        random_number = random.random()
-        will_score_all = random_number < 1/12
-        bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
+        will_score_all = self.should_i_score()
 
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
                 prompt = uid_to_question[uid]
-                messages = [{'role': 'user', 'content': prompt}]
-                task = call_openai(messages, 0, self.model, self.seed)
-                openai_response_tasks.append((uid, task))
+                openai_response_tasks.append((uid, self.call_openai(prompt)))
 
         openai_responses = await asyncio.gather(*[task for _, task in openai_response_tasks])
 
@@ -127,3 +135,45 @@ class TextValidator(BaseValidator):
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
+
+
+class TestTextValidator(TextValidator):
+    def __init__(
+        self,
+        dendrite,
+        config,
+        subtensor,
+        wallet: bt.wallet,
+    ):
+        super().__init__(dendrite, config, subtensor, wallet)
+        self.openai_prompt_to_contents: dict[str, list[str]] = {}
+        self.questions: list[str] = []
+        self._questions_retrieved = -1
+        self._openai_prompts_used: dict[str, int] = {}
+
+    def feed_mock_data(self, openai_prompt_to_contents, questions):
+        self.questions = questions
+        self.openai_prompt_to_contents = openai_prompt_to_contents
+        self._openai_prompts_used = dict.fromkeys(self.openai_prompt_to_contents, -1)
+        self._questions_retrieved = -1
+
+    def should_i_score(self):
+        return True
+
+    async def call_openai(self, prompt: str) -> str:
+        self._openai_prompts_used[prompt] += 1
+        used = self._openai_prompts_used[prompt]
+        contents = self.openai_prompt_to_contents[prompt]
+        return contents[used % len(contents)]
+
+    async def get_question(self, qty):
+        self._questions_retrieved += 1
+        return self.questions[self._questions_retrieved % len(self.questions)]
+
+    async def query_miner(self, metagraph, uid, syn: StreamPrompting):
+        return uid, await self.call_openai(syn.messages[0]['content'])
+
+    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
+        for uid, messages in query.items():
+            for msg in messages:
+                yield uid, await self.call_openai(msg['content'])

@@ -4,6 +4,7 @@ import nox
 
 REQUIREMENTS_TEST = [
     "pytest==7.*",
+    "pytest-aiohttp==1.*",
 ]
 
 THIS_DIR = str(pathlib.Path(__file__).parent)

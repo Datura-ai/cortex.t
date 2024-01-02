@@ -12,9 +12,10 @@ class BaseValidator(ABC):
         self.timeout = timeout
         self.streaming = False
 
-    async def query_miner(self, axon, uid, syn):
+    async def query_miner(self, metagraph, uid, syn):
         try:
-            responses = await self.dendrite([axon], syn, deserialize=False, timeout=self.timeout, streaming=self.streaming)
+            responses = await self.dendrite([metagraph.axons[uid]], syn, deserialize=False, timeout=self.timeout,
+                                            streaming=self.streaming)
             return await self.handle_response(uid, responses)
 
         except Exception as e:
