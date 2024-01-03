@@ -19,6 +19,7 @@ async def run_async_code():
     prompt=f"{HUMAN_PROMPT} {question} {AI_PROMPT}",
     max_tokens_to_sample=300,
     temperature=0.01, # must be <= 1.0
+    top_p=1,
     model=models[0],
     stream=True,
     )
