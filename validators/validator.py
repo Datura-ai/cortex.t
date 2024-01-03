@@ -1,13 +1,13 @@
+import base  # noqa
+
 import argparse
 import asyncio
-import io
 import random
 import traceback
 from pathlib import Path
 
 import bittensor as bt
 import torch
-import uvicorn
 import wandb
 from aiohttp import web
 from aiohttp.web_response import Response
@@ -33,6 +33,7 @@ def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument('--wandb_off', action='store_false', dest='wandb_on')
+    parser.add_argument('--http_port', type=int, default=8000)
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
@@ -247,7 +248,7 @@ def main() -> None:
     loop = asyncio.get_event_loop()
     try:
         loop.create_task(query_synapse(dendrite, subtensor, config, wallet))
-        web.run_app(aio_app, port=8000, loop=loop)
+        web.run_app(aio_app, port=config.http_port, loop=loop)
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:

@@ -1,3 +1,5 @@
+import base  # noqa
+
 import argparse
 import asyncio
 import copy
