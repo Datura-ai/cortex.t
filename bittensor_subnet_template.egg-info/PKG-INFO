@@ -1,11 +1,12 @@
 Metadata-Version: 2.1
-Name: bittensor_subnet_template
-Version: 2.6.5
+Name: bittensor-subnet-template
+Version: 3.0.0
 Summary: bittensor_subnet_template
 Home-page: https://github.com/opentensor/bittensor-subnet-template
 Author: bittensor.com
 Author-email: 
 License: MIT
+Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: Topic :: Software Development :: Build Tools
@@ -23,19 +24,6 @@ Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: aiohttp==3.*
-Requires-Dist: bittensor==6.*
-Requires-Dist: datasets==2.*
-Requires-Dist: envparse==0.2.0
-Requires-Dist: openai==1.*,>=1.3.2
-Requires-Dist: Pillow==10.*
-Requires-Dist: requests==2.*
-Requires-Dist: scikit-learn==1.*
-Requires-Dist: torch==2.*
-Requires-Dist: transformers==4.*
-Requires-Dist: wandb
-Requires-Dist: base
-Requires-Dist: stability-sdk
 
 <div align="left">
 
@@ -141,3 +129,5 @@ This repository is licensed under the MIT License.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 ```
+
+

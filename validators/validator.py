@@ -15,7 +15,6 @@ import torch
 import wandb
 from aiohttp import web
 from aiohttp.web_response import Response
-from bittensor.btlogging import logger
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 from text_validator import TextValidator, TestTextValidator
@@ -138,7 +137,7 @@ async def process_text_validator(request: web.Request):
             uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
         )
     except Exception:
-        logger.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
+        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
         await response.write(b'<<internal error>>')
 
     return response
