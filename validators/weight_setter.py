@@ -8,7 +8,6 @@ from typing import Tuple
 import bittensor as bt
 import torch
 import wandb
-from bittensor.btlogging import logger
 
 from template.protocol import IsAlive
 from text_validator import TextValidator
@@ -23,7 +22,7 @@ async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
     try:
         result = await asyncio.wait_for(coro, timeout)
     except asyncio.TimeoutError:
-        logger.error('scoring task timed out')
+        bt.logging.error('scoring task timed out')
         return False, None
     return True, result
 
@@ -59,7 +58,7 @@ class WeightSetter:
                                                       return_when=asyncio.FIRST_COMPLETED)
                     for task in completed:
                         if task.exception():
-                            logger.error(
+                            bt.logging.error(
                                 f'Encountered in {TextValidator.score_responses.__name__} task:\n'
                                 f'{"".join(traceback.format_exception(task.exception()))}'
                             )
@@ -72,7 +71,7 @@ class WeightSetter:
                 else:
                     await asyncio.sleep(1)
             except Exception as e:
-                logger.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
+                bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
 
     async def perform_synthetic_scoring_and_update_weights(self):
