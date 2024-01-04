@@ -301,7 +301,6 @@ def extract_python_list(text: str):
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
 
-        bt.logging.debug(f"Preprocessed text = {text}")
         text = preprocess_string(text)
         bt.logging.debug(f"Postprocessed text = {text}")
 
