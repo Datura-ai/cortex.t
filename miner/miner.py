@@ -1,43 +1,55 @@
-import re
-import os
-import time
-import copy
-import wandb
-import json
-import pathlib
-import asyncio
-import template
+import base  # noqa
+
 import argparse
-import requests
+import asyncio
+import copy
+import json
+import os
+import boto3
+import pathlib
 import threading
+import time
 import traceback
-import numpy as np
-import pandas as pd
-import bittensor as bt
-
-from openai import OpenAI
-from functools import partial
-from collections import deque
-from openai import AsyncOpenAI
-from starlette.types import Send
+import anthropic
 from abc import ABC, abstractmethod
-from transformers import GPT2Tokenizer
-from config import get_config, check_config
-from typing import List, Dict, Tuple, Union, Callable, Awaitable
+from collections import deque
+from functools import partial
+from typing import Tuple
 
+import bittensor as bt
+import wandb
+from config import check_config, get_config
+from openai import AsyncOpenAI, OpenAI
+from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+
+import template
+from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
 from template.utils import get_version
-from template.protocol import StreamPrompting, IsAlive, ImageResponse, Embeddings
+import sys
+
+from starlette.types import Send
 
 
-OpenAI.api_key = os.environ.get('OPENAI_API_KEY')
+OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-netrc_path = pathlib.Path.home() / '.netrc'
-wandb_api_key = os.getenv('WANDB_API_KEY')
+api_key = os.environ.get("ANTHROPIC_API_KEY")
 
-print("WANDB_API_KEY is set:", bool(wandb_api_key))
-print("~/.netrc exists:", netrc_path.exists())
+bedrock_client = AsyncAnthropicBedrock(
+    # default is 10 minutes
+    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+    timeout=60.0,
+)
+
+anthropic_client = anthropic.Anthropic()
+anthropic_client.api_key = api_key
+
+netrc_path = pathlib.Path.home() / ".netrc"
+wandb_api_key = os.getenv("WANDB_API_KEY")
+
+bt.logging.info("WANDB_API_KEY is set")
+bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
@@ -54,7 +66,7 @@ class StreamMiner(ABC):
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
         bt.logging.info(self.config)  # TODO: duplicate print?
-        self.prompt_cache: Dict[str, Tuple[str, int]] = {}
+        self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
 
         # Activating Bittensor's logging with the set configurations.
@@ -69,7 +81,8 @@ class StreamMiner(ABC):
         self.subtensor = subtensor or bt.subtensor(config=self.config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(
-            f"Running miner for subnet: {self.config.netuid} on network: {self.subtensor.chain_endpoint} with config:"
+            f"Running miner for subnet: {self.config.netuid} "
+            f"on network: {self.subtensor.chain_endpoint} with config:"
         )
 
         # metagraph provides the network's current state, holding state about other participants in a subnet.
@@ -78,9 +91,10 @@ class StreamMiner(ABC):
 
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
-                f"\nYour validator: {self.wallet} if not registered to chain connection: {self.subtensor} \nRun btcli register and try again. "
+                f"\nYour validator: {self.wallet} if not registered to chain connection: {self.subtensor} "
+                f"\nRun btcli register and try again. "
             )
-            exit()
+            sys.exit()
         else:
             # Each miner gets a unique identity (UID) in the network for differentiation.
             self.my_subnet_uid = self.metagraph.hotkeys.index(
@@ -91,7 +105,7 @@ class StreamMiner(ABC):
         # The axon handles request processing, allowing validators to send this process requests.
         self.axon = axon or bt.axon(wallet=self.wallet, port=self.config.axon.port)
         # Attach determiners which functions are called when servicing a request.
-        bt.logging.info(f"Attaching forward function to axon.")
+        bt.logging.info("Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self._prompt}")
         self.axon.attach(
             forward_fn=self._prompt,
@@ -113,12 +127,12 @@ class StreamMiner(ABC):
         self.is_running: bool = False
         self.thread: threading.Thread = None
         self.lock = asyncio.Lock()
-        self.request_timestamps: Dict = {}
+        self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        thread.start()
+        # thread.start()
 
     @abstractmethod
-    def config(self) -> "bt.Config":
+    def config(self) -> bt.config:
         ...
 
     def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
@@ -136,14 +150,11 @@ class StreamMiner(ABC):
                 return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
-            axon = None
-            for _uid, _axon in enumerate(self.metagraph.axons):
+            for uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
                 if _axon.hotkey == hotkey:
-                    uid = _uid
-                    axon = _axon
                     break
 
-            if uid is None and template.ALLOW_NON_REGISTERED == False:
+            if uid is None and template.ALLOW_NON_REGISTERED is False:
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
@@ -166,27 +177,29 @@ class StreamMiner(ABC):
             if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
                 return (
                     True,
-                    f"Request frequency for {hotkey} exceeded: {len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. Limit is {template.MAX_REQUESTS} requests."
+                    f"Request frequency for {hotkey} exceeded: "
+                    f"{len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. "
+                    f"Limit is {template.MAX_REQUESTS} requests."
                 )
 
             self.request_timestamps[hotkey].append(current_time)
 
             return False, f"accepting {synapse_type} request from {hotkey}"
 
-        except Exception as e:
+        except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
-    
-    
+
+
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
-        return blacklist    
+        return blacklist
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
-        
+
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
@@ -237,20 +250,22 @@ class StreamMiner(ABC):
                 f"Wallet: {self.wallet} is not registered on netuid {self.config.netuid}"
                 f"Please register the hotkey using `btcli s register --netuid 18` before trying again"
             )
-            exit()
+            sys.exit()
         bt.logging.info(
-            f"Serving axon {StreamPrompting} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
+            f"Serving axon {StreamPrompting} "
+            f"on network: {self.config.subtensor.chain_endpoint} "
+            f"with netuid: {self.config.netuid}"
         )
         self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
         self.axon.start()
         self.last_epoch_block = self.subtensor.get_current_block()
         bt.logging.info(f"Miner starting at block: {self.last_epoch_block}")
-        bt.logging.info(f"Starting main loop")
+        bt.logging.info("Starting main loop")
         step = 0
         try:
             while not self.should_exit:
-                start_epoch = time.time()
+                _start_epoch = time.time()
 
                 # --- Wait until next epoch.
                 current_block = self.subtensor.get_current_block()
@@ -293,12 +308,12 @@ class StreamMiner(ABC):
         except KeyboardInterrupt:
             self.axon.stop()
             bt.logging.success("Miner killed by keyboard interrupt.")
-            exit()
+            sys.exit()
 
-        except Exception as e:
+        except Exception:
             bt.logging.error(traceback.format_exc())
 
-    def run_in_background_thread(self):
+    def run_in_background_thread(self) -> None:
         if not self.is_running:
             bt.logging.debug("Starting miner in background thread.")
             self.should_exit = False
@@ -307,7 +322,7 @@ class StreamMiner(ABC):
             self.is_running = True
             bt.logging.debug("Started")
 
-    def stop_run_thread(self):
+    def stop_run_thread(self) -> None:
         if self.is_running:
             bt.logging.debug("Stopping miner in background thread.")
             self.should_exit = True
@@ -323,14 +338,13 @@ class StreamMiner(ABC):
 
 
 class StreamingTemplateMiner(StreamMiner):
-    def config(self) -> "bt.Config":
+    def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
         self.add_args(parser)
         return bt.config(parser)
 
     def add_args(cls, parser: argparse.ArgumentParser):
         pass
-
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
@@ -341,11 +355,13 @@ class StreamingTemplateMiner(StreamMiner):
             for batch in batches:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(input=filtered_batch, model=model, encoding_format='float'))
+                    task = asyncio.create_task(client.embeddings.create(
+                        input=filtered_batch, model=model, encoding_format='float'
+                    ))
                     tasks.append(task)
                 else:
                     bt.logging.info("Skipped an empty batch.")
-            
+
             all_embeddings = []
             results = await asyncio.gather(*tasks, return_exceptions=True)
             for result in results:
@@ -364,7 +380,7 @@ class StreamingTemplateMiner(StreamMiner):
             # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
             bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
             return synapse
-        except Exception as e:
+        except Exception:
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 
@@ -372,87 +388,180 @@ class StreamingTemplateMiner(StreamMiner):
         bt.logging.info(f"received image request: {synapse}")
         try:
             # Extract necessary information from synapse
+            provider = synapse.provider
             model = synapse.model
             messages = synapse.messages
             size = synapse.size
+            width, height = self.size.split('x')
+            width = int(width)
+            height = int(height)
             quality = synapse.quality
             style = synapse.style
+            seed = synapse.seed
+            steps = synapse.steps
+            image_revised_prompt = None
 
-            # Await the response from the asynchronous function
-            meta = await client.images.generate(
-                model=model,
-                prompt=messages,
-                size=size,
-                quality=quality,
-                style=style,
+            if provider == "openai":
+                meta = await client.images.generate(
+                    model=model,
+                    prompt=messages,
+                    size=size,
+                    quality=quality,
+                    style=style,
+                    )
+                image_url = meta.data[0].url
+                image_revised_prompt = meta.data[0].revised_prompt
+
+            elif provider == "stability":
+                meta = stability_api.generate(
+                    prompt=messages,
+                    seed=steps,
+                    steps=steps,
+                    cfg_scale=8.0,
+                    width=width,
+                    height=height,
+                    samples=1,
+                    sampler=generation.SAMPLER_K_DPMPP_2M,
                 )
+                # Process and upload the image
+                for artifact in meta.artifacts:
+                    if artifact.finish_reason == generation.FILTER:
+                        bt.logging.error("Safety filters activated, prompt could not be processed.")
+                    elif artifact.type == generation.ARTIFACT_IMAGE:
+                        img = Image.open(io.BytesIO(artifact.binary))
+                        img_buffer = io.BytesIO()
+                        img.save(img_buffer, format="PNG")
+                        img_buffer.seek(0)
+                        # Upload to file.io
+                        response = requests.post('https://file.io', files={'file': img_buffer})
+                        if response.status_code == 200:
+                            image_url = response.json()['link']
+                        else:
+                            raise Exception("Failed to upload the image.")
 
-            image_created = meta.created
-            image_url = meta.data[0].url
-            image_revised_prompt = meta.data[0].revised_prompt
-            # image_b64 = meta.data[0].revised_prompt
+            else:
+                bt.logging.error(f"Unknown provider: {provider}")
 
             image_data = {
-                "created_at": image_created,
                 "url": image_url,
                 "revised_prompt": image_revised_prompt,
-                # "b64": image_b64
             }
 
             synapse.completion = image_data
             bt.logging.info(f"returning image response of {synapse.completion}")
             return synapse
 
-        except Exception as e:
-            bt.logging.error(f"error in images: {e}\n{traceback.format_exc()}")
-
-
+        except Exception as exc:
+            bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
-        
+
         async def _prompt(synapse, send: Send):
             try:
+                provider = synapse.provider
                 model = synapse.model
                 messages = synapse.messages
-                seed=synapse.seed
+                seed = synapse.seed
+                temperature = synapse.temperature
+                max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
                 bt.logging.info(synapse)
                 bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
-                response = await client.chat.completions.create(
-                    model= model,
-                    messages= messages,
-                    temperature= 0.0001,
-                    stream= True,
-                    seed=seed,
-                )
-                buffer = []
-                N=1
-                async for chunk in response:
-                    token = chunk.choices[0].delta.content or ""
-                    buffer.append(token)
-                    if len(buffer) == N:
+
+                if provider == "OpenAI":
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        seed=seed,
+                        max_tokens=max_tokens
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
                         joined_buffer = "".join(buffer)
                         await send(
                             {
                                 "type": "http.response.body",
                                 "body": joined_buffer.encode("utf-8"),
-                                "more_body": True,
+                                "more_body": False,
                             }
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                        buffer = []
 
-                if buffer:
-                    joined_buffer = "".join(buffer)
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": joined_buffer.encode("utf-8"),
-                            "more_body": False,
-                        }
+                # # for official claude users, comment out the other elif
+                # elif provider == "Anthropic":
+                #     models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+                #     if model == models[0]: model = "claude-2.1"
+                #     if model == models[1]: model = "claude-instant-1.2"
+                #     if model == models[2]: model = "claude-instant-1.2"
+                #     if model == models[3]: model = "claude-2.0"
+
+                #     with anthropic_client.beta.messages.stream(
+                #         max_tokens=max_tokens,
+                #         messages=messages,
+                #         model=model,
+                #         temperature=temperature,
+                #         top_p=top_p,
+                #         top_k=top_k,
+                #     ) as stream:
+                #         for text in stream.text_stream:
+                #             await send(
+                #                 {
+                #                     "type": "http.response.body",
+                #                     "body": text.encode("utf-8"),
+                #                     "more_body": True,
+                #                 }
+                #             )
+                #             bt.logging.info(f"Streamed text: {text}")
+
+                # For amazon bedrock users, comment out the other elif
+                elif provider == "Anthropic":
+                    stream = await bedrock_client.completions.create(
+                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                        max_tokens_to_sample=max_tokens,
+                        temperature=temperature,  # must be <= 1.0
+                        top_k=top_k,
+                        top_p=top_p,
+                        model=model,
+                        stream=True,
                     )
-                    bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                    print(f"response is {response}")
+
+                    async for completion in stream:
+                        if completion.completion:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": completion.completion.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {completion.completion}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+                else:
+                    bt.logging.error(f"Unknown provider: {provider}")
+
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
@@ -477,27 +586,29 @@ def get_valid_hotkeys(config):
                         version = run.config['version']
                         bt.logging.debug(f"found running run of hotkey {hotkey}, {version} ")
 
-                        if latest_version == None:
-                            bt.logging.error(f'Github API call failed!')
+                        if latest_version is None:
+                            bt.logging.error("Github API call failed!")
                             continue
-             
-                        if version != latest_version and latest_version != None:
-                            bt.logging.debug(f'Version Mismatch: Run version {version} does not match GitHub version {latest_version}')
+
+                        if latest_version not in (version, None):
+                            bt.logging.debug(
+                                f"Version Mismatch: Run version {version} does not match GitHub version {latest_version}"
+                            )
                             continue
 
                         # Check if the hotkey is registered in the metagraph
                         if hotkey not in metagraph.hotkeys:
-                            bt.logging.debug(f'Invalid running run: The hotkey: {hotkey} is not in the metagraph.')
+                            bt.logging.debug(f"Invalid running run: The hotkey: {hotkey} is not in the metagraph.")
                             continue
 
                         # Verify the signature using the hotkey
                         if not bt.Keypair(ss58_address=hotkey).verify(run.id, bytes.fromhex(signature)):
-                            bt.logging.debug(f'Failed Signature: The signature: {signature} is not valid')
+                            bt.logging.debug(f"Failed Signature: The signature: {signature} is not valid")
                             continue
-                            
+
                         if hotkey not in valid_hotkeys:
                             valid_hotkeys.append(hotkey)
-                    except Exception as e:
+                    except Exception:
                         bt.logging.debug(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
             bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
