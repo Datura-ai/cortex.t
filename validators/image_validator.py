@@ -9,7 +9,7 @@ import bittensor as bt
 from PIL import Image
 from io import BytesIO
 from template.utils import get_question
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
 from template.protocol import ImageResponse
 
 
@@ -45,7 +45,7 @@ class ImageValidator(BaseValidator):
                 f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request "
                 f"to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}"
             )
-            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph, uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = messages
 
