@@ -10,7 +10,7 @@ from PIL import Image
 from io import BytesIO
 from template.utils import get_question
 from validators.base_validator import BaseValidator
-from template.protocol import ImageResponse
+from template.protocol import ImageResponse, Provider
 
 
 class ImageValidator(BaseValidator):
@@ -23,6 +23,7 @@ class ImageValidator(BaseValidator):
         self.size = "1792x1024"
         self.quality = "standard"
         self.style = "vivid"
+        self.provider = None
 
         self.wandb_data = {
             "modality": "images",
@@ -34,13 +35,22 @@ class ImageValidator(BaseValidator):
         }
 
     async def start_query(self, available_uids, metagraph):
+        # Randomly choose the provider based on specified probabilities
+        providers = ["DallE"] * 2 + ["Stability"] * 8
+        self.provider = random.choice(providers)
+
+        if chosen_provider = Stability:
+            seed = random.randint(1000, 100000)
+            self.model = ""
+
         # Query all images concurrently
         query_tasks = []
         uid_to_messages = {}
         for uid in available_uids:
             messages = await get_question("images", len(available_uids))
             uid_to_messages[uid] = messages  # Store messages for each UID
-            syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style)
+
+            syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style, provider=self.provider, seed=None)
             bt.logging.info(
                 f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request "
                 f"to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}"

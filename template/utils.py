@@ -337,6 +337,32 @@ async def call_openai(messages, temperature, model, seed=1234) -> str:
     return None
 
 
+try:
+    anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+except KeyError as exc:
+    raise ValueError("Please set the ANTROPIC_API_KEY environment variable.") from exc
+
+async def call_anthropic(prompt, temperature, model, seed=1234) -> str:
+
+    for _ in range(2):
+        bt.logging.debug(f"Calling Anthropics. Model = {model}, Prompt = {prompt}")
+        try:
+            completion = anthropic.completions.create(
+                model=model,
+                max_tokens_to_sample=1000,
+                prompt=f"{HUMAN_PROMPT} {prompt}{AI_PROMPT}",
+                temperature=temperature,
+            )
+            response = completion.completion
+            bt.logging.debug(f"Validator response is {response}")
+            return response
+
+        except Exception as e:
+            bt.logging.error(f"Error when calling Anthropics: {traceback.format_exc()}")
+            await asyncio.sleep(0.5)
+
+    return None
+
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
 def get_version(line_number: int = 22) -> Optional[str]:

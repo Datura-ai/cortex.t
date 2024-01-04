@@ -41,10 +41,15 @@ class ImageResponse(bt.Synapse):
 
     provider: Provider = pydantic.Field(
         Provider.dalle,
-        title="provider",
-        description="The provider to use when calling for your response.",
+        title="Provider",
+        description="The provider to use when calling for your response."
     )
 
+    seed: int = pydantic.Field(
+        ...,
+        title="Seed",
+        description="The seed that which to generate the image with"
+    )
 
     model: str = pydantic.Field(
         ...,
@@ -101,6 +106,8 @@ class Embeddings( bt.Synapse):
         description="The resulting list of embeddings, each corresponding to an input text."
     )
 
+
+
 class StreamPrompting(bt.StreamingSynapse):
 
     messages: List[Dict[str, str]] = pydantic.Field(
@@ -125,9 +132,16 @@ class StreamPrompting(bt.StreamingSynapse):
     )
 
     temperature: float = pydantic.Field(
-        0.0,
+        0.0001,
         title="Temperature",
         description="Temperature for text generation. "
+                    "This attribute is immutable and cannot be updated.",
+    )
+
+    max_tokens: int = pydantic.Field(
+        2048,
+        title="Max Tokens",
+        description="Max tokens for text generation. "
                     "This attribute is immutable and cannot be updated.",
     )
 
