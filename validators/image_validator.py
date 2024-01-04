@@ -20,6 +20,7 @@ class ImageValidator(BaseValidator):
         self.query_type = "images"
         self.model = "dall-e-3"
         self.weight = .35
+        self.provider = "DallE"
         self.size = "1792x1024"
         self.quality = "standard"
         self.style = "vivid"
@@ -41,7 +42,7 @@ class ImageValidator(BaseValidator):
         providers = ["DallE"] * 2 + ["Stability"] * 8
         self.provider = random.choice(providers)
 
-        if chosen_provider == "Stability":
+        if self.provider == "Stability":
             seed = random.randint(1000, 1000000)
             self.model = "stable-diffusion-xl-1024-v1-0"
 
@@ -49,6 +50,7 @@ class ImageValidator(BaseValidator):
         query_tasks = []
         uid_to_messages = {}
         for uid in available_uids:
+            bt.logging.debug(f"sending question to {uid}")
             messages = await get_question("images", len(available_uids))
             uid_to_messages[uid] = messages  # Store messages for each UID
 

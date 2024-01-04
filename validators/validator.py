@@ -17,6 +17,7 @@ from aiohttp import web
 from aiohttp.web_response import Response
 from bittensor.btlogging import logger
 from image_validator import ImageValidator
+from embeddings_validator import EmbeddingsValidator
 from text_validator import TextValidator, TestTextValidator
 from base_validator import BaseValidator
 from envparse import env
@@ -110,7 +111,7 @@ def initialize_validators(vali_config, test=False):
 
     text_vali = (TextValidator if not test else TestTextValidator)(**vali_config)
     image_vali = ImageValidator(**vali_config)
-    # embed_vali = EmbeddingsValidator(**vali_config)
+    embed_vali = EmbeddingsValidator(**vali_config)
     bt.logging.info("initialized_validators")
 
 
@@ -167,7 +168,7 @@ def main(run_aio_app=True, test=False) -> None:
     loop = asyncio.get_event_loop()
 
     weight_setter = (WeightSetter if not test else TestWeightSetter)(
-        loop, dendrite, subtensor, config, wallet, text_vali, image_vali)
+        loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali)
     validator_app.weight_setter = weight_setter
 
     if run_aio_app:

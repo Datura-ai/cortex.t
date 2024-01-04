@@ -509,6 +509,12 @@ class StreamingTemplateMiner(StreamMiner):
 
                 # # for official claude users, comment out the other elif
                 # elif provider == "Anthropic":
+                #     models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+                #     if model == models[0]: model = "claude-2.1"
+                #     if model == models[1]: model = "claude-instant-1.2"
+                #     if model == models[2]: model = "claude-instant-1.2"
+                #     if model == models[3]: model = "claude-2.0"
+
                 #     with anthropic_client.beta.messages.stream(
                 #         max_tokens=max_tokens,
                 #         messages=messages,
