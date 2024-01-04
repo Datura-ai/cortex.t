@@ -18,6 +18,7 @@ async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
             model=engine,
             seed=1234,
             temperature=0.0001,
+            max_tokens=1,
         )
         collected_messages = []
 

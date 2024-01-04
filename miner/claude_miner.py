@@ -35,12 +35,9 @@ if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
+if not api_key:
+    raise ValueError("Please set the ANTHROPIC_API_KEY environment variable.")
 
-bedrock_client = AsyncAnthropicBedrock(
-    # default is 10 minutes
-    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
-    timeout=60.0,
-)
 
 anthropic_client = anthropic.Anthropic()
 anthropic_client.api_key = api_key
@@ -507,57 +504,57 @@ class StreamingTemplateMiner(StreamMiner):
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
-                # # for official claude users, comment out the other elif
-                # elif provider == "Anthropic":
-                #     models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-                #     if model == models[0]: model = "claude-2.1"
-                #     if model == models[1]: model = "claude-instant-1.2"
-                #     if model == models[2]: model = "claude-instant-1.2"
-                #     if model == models[3]: model = "claude-2.0"
-
-                #     with anthropic_client.beta.messages.stream(
-                #         max_tokens=max_tokens,
-                #         messages=messages,
-                #         model=model,
-                #         temperature=temperature,
-                #         top_p=top_p,
-                #         top_k=top_k,
-                #     ) as stream:
-                #         for text in stream.text_stream:
-                #             await send(
-                #                 {
-                #                     "type": "http.response.body",
-                #                     "body": text.encode("utf-8"),
-                #                     "more_body": True,
-                #                 }
-                #             )
-                #             bt.logging.info(f"Streamed text: {text}")
-
-                # For amazon bedrock users, comment out the other elif
+                # for official claude users, comment out the other elif
                 elif provider == "Anthropic":
-                    stream = await bedrock_client.completions.create(
-                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
-                        max_tokens_to_sample=max_tokens,
-                        temperature=temperature,  # must be <= 1.0
-                        top_k=top_k,
-                        top_p=top_p,
-                        model=model,
-                        stream=True,
-                    )
+                    models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+                    if model == models[0]: model = "claude-2.1"
+                    if model == models[1]: model = "claude-instant-1.2"
+                    if model == models[2]: model = "claude-instant-1.2"
+                    if model == models[3]: model = "claude-2.0"
 
-                    async for completion in stream:
-                        if completion.completion:
+                    with anthropic_client.beta.messages.stream(
+                        max_tokens=max_tokens,
+                        messages=messages,
+                        model=model,
+                        temperature=temperature,
+                        top_p=top_p,
+                        top_k=top_k,
+                    ) as stream:
+                        for text in stream.text_stream:
                             await send(
                                 {
                                     "type": "http.response.body",
-                                    "body": completion.completion.encode("utf-8"),
+                                    "body": text.encode("utf-8"),
                                     "more_body": True,
                                 }
                             )
-                            bt.logging.info(f"Streamed text: {completion.completion}")
+                            bt.logging.info(f"Streamed text: {text}")
 
-                    # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                # # For amazon bedrock users, comment out the other elif
+                # elif provider == "Anthropic":
+                #     stream = await bedrock_client.completions.create(
+                #         prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                #         max_tokens_to_sample=max_tokens,
+                #         temperature=temperature,  # must be <= 1.0
+                #         top_k=top_k,
+                #         top_p=top_p,
+                #         model=model,
+                #         stream=True,
+                #     )
+
+                #     async for completion in stream:
+                #         if completion.completion:
+                #             await send(
+                #                 {
+                #                     "type": "http.response.body",
+                #                     "body": completion.completion.encode("utf-8"),
+                #                     "more_body": True,
+                #                 }
+                #             )
+                #             bt.logging.info(f"Streamed text: {completion.completion}")
+
+                #     # Send final message to close the stream
+                #     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")

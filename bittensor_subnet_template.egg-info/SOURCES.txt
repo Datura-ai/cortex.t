@@ -1,6 +1,7 @@
 LICENSE
 README.md
 setup.py
+base/__init__.py
 bittensor_subnet_template.egg-info/PKG-INFO
 bittensor_subnet_template.egg-info/SOURCES.txt
 bittensor_subnet_template.egg-info/dependency_links.txt
@@ -10,8 +11,4 @@ template/__init__.py
 template/protocol.py
 template/reward.py
 template/utils.py
-tests/test_embeddings.py
-tests/test_extract_list.py
-tests/test_image_limit.py
-tests/test_images.py
-tests/test_openai.py
+test_base/__init__.py
