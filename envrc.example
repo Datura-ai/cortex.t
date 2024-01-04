@@ -1,0 +1,9 @@
+export WANDB_API_KEY=some_key
+
+# used both by validator and miner:
+export OPENAI_API_KEY=some_key
+
+# when running tests locally, it's useful to whitelist your validator key so it can connect to your miner
+export CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS=
+
+export RICH_TRACEBACK=0

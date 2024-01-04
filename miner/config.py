@@ -1,25 +1,19 @@
-import bittensor as bt
 import argparse
-import os
+from pathlib import Path
+
+import bittensor as bt
 
 
-def check_config(cls, config: "bt.Config"):
+def check_config(cls, config: bt.config):
     bt.axon.check_config(config)
     bt.logging.check_config(config)
-    full_path = os.path.expanduser(
-        "{}/{}/{}/{}".format(
-            config.logging.logging_dir,
-            config.wallet.get("name", bt.defaults.wallet.name),
-            config.wallet.get("hotkey", bt.defaults.wallet.hotkey),
-            config.miner.name,
-        )
-    )
-    config.miner.full_path = os.path.expanduser(full_path)
-    if not os.path.exists(config.miner.full_path):
-        os.makedirs(config.miner.full_path)
+    full_path = Path(f'{config.logging.logging_dir}/{config.wallet.get("name", bt.defaults.wallet.name)}/'
+                     f'{config.wallet.get("hotkey", bt.defaults.wallet.hotkey)}/{config.miner.name}').expanduser()
+    config.miner.full_path = str(full_path)
+    full_path.mkdir(parents=True, exist_ok=True)
 
 
-def get_config() -> "bt.Config":
+def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--axon.port", type=int, default=8098, help="Port to run the axon on."
@@ -105,16 +99,9 @@ def get_config() -> "bt.Config":
     config = bt.config(parser)
 
     # Logging captures events for diagnosis or understanding miner's behavior.
-    config.full_path = os.path.expanduser(
-        "{}/{}/{}/netuid{}/{}".format(
-            config.logging.logging_dir,
-            config.wallet.name,
-            config.wallet.hotkey,
-            config.netuid,
-            "miner",
-        )
-    )
+    full_path = Path(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}"
+                     f"/netuid{config.netuid}/miner").expanduser()
+    config.full_path = str(full_path)
     # Ensure the directory for logging exists, else create one.
-    if not os.path.exists(config.full_path):
-        os.makedirs(config.full_path, exist_ok=True)
+    full_path.mkdir(parents=True, exist_ok=True)
     return config
