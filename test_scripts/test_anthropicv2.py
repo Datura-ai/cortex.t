@@ -41,13 +41,18 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 client = AsyncAnthropicBedrock()
 
 
-async def call_anthropic():
+async def call_anthropic(question, model, max_tokens):
     completion = await client.completions.create(
         model=model,
         max_tokens_to_sample=max_tokens,
-        prompt=f"{anthropic_bedrock.HUMAN_PROMPT} {messages} {anthropic_bedrock.AI_PROMPT}",
+        prompt=f"{anthropic_bedrock.HUMAN_PROMPT} {question} {anthropic_bedrock.AI_PROMPT}",
     )
+    print(completion.completion)
     return completion.completion
 
+models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+model = models[1]
+question = "tell me a short story"
+max_tokens = 2048
 
-asyncio.run(main())
+asyncio.run(call_anthropic(question, model, max_tokens))

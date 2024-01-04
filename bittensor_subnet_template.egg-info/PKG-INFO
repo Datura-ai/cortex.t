@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: bittensor_subnet_template
-Version: 2.6.5
+Version: 3.0.0
 Summary: bittensor_subnet_template
 Home-page: https://github.com/opentensor/bittensor-subnet-template
 Author: bittensor.com
@@ -34,8 +34,8 @@ Requires-Dist: scikit-learn==1.*
 Requires-Dist: torch==2.*
 Requires-Dist: transformers==4.*
 Requires-Dist: wandb
-Requires-Dist: base
 Requires-Dist: stability-sdk
+Requires-Dist: anthropic
 
 <div align="left">
 

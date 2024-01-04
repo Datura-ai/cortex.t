@@ -9,5 +9,5 @@ scikit-learn==1.*
 torch==2.*
 transformers==4.*
 wandb
-base
 stability-sdk
+anthropic
