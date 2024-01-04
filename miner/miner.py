@@ -401,7 +401,7 @@ class StreamingTemplateMiner(StreamMiner):
             steps = synapse.steps
             image_revised_prompt = None
 
-            if provider == "openai":
+            if provider == "OpenAI":
                 meta = await client.images.generate(
                     model=model,
                     prompt=messages,
@@ -412,7 +412,7 @@ class StreamingTemplateMiner(StreamMiner):
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
 
-            elif provider == "stability":
+            elif provider == "Stability":
                 meta = stability_api.generate(
                     prompt=messages,
                     seed=steps,
@@ -467,8 +467,6 @@ class StreamingTemplateMiner(StreamMiner):
                 max_tokens = synapse.max_tokens
                 top_p = synapse.top_p
                 top_k = synapse.top_k
-                bt.logging.info(synapse)
-                bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
 
                 if provider == "OpenAI":
                     response = await client.chat.completions.create(

@@ -23,7 +23,7 @@ class TextValidator(BaseValidator):
         self.seed = 1234
         self.top_p = 0.01
         self.top_k = 1
-        self.provider = None
+        self.provider = "OpenAI"
 
         self.wandb_data = {
             "modality": "text",

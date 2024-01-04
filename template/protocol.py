@@ -34,7 +34,7 @@ class ImageResponse(bt.Synapse):
         description="Messages related to the image response."
     )
 
-    provider: str = Field(
+    provider: str = pydantic.Field(
         default="DallE",
         title="Provider",
         description="The provider to use when calling for your response."
@@ -167,7 +167,7 @@ class StreamPrompting(bt.StreamingSynapse):
                     "This attribute is mutable and can be updated.",
     )
 
-    provider: str = Field(
+    provider: str = pydantic.Field(
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response."
