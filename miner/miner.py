@@ -35,17 +35,14 @@ if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
 api_key = os.environ.get("ANTHROPIC_API_KEY")
-if not api_key:
-    raise ValueError("API key not found in environment variables")
 
-
-anthropic_client = AsyncAnthropicBedrock(
+bedrock_client = AsyncAnthropicBedrock(
     # default is 10 minutes
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
 
-# anthropic_client = anthropic.Anthropic()
+anthropic_client = anthropic.Anthropic()
 anthropic_client.api_key = api_key
 
 netrc_path = pathlib.Path.home() / ".netrc"
@@ -532,7 +529,7 @@ class StreamingTemplateMiner(StreamMiner):
 
                 # For amazon bedrock users, comment out the other elif
                 elif provider == "Anthropic":
-                    stream = await anthropic_client.completions.create(
+                    stream = await bedrock_client.completions.create(
                         prompt=f"\n\nHuman: {messages}\n\nAssistant:",
                         max_tokens_to_sample=max_tokens,
                         temperature=temperature,  # must be <= 1.0

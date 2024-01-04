@@ -9,12 +9,12 @@ import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 stability_api = client.StabilityInference(
     key=os.environ['STABILITY_KEY'],
     verbose=True,
-    engine="stable-diffusion-xl-1024-v1-0"
 )
 
 # Generate the image
 answers = stability_api.generate(
     prompt="expansive landscape rolling greens with gargantuan yggdrasil, intricate world-spanning roots towering under a blue alien sky, masterful, ghibli",
+    engine="stable-diffusion-xl-1024-v1-0",
     seed=4253978046,
     steps=30,
     cfg_scale=8.0,
