@@ -9,7 +9,7 @@ import template.reward
 from template import client
 from datasets import load_dataset
 from template.protocol import Embeddings
-from validators.base_validator import BaseValidator
+from base_validator import BaseValidator
 
 class EmbeddingsValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):

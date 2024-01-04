@@ -5,10 +5,12 @@ import asyncio
 import copy
 import json
 import os
+import boto3
 import pathlib
 import threading
 import time
 import traceback
+import anthropic
 from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
@@ -18,6 +20,7 @@ import bittensor as bt
 import wandb
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
 from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
@@ -30,6 +33,17 @@ from starlette.types import Send
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+api_key = os.environ.get("ANTHROPIC_API_KEY")
+
+bedrock_client = AsyncAnthropicBedrock(
+    # default is 10 minutes
+    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+    timeout=60.0,
+)
+
+anthropic_client = anthropic.Anthropic()
+anthropic_client.api_key = api_key
 
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
@@ -115,7 +129,7 @@ class StreamMiner(ABC):
         self.lock = asyncio.Lock()
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        thread.start()
+        # thread.start()
 
     @abstractmethod
     def config(self) -> bt.config:
@@ -374,31 +388,63 @@ class StreamingTemplateMiner(StreamMiner):
         bt.logging.info(f"received image request: {synapse}")
         try:
             # Extract necessary information from synapse
+            provider = synapse.provider
             model = synapse.model
             messages = synapse.messages
             size = synapse.size
+            width, height = self.size.split('x')
+            width = int(width)
+            height = int(height)
             quality = synapse.quality
             style = synapse.style
+            seed = synapse.seed
+            steps = synapse.steps
+            image_revised_prompt = None
 
-            # Await the response from the asynchronous function
-            meta = await client.images.generate(
-                model=model,
-                prompt=messages,
-                size=size,
-                quality=quality,
-                style=style,
+            if provider == "openai":
+                meta = await client.images.generate(
+                    model=model,
+                    prompt=messages,
+                    size=size,
+                    quality=quality,
+                    style=style,
+                    )
+                image_url = meta.data[0].url
+                image_revised_prompt = meta.data[0].revised_prompt
+
+            elif provider == "stability":
+                meta = stability_api.generate(
+                    prompt=messages,
+                    seed=steps,
+                    steps=steps,
+                    cfg_scale=8.0,
+                    width=width,
+                    height=height,
+                    samples=1,
+                    sampler=generation.SAMPLER_K_DPMPP_2M,
                 )
+                # Process and upload the image
+                for artifact in meta.artifacts:
+                    if artifact.finish_reason == generation.FILTER:
+                        bt.logging.error("Safety filters activated, prompt could not be processed.")
+                    elif artifact.type == generation.ARTIFACT_IMAGE:
+                        img = Image.open(io.BytesIO(artifact.binary))
+                        img_buffer = io.BytesIO()
+                        img.save(img_buffer, format="PNG")
+                        img_buffer.seek(0)
+                        # Upload to file.io
+                        response = requests.post('https://file.io', files={'file': img_buffer})
+                        if response.status_code == 200:
+                            image_url = response.json()['link']
+                        else:
+                            raise Exception("Failed to upload the image.")
 
-            image_created = meta.created
-            image_url = meta.data[0].url
-            image_revised_prompt = meta.data[0].revised_prompt
-            # image_b64 = meta.data[0].revised_prompt
+            else:
+                bt.logging.error(f"Unknown provider: {provider}")
 
             image_data = {
-                "created_at": image_created,
                 "url": image_url,
                 "revised_prompt": image_revised_prompt,
-                # "b64": image_b64
             }
 
             synapse.completion = image_data
@@ -408,53 +454,114 @@ class StreamingTemplateMiner(StreamMiner):
         except Exception as exc:
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
-
-
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
 
         async def _prompt(synapse, send: Send):
             try:
+                provider = synapse.provider
                 model = synapse.model
                 messages = synapse.messages
-                seed=synapse.seed
+                seed = synapse.seed
+                temperature = synapse.temperature
+                max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
                 bt.logging.info(synapse)
                 bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
-                response = await client.chat.completions.create(
-                    model= model,
-                    messages= messages,
-                    temperature= 0.0001,
-                    stream= True,
-                    seed=seed,
-                )
-                buffer = []
-                n = 1
-                async for chunk in response:
-                    token = chunk.choices[0].delta.content or ""
-                    buffer.append(token)
-                    if len(buffer) == n:
+
+                if provider == "OpenAI":
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        seed=seed,
+                        max_tokens=max_tokens
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
                         joined_buffer = "".join(buffer)
                         await send(
                             {
                                 "type": "http.response.body",
                                 "body": joined_buffer.encode("utf-8"),
-                                "more_body": True,
+                                "more_body": False,
                             }
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                        buffer = []
 
-                if buffer:
-                    joined_buffer = "".join(buffer)
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": joined_buffer.encode("utf-8"),
-                            "more_body": False,
-                        }
+                # # for official claude users, comment out the other elif
+                # elif provider == "Anthropic":
+                #     models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+                #     if model == models[0]: model = "claude-2.1"
+                #     if model == models[1]: model = "claude-instant-1.2"
+                #     if model == models[2]: model = "claude-instant-1.2"
+                #     if model == models[3]: model = "claude-2.0"
+
+                #     with anthropic_client.beta.messages.stream(
+                #         max_tokens=max_tokens,
+                #         messages=messages,
+                #         model=model,
+                #         temperature=temperature,
+                #         top_p=top_p,
+                #         top_k=top_k,
+                #     ) as stream:
+                #         for text in stream.text_stream:
+                #             await send(
+                #                 {
+                #                     "type": "http.response.body",
+                #                     "body": text.encode("utf-8"),
+                #                     "more_body": True,
+                #                 }
+                #             )
+                #             bt.logging.info(f"Streamed text: {text}")
+
+                # For amazon bedrock users, comment out the other elif
+                elif provider == "Anthropic":
+                    stream = await bedrock_client.completions.create(
+                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                        max_tokens_to_sample=max_tokens,
+                        temperature=temperature,  # must be <= 1.0
+                        top_k=top_k,
+                        top_p=top_p,
+                        model=model,
+                        stream=True,
                     )
-                    bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                    print(f"response is {response}")
+
+                    async for completion in stream:
+                        if completion.completion:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": completion.completion.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {completion.completion}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+                else:
+                    bt.logging.error(f"Unknown provider: {provider}")
+
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 

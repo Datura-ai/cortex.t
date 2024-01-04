@@ -4,11 +4,11 @@ from typing import AsyncIterator, Tuple
 
 import bittensor as bt
 import torch
-from validators.base_validator import BaseValidator
+from base_validator import BaseValidator
 
 import template.reward
 from template.protocol import StreamPrompting
-from template.utils import call_openai, get_question
+from template.utils import call_openai, get_question, call_anthropic
 
 
 class TextValidator(BaseValidator):
@@ -16,9 +16,14 @@ class TextValidator(BaseValidator):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
-        self.model = "gpt-4-1106-preview"
+        self.model =  "gpt-3.5-turbo" # "gpt-4-1106-preview"
+        self.max_tokens = 2048
+        self.temperature = 0.0001
         self.weight = 1
         self.seed = 1234
+        self.top_p = 0.01
+        self.top_k = 1
+        self.provider = None
 
         self.wandb_data = {
             "modality": "text",
@@ -30,11 +35,12 @@ class TextValidator(BaseValidator):
 
     async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
         for uid, messages in query.items():
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
             bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
             )
+
             self.wandb_data["prompts"][uid] = messages
             responses = await self.dendrite(
                 metagraph.axons[uid],
@@ -68,11 +74,21 @@ class TextValidator(BaseValidator):
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         query_tasks = []
         uid_to_question = {}
+        # Randomly choose the provider based on specified probabilities
+        providers = ["OpenAI"] * 6 + ["Anthropic"] * 4
+        self.provider = random.choice(providers)
+
+        if self.provider == "Anthropic":
+            # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+            # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
+            self.model = "anthropic.claude-instant-v1"
+
+
         for uid in available_uids:
             prompt = await self.get_question(len(available_uids))
             uid_to_question[uid] = prompt
             messages = [{'role': 'user', 'content': prompt}]
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed)
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
             bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
@@ -86,12 +102,17 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 12
+        will_score_all = random_number < 1 / 5
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
-    async def call_openai(self, prompt: str) -> str:
-        return await call_openai([{'role': 'user', 'content': prompt}], 0, self.model, self.seed)
+    async def call_api(self, prompt: str, provider: str) -> str:
+        if provider == "OpenAI":
+            return await call_openai([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.seed, self.max_tokens)
+        elif provider == "Anthropic":
+            return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        else:
+            bt.logging.error(f"provider {provider} not found")
 
     async def score_responses(
         self,
@@ -101,7 +122,7 @@ class TextValidator(BaseValidator):
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
-        openai_response_tasks = []
+        response_tasks = []
 
         # Decide to score all UIDs this round based on a chance
         will_score_all = self.should_i_score()
@@ -110,19 +131,20 @@ class TextValidator(BaseValidator):
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
                 prompt = uid_to_question[uid]
-                openai_response_tasks.append((uid, self.call_openai(prompt)))
+                response_tasks.append((uid, self.call_api(prompt, self.provider)))
 
-        openai_responses = await asyncio.gather(*[task for _, task in openai_response_tasks])
+        api_responses = await asyncio.gather(*[task for _, task in response_tasks])
 
         scoring_tasks = []
-        for (uid, _), openai_answer in zip(openai_response_tasks, openai_responses):
-            if openai_answer:
+        for (uid, _), api_answer in zip(response_tasks, api_responses):
+            if api_answer:
                 response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-                task = template.reward.openai_score(openai_answer, response, self.weight)
+                task = template.reward.api_score(api_answer, response, self.weight)
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
 
+        bt.logging.debug(f"scored responses = {scored_responses}")
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
                 scores[uid] = scored_response

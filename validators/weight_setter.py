@@ -11,7 +11,9 @@ import wandb
 from bittensor.btlogging import logger
 
 from template.protocol import IsAlive
-from validators.text_validator import TextValidator
+from text_validator import TextValidator
+from image_validator import ImageValidator
+from embeddings_validator import EmbeddingsValidator
 
 iterations_per_set_weights = 12
 scoring_organic_timeout = 60
@@ -27,7 +29,7 @@ async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali):
+    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
         self.loop = loop
         self.dendrite = dendrite
         self.subtensor = subtensor
@@ -35,6 +37,7 @@ class WeightSetter:
         self.wallet = wallet
         self.text_vali = text_vali
         self.image_vali = image_vali
+        self.embed_vali = embed_vali
 
         self.moving_average_scores = None
         self.metagraph = subtensor.metagraph(config.netuid)
@@ -91,10 +94,10 @@ class WeightSetter:
                         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
                     )
 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(10)
 
     def select_validator(self, steps_passed):
-        return self.text_vali if steps_passed % 5 in (0, 1, 2) else self.image_vali
+        return self.text_vali # if steps_passed % 5 in (0, 1, 2) else self.image_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
