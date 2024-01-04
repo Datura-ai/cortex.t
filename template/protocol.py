@@ -34,13 +34,8 @@ class ImageResponse(bt.Synapse):
         description="Messages related to the image response."
     )
 
-    class Provider(str, Enum):
-        """ A class to represent the provider options for the StreamPrompting object. """
-        dalle = 'DallE'
-        stability = 'Stability'
-
-    provider: Provider = pydantic.Field(
-        Provider.dalle,
+    provider: str = Field(
+        default="DallE",
         title="Provider",
         description="The provider to use when calling for your response."
     )
@@ -172,16 +167,10 @@ class StreamPrompting(bt.StreamingSynapse):
                     "This attribute is mutable and can be updated.",
     )
 
-    class Provider(str, Enum):
-        """ A class to represent the provider options for the StreamPrompting object. """
-        openai = 'OpenAI'
-        anthropic = 'Anthropic'
-        gemini_pro = 'GeminiPro'
-
-    provider: Provider = pydantic.Field(
-        Provider.openai,
-        title="provider",
-        description="The provider to use when calling for your response.",
+    provider: str = Field(
+        default="OpenAI",
+        title="Provider",
+        description="The provider to use when calling for your response."
     )
 
     model: str = pydantic.Field(
