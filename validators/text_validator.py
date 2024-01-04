@@ -82,7 +82,8 @@ class TextValidator(BaseValidator):
             # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
             # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
             self.model = "anthropic.claude-instant-v1"
-
+        elif self.provider == "OpenAI":
+            self.model = "gpt-3.5-turbo"
 
         for uid in available_uids:
             prompt = await self.get_question(len(available_uids))
