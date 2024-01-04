@@ -10,4 +10,6 @@ torch==2.*
 transformers==4.*
 wandb
 stability-sdk
-anthropic
+boto3
+cryptography==38.0.4
+anthropic_bedrock
