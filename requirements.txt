@@ -9,7 +9,7 @@ scikit-learn==1.*
 torch==2.*
 transformers==4.*
 wandb
+anthropic
 stability-sdk
 boto3
-cryptography==38.0.4
 anthropic_bedrock
