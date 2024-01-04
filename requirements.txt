@@ -13,4 +13,4 @@ anthropic
 stability-sdk
 boto3
 anthropic_bedrock
-pyOpenSSL==23.2.0
+pyOpenSSL
