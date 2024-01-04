@@ -5,6 +5,7 @@ import asyncio
 import copy
 import json
 import os
+import boto3
 import pathlib
 import threading
 import time
@@ -19,6 +20,7 @@ import bittensor as bt
 import wandb
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
 from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
@@ -36,7 +38,14 @@ api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not api_key:
     raise ValueError("API key not found in environment variables")
 
-anthropic_client = anthropic.Anthropic()
+
+anthropic_client = AsyncAnthropicBedrock(
+    # default is 10 minutes
+    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+    timeout=60.0,
+)
+
+# anthropic_client = anthropic.Anthropic()
 anthropic_client.api_key = api_key
 
 netrc_path = pathlib.Path.home() / ".netrc"
@@ -448,58 +457,6 @@ class StreamingTemplateMiner(StreamMiner):
         except Exception as exc:
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
-
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        bt.logging.info(f"started processing for synapse {synapse}")
-
-        async def _prompt(synapse, send: Send):
-            try:
-                model = synapse.model
-                messages = synapse.messages
-                seed=synapse.seed
-                bt.logging.info(synapse)
-                bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
-                response = await client.chat.completions.create(
-                    model= model,
-                    messages= messages,
-                    temperature= 0.0001,
-                    stream= True,
-                    seed=seed,
-                )
-                buffer = []
-                n = 1
-                async for chunk in response:
-                    token = chunk.choices[0].delta.content or ""
-                    buffer.append(token)
-                    if len(buffer) == n:
-                        joined_buffer = "".join(buffer)
-                        await send(
-                            {
-                                "type": "http.response.body",
-                                "body": joined_buffer.encode("utf-8"),
-                                "more_body": True,
-                            }
-                        )
-                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                        buffer = []
-
-                if buffer:
-                    joined_buffer = "".join(buffer)
-                    await send(
-                        {
-                            "type": "http.response.body",
-                            "body": joined_buffer.encode("utf-8"),
-                            "more_body": False,
-                        }
-                    )
-                    bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                    print(f"response is {response}")
-            except Exception as e:
-                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
-
-        token_streamer = partial(_prompt, synapse)
-        return synapse.create_streaming_response(token_streamer)
-
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
 
@@ -511,6 +468,8 @@ class StreamingTemplateMiner(StreamMiner):
                 seed = synapse.seed
                 temperature = synapse.temperature
                 max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
                 bt.logging.info(synapse)
                 bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
 
@@ -551,58 +510,54 @@ class StreamingTemplateMiner(StreamMiner):
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
-                # for official claude users, comment out the other elif
+                # # for official claude users, comment out the other elif
+                # elif provider == "Anthropic":
+                #     with anthropic_client.beta.messages.stream(
+                #         max_tokens=max_tokens,
+                #         messages=messages,
+                #         model=model,
+                #         temperature=temperature,
+                #         top_p=top_p,
+                #         top_k=top_k,
+                #     ) as stream:
+                #         for text in stream.text_stream:
+                #             await send(
+                #                 {
+                #                     "type": "http.response.body",
+                #                     "body": text.encode("utf-8"),
+                #                     "more_body": True,
+                #                 }
+                #             )
+                #             bt.logging.info(f"Streamed text: {text}")
+
+                # For amazon bedrock users, comment out the other elif
                 elif provider == "Anthropic":
-                    with anthropic_client.beta.messages.stream(
-                        max_tokens=max_tokens,
-                        messages=messages,
+                    stream = await anthropic_client.completions.create(
+                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                        max_tokens_to_sample=max_tokens,
+                        temperature=temperature,  # must be <= 1.0
+                        top_k=top_k,
+                        top_p=top_p,
                         model=model,
-                        temperature=temperature,
-                    ) as stream:
-                        for text in stream.text_stream:
+                        stream=True,
+                    )
+
+                    async for completion in stream:
+                        if completion.completion:
                             await send(
                                 {
                                     "type": "http.response.body",
-                                    "body": text.encode("utf-8"),
+                                    "body": completion.completion.encode("utf-8"),
                                     "more_body": True,
                                 }
                             )
-                            bt.logging.info(f"Streamed text: {text}")
+                            bt.logging.info(f"Streamed text: {completion.completion}")
 
-                # # For amazon bedrock users, comment out the other elif
-                # elif provider == "Anthropic":
-                #     brt = boto3.client(service_name='bedrock-runtime', region_name="us-east-1")
-                #     body = json.dumps({
-                #         'prompt': f'\n\nHuman: {question}\n\nAssistant:',
-                #         'max_tokens_to_sample': max_tokens,
-                #         'temperature': temperature,
-                #         # 'top_p': 1,
-                #     })
-          
-                #     response = brt.invoke_model_with_response_stream(
-                #         modelId=model, 
-                #         body=body
-                #     )
-                        
-                #     stream = response.get('body')
-                #     if stream:
-                #         for event in stream:
-                #             chunk = event.get('chunk')
-                #             if chunk:
-                #                 chunk_data = json.loads(chunk.get('bytes').decode())
-                #                 completion = chunk_data.get('completion')
-                #                 await send(
-                #                     {
-                #                         "type": "http.response.body",
-                #                         "body": completion.encode("utf-8"),
-                #                         "more_body": True,
-                #                     }
-                #                 )
-                #                 bt.logging.info(f"Streamed text: {completion}")
-                #     await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
 
                 else:
-                    raise ValueError(f"Unknown provider: {provider}")
+                    bt.logging.error(f"Unknown provider: {provider}")
 
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")

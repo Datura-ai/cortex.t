@@ -138,7 +138,7 @@ class StreamPrompting(bt.StreamingSynapse):
     )
 
     temperature: float = pydantic.Field(
-        0.0001,
+        default=0.0001,
         title="Temperature",
         description="Temperature for text generation. "
                     "This attribute is immutable and cannot be updated.",
@@ -146,6 +146,20 @@ class StreamPrompting(bt.StreamingSynapse):
 
     max_tokens: int = pydantic.Field(
         2048,
+        title="Max Tokens",
+        description="Max tokens for text generation. "
+                    "This attribute is immutable and cannot be updated.",
+    )
+
+    top_p: float = pydantic.Field(
+        0.001,
+        title="Max Tokens",
+        description="Max tokens for text generation. "
+                    "This attribute is immutable and cannot be updated.",
+    )
+
+    top_k: int = pydantic.Field(
+        1,
         title="Max Tokens",
         description="Max tokens for text generation. "
                     "This attribute is immutable and cannot be updated.",

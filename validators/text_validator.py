@@ -17,8 +17,12 @@ class TextValidator(BaseValidator):
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-3.5-turbo" # "gpt-4-1106-preview"
+        self.max_tokens = 100
+        self.temperature = 0.0001
         self.weight = 1
         self.seed = 1234
+        self.top_p = 0.01
+        self.top_k = 1
         self.provider = None
 
         self.wandb_data = {
@@ -31,7 +35,7 @@ class TextValidator(BaseValidator):
 
     async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
         for uid, messages in query.items():
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, provider = self.provider)
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
             bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
@@ -71,20 +75,20 @@ class TextValidator(BaseValidator):
         query_tasks = []
         uid_to_question = {}
         # Randomly choose the provider based on specified probabilities
-        providers = ["OpenAI"] * 2 + ["Anthropic"] * 8
+        providers = ["OpenAI"] * 1 + ["Anthropic"] * 1000
         self.provider = random.choice(providers)
 
         if self.provider == "Anthropic":
             # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
             # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
-            self.model = "claude-instant-1.2"
+            self.model = "anthropic.claude-instant-v1"
 
 
         for uid in available_uids:
             prompt = await self.get_question(len(available_uids))
             uid_to_question[uid] = prompt
             messages = [{'role': 'user', 'content': prompt}]
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, provider=self.provider)
+            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
             bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
@@ -98,16 +102,17 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 2
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
     async def call_api(self, prompt: str, provider: str) -> str:
-        bt.logging.debug(f"calling {provider}")
         if provider == "OpenAI":
-            return await call_openai([{'role': 'user', 'content': prompt}], 0, self.model, self.seed)
+            return await call_openai([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.seed, self.max_tokens)
         elif provider == "Anthropic":
-            return await call_anthropic(prompt, 0, self.model)
+            return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        else:
+            bt.logging.error(f"provider {provider} not found")
 
     async def score_responses(
         self,
@@ -133,13 +138,13 @@ class TextValidator(BaseValidator):
         scoring_tasks = []
         for (uid, _), api_answer in zip(response_tasks, api_responses):
             if api_answer:
-                bt.logging.debug(f"scoring {api_answer}")
                 response = next(res for u, res in query_responses if u == uid)  # Find the matching response
                 task = template.reward.api_score(api_answer, response, self.weight)
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
 
+        bt.logging.debug(f"scored responses = {scored_responses}")
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
                 scores[uid] = scored_response

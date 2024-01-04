@@ -4,12 +4,14 @@ import ast
 import asyncio
 import base64
 import json
+import boto3
 import math
 import os
 import random
 import re
 import traceback
 import anthropic
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from typing import Optional
 
 import bittensor as bt
@@ -21,6 +23,8 @@ import template
 from . import client
 
 list_update_lock = asyncio.Lock()
+import anthropic_bedrock
+from anthropic_bedrock import AsyncAnthropicBedrock
 
 
 def load_state_from_file(filename: str = "validators/state.json"):
@@ -312,12 +316,12 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
-        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"found double quotes in list, trying again")
 
     return None
 
 
-async def call_openai(messages, temperature, model, seed=1234) -> str:
+async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, top_p=1) -> str:
     for _ in range(2):
         bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
         try:
@@ -326,6 +330,8 @@ async def call_openai(messages, temperature, model, seed=1234) -> str:
                 messages=messages,
                 temperature=temperature,
                 seed=seed,
+                max_tokens=max_tokens,
+                top_p=top_p,
             )
             response = response.choices[0].message.content
             bt.logging.debug(f"validator response is {response}")
@@ -338,31 +344,51 @@ async def call_openai(messages, temperature, model, seed=1234) -> str:
     return None
 
 
-try:
-    anthropic = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-except KeyError as exc:
-    raise ValueError("Please set the ANTROPIC_API_KEY environment variable.") from exc
 
-async def call_anthropic(prompt, temperature, model, seed=1234) -> str:
+# anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-    for _ in range(2):
-        bt.logging.debug(f"Calling Anthropics. Model = {model}, Prompt = {prompt}")
-        try:
-            completion = anthropic.completions.create(
-                model=model,
-                max_tokens_to_sample=1000,
-                prompt=f"{prompt}",
-                temperature=temperature,
-            )
-            response = completion.completion
-            bt.logging.debug(f"Validator response is {response}")
-            return response
+# async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000) -> str:
 
-        except Exception as e:
-            bt.logging.error(f"Error when calling Anthropics: {traceback.format_exc()}")
-            await asyncio.sleep(0.5)
+#     for _ in range(2):
+#         bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}")
+#         try:
+#             completion = anthropic.completions.create(
+#                 model=model,
+#                 max_tokens_to_sample=max_tokens,
+#                 prompt=f"{HUMAN_PROMPT} {prompt}{AI_PROMPT}",
+#                 temperature=temperature,
+#                 top_p=top_p,
+#                 top_k=top_k,
+#             )
+#             response = completion.completion
+#             bt.logging.debug(f"Validator response is {response}")
+#             return response
 
-    return None
+#         except Exception as e:
+#             bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
+#             await asyncio.sleep(0.5)
+
+#     return None
+
+async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
+    try:
+        client = AsyncAnthropicBedrock()
+        bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}")
+        completion = await client.completions.create(
+            model=model,
+            max_tokens_to_sample=max_tokens,
+            temperature=temperature,
+            prompt=f"{anthropic_bedrock.HUMAN_PROMPT} {prompt} {anthropic_bedrock.AI_PROMPT}",
+            top_p=top_p,
+            top_k=top_k,
+        )
+        bt.logging.debug(f"Validator response is {completion.completion}")
+
+        return completion.completion
+    except Exception as e:
+        bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
+        await asyncio.sleep(0.5)
+
 
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
