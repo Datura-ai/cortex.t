@@ -9,8 +9,8 @@ import bittensor as bt
 from PIL import Image
 from io import BytesIO
 from template.utils import get_question
-from validators.base_validator import BaseValidator
-from template.protocol import ImageResponse, Provider
+from base_validator import BaseValidator
+from template.protocol import ImageResponse
 
 
 class ImageValidator(BaseValidator):
@@ -23,6 +23,8 @@ class ImageValidator(BaseValidator):
         self.size = "1792x1024"
         self.quality = "standard"
         self.style = "vivid"
+        self.steps = 30
+
         self.provider = None
 
         self.wandb_data = {
@@ -39,9 +41,9 @@ class ImageValidator(BaseValidator):
         providers = ["DallE"] * 2 + ["Stability"] * 8
         self.provider = random.choice(providers)
 
-        if chosen_provider = Stability:
-            seed = random.randint(1000, 100000)
-            self.model = ""
+        if chosen_provider == "Stability":
+            seed = random.randint(1000, 1000000)
+            self.model = "stable-diffusion-xl-1024-v1-0"
 
         # Query all images concurrently
         query_tasks = []

@@ -9,6 +9,7 @@ import os
 import random
 import re
 import traceback
+import anthropic
 from typing import Optional
 
 import bittensor as bt
@@ -338,7 +339,7 @@ async def call_openai(messages, temperature, model, seed=1234) -> str:
 
 
 try:
-    anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    anthropic = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 except KeyError as exc:
     raise ValueError("Please set the ANTROPIC_API_KEY environment variable.") from exc
 
@@ -350,7 +351,7 @@ async def call_anthropic(prompt, temperature, model, seed=1234) -> str:
             completion = anthropic.completions.create(
                 model=model,
                 max_tokens_to_sample=1000,
-                prompt=f"{HUMAN_PROMPT} {prompt}{AI_PROMPT}",
+                prompt=f"{prompt}",
                 temperature=temperature,
             )
             response = completion.completion

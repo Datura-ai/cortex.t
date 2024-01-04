@@ -9,6 +9,7 @@ import pathlib
 import threading
 import time
 import traceback
+import anthropic
 from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
@@ -30,6 +31,13 @@ from starlette.types import Send
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+api_key = os.environ.get("ANTHROPIC_API_KEY")
+if not api_key:
+    raise ValueError("API key not found in environment variables")
+
+anthropic_client = anthropic.Anthropic()
+anthropic_client.api_key = api_key
 
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
@@ -115,7 +123,7 @@ class StreamMiner(ABC):
         self.lock = asyncio.Lock()
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        thread.start()
+        # thread.start()
 
     @abstractmethod
     def config(self) -> bt.config:
@@ -506,7 +514,7 @@ class StreamingTemplateMiner(StreamMiner):
                 bt.logging.info(synapse)
                 bt.logging.info(f"question is {messages} with model {model}, seed: {seed}")
 
-                if provider == "openai":
+                if provider == "OpenAI":
                     response = await client.chat.completions.create(
                         model=model,
                         messages=messages,
@@ -544,10 +552,10 @@ class StreamingTemplateMiner(StreamMiner):
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 # for official claude users, comment out the other elif
-                elif provider == "anthropic":
-                    with client.beta.messages.stream(
+                elif provider == "Anthropic":
+                    with anthropic_client.beta.messages.stream(
                         max_tokens=max_tokens,
-                        messages=[{"role": "user", "content": messages}],
+                        messages=messages,
                         model=model,
                         temperature=temperature,
                     ) as stream:
@@ -561,37 +569,37 @@ class StreamingTemplateMiner(StreamMiner):
                             )
                             bt.logging.info(f"Streamed text: {text}")
 
-                # For amazon bedrock users, comment out the other elif
-                elif provider == "anthropic":
-                    brt = boto3.client(service_name='bedrock-runtime', region_name="us-east-1")
-                    body = json.dumps({
-                        'prompt': f'\n\nHuman: {question}\n\nAssistant:',
-                        'max_tokens_to_sample': max_tokens,
-                        'temperature': temperature,
-                        # 'top_p': 1,
-                    })
+                # # For amazon bedrock users, comment out the other elif
+                # elif provider == "Anthropic":
+                #     brt = boto3.client(service_name='bedrock-runtime', region_name="us-east-1")
+                #     body = json.dumps({
+                #         'prompt': f'\n\nHuman: {question}\n\nAssistant:',
+                #         'max_tokens_to_sample': max_tokens,
+                #         'temperature': temperature,
+                #         # 'top_p': 1,
+                #     })
           
-                    response = brt.invoke_model_with_response_stream(
-                        modelId=model, 
-                        body=body
-                    )
+                #     response = brt.invoke_model_with_response_stream(
+                #         modelId=model, 
+                #         body=body
+                #     )
                         
-                    stream = response.get('body')
-                    if stream:
-                        for event in stream:
-                            chunk = event.get('chunk')
-                            if chunk:
-                                chunk_data = json.loads(chunk.get('bytes').decode())
-                                completion = chunk_data.get('completion')
-                                await send(
-                                    {
-                                        "type": "http.response.body",
-                                        "body": completion.encode("utf-8"),
-                                        "more_body": True,
-                                    }
-                                )
-                                bt.logging.info(f"Streamed text: {completion}")
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                #     stream = response.get('body')
+                #     if stream:
+                #         for event in stream:
+                #             chunk = event.get('chunk')
+                #             if chunk:
+                #                 chunk_data = json.loads(chunk.get('bytes').decode())
+                #                 completion = chunk_data.get('completion')
+                #                 await send(
+                #                     {
+                #                         "type": "http.response.body",
+                #                         "body": completion.encode("utf-8"),
+                #                         "more_body": True,
+                #                     }
+                #                 )
+                #                 bt.logging.info(f"Streamed text: {completion}")
+                #     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
                 else:
                     raise ValueError(f"Unknown provider: {provider}")

@@ -11,7 +11,7 @@ import wandb
 from bittensor.btlogging import logger
 
 from template.protocol import IsAlive
-from validators.text_validator import TextValidator
+from text_validator import TextValidator
 
 iterations_per_set_weights = 12
 scoring_organic_timeout = 60

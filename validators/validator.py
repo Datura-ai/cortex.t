@@ -16,15 +16,16 @@ import wandb
 from aiohttp import web
 from aiohttp.web_response import Response
 from bittensor.btlogging import logger
-from validators.image_validator import ImageValidator
-from validators.text_validator import TextValidator, TestTextValidator
+from image_validator import ImageValidator
+from text_validator import TextValidator, TestTextValidator
+from base_validator import BaseValidator
 from envparse import env
 
 import template
 from template import utils
 import sys
 
-from validators.weight_setter import WeightSetter, TestWeightSetter
+from weight_setter import WeightSetter, TestWeightSetter
 
 text_vali = None
 image_vali = None

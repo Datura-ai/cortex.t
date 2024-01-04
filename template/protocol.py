@@ -51,6 +51,12 @@ class ImageResponse(bt.Synapse):
         description="The seed that which to generate the image with"
     )
 
+    steps: int = pydantic.Field(
+        ...,
+        title="Seed",
+        description="The steps to take in generating the image"
+    )
+
     model: str = pydantic.Field(
         ...,
         title="Model",

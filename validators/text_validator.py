@@ -4,7 +4,7 @@ from typing import AsyncIterator, Tuple
 
 import bittensor as bt
 import torch
-from validators.base_validator import BaseValidator
+from base_validator import BaseValidator
 
 import template.reward
 from template.protocol import StreamPrompting
@@ -16,7 +16,7 @@ class TextValidator(BaseValidator):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
-        self.model = "gpt-4-1106-preview"
+        self.model =  "gpt-3.5-turbo" # "gpt-4-1106-preview"
         self.weight = 1
         self.seed = 1234
         self.provider = None
@@ -74,6 +74,12 @@ class TextValidator(BaseValidator):
         providers = ["OpenAI"] * 2 + ["Anthropic"] * 8
         self.provider = random.choice(providers)
 
+        if self.provider == "Anthropic":
+            # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+            # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
+            self.model = "claude-instant-1.2"
+
+
         for uid in available_uids:
             prompt = await self.get_question(len(available_uids))
             uid_to_question[uid] = prompt
@@ -92,11 +98,12 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 3
+        will_score_all = random_number < 1 / 2
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
     async def call_api(self, prompt: str, provider: str) -> str:
+        bt.logging.debug(f"calling {provider}")
         if provider == "OpenAI":
             return await call_openai([{'role': 'user', 'content': prompt}], 0, self.model, self.seed)
         elif provider == "Anthropic":
@@ -119,13 +126,14 @@ class TextValidator(BaseValidator):
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
                 prompt = uid_to_question[uid]
-                response_tasks.append((uid, self.call_api(prompt)))
+                response_tasks.append((uid, self.call_api(prompt, self.provider)))
 
         api_responses = await asyncio.gather(*[task for _, task in response_tasks])
 
         scoring_tasks = []
         for (uid, _), api_answer in zip(response_tasks, api_responses):
             if api_answer:
+                bt.logging.debug(f"scoring {api_answer}")
                 response = next(res for u, res in query_responses if u == uid)  # Find the matching response
                 task = template.reward.api_score(api_answer, response, self.weight)
                 scoring_tasks.append((uid, task))

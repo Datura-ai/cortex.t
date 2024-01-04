@@ -55,11 +55,12 @@ def calculate_text_similarity(text1: str, text2: str):
 
     return similarity
 
-async def openai_score(openai_answer: str, response: str, weight: float) -> float:
+async def api_score(api_answer: str, response: str, weight: float) -> float:
+    bt.logging.debug("entered api_score")
     loop = asyncio.get_running_loop()
-    similarity = await loop.run_in_executor(None, calculate_text_similarity, openai_answer, response)
+    similarity = await loop.run_in_executor(None, calculate_text_similarity, api_answer, response)
     words_in_response = len(response.split())
-    words_in_openai = len(openai_answer.split())
+    words_in_api = len(api_answer.split())
     # linear similarity requirement based on length of response
     min_similarity = max(1 - 0.001 * (words_in_response - 1), 0.75)
     bt.logging.debug(
