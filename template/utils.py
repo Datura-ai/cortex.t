@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import io
 import ast
 import asyncio
 import base64
 import json
 import boto3
+import base64
 import math
 import os
 import random
 import re
+import requests
+from PIL import Image
 import traceback
 import anthropic
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from typing import Optional
+from stability_sdk import client as stability_client
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 
 import bittensor as bt
 import requests
@@ -26,14 +32,21 @@ list_update_lock = asyncio.Lock()
 import anthropic_bedrock
 from anthropic_bedrock import AsyncAnthropicBedrock
 
+# Set up the API connection
+stability_api = stability_client.StabilityInference(
+    key=os.environ['STABILITY_KEY'],
+    verbose=True,
+    engine="stable-diffusion-xl-1024-v1-0"
+)
 
-def load_state_from_file(filename: str = "validators/state.json"):
+
+def load_state_from_file(filename: str = "state.json"):
     if os.path.exists(filename):
         with open(filename, "r") as file:
-            bt.logging.info("loaded previous state")
+            bt.logging.debug("loaded previous state")
             return json.load(file)
     else:
-        bt.logging.info("initialized new global state")
+        bt.logging.debug("initialized new global state")
         return {
             "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
@@ -302,7 +315,7 @@ def extract_python_list(text: str):
             return convert_to_list(text)
 
         text = preprocess_string(text)
-        bt.logging.debug(f"Postprocessed text = {text}")
+        bt.logging.trace(f"Postprocessed text = {text}")
 
         # Extracting list enclosed in square brackets
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text, re.DOTALL)
@@ -333,7 +346,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
                 top_p=top_p,
             )
             response = response.choices[0].message.content
-            bt.logging.debug(f"validator response is {response}")
+            bt.logging.trace(f"validator response is {response}")
             return response
 
         except Exception as e:
@@ -381,12 +394,33 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
             top_p=top_p,
             top_k=top_k,
         )
-        bt.logging.debug(f"Validator response is {completion.completion}")
+        bt.logging.trace(f"Validator response is {completion.completion}")
 
         return completion.completion
     except Exception as e:
         bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
+
+async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
+    bt.logging.debug(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
+
+    # Run the synchronous stability_api.generate function in a separate thread
+    meta = await asyncio.to_thread(
+        stability_api.generate,
+        prompt=prompt,
+        seed=seed,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        width=width,
+        height=height,
+        samples=samples,
+        # sampler=sampler,
+    )
+
+    # Convert image binary data to base64
+    b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
+
+    return b64s
 
 
 

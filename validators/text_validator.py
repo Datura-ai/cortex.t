@@ -75,7 +75,7 @@ class TextValidator(BaseValidator):
         query_tasks = []
         uid_to_question = {}
         # Randomly choose the provider based on specified probabilities
-        providers = ["OpenAI"] * 9 + ["Anthropic"] * 1
+        providers = ["OpenAI"] * 5 + ["Anthropic"] * 5
         self.provider = random.choice(providers)
 
         if self.provider == "Anthropic":
@@ -103,7 +103,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 5
+        will_score_all = random_number < 1 / 2
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 

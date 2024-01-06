@@ -34,12 +34,12 @@ import requests
 import numpy as np
 from numpy.linalg import norm
 import bittensor as bt
+from template import utils
 from PIL import Image
 from scipy.spatial.distance import cosine
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 from transformers import CLIPProcessor, CLIPModel
-
 
 # ==== TEXT ====
 
@@ -151,7 +151,7 @@ def calculate_image_similarity(image, description, max_length: int = 77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def image_score(uid, url, desired_size, description, weight, similarity_threshold=0.23) -> float:
+async def dalle_score(uid, url, desired_size, description, weight, similarity_threshold=0.23) -> float:
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
@@ -186,6 +186,20 @@ async def image_score(uid, url, desired_size, description, weight, similarity_th
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
+
+
+
+# IMAGES ---- DETERMINISTIC
+
+async def deterministic_score(uid: int, syn, weight: float):
+    vali_b64s = await utils.call_stability(syn.messages, syn.seed, syn.steps, syn.cfg_scale, syn.width, syn.height, syn.samples, syn.sampler)
+
+    for miner_b64, vali_b64 in zip(syn.completion["b64s"], vali_b64s):
+        if miner_b64[:50] != vali_b64[:50]:
+            return 0
+
+    return weight
+
 
 
 # ==== Embeddings =====
