@@ -10,7 +10,7 @@ import torch
 import wandb
 
 from cortex_t.template.protocol import IsAlive
-from cortex_t.validators import base_validator, text_validator
+from cortex_t.validators import base_validator, text_validator, image_validator
 from cortex_t.validators.embeddings_validator import EmbeddingsValidator
 from cortex_t.validators.image_validator import ImageValidator
 from cortex_t.validators.text_validator import TextValidator

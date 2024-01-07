@@ -43,7 +43,7 @@ class BaseValidator(ABC):
     @abstractmethod
     async def score_responses(
         self,
-        query_responses: list[tuple[int, str]],  # [(uid, response)]
+        query_responses,
         uid_to_question: dict[int, str],  # uid -> prompt
         metagraph: bt.metagraph,
         provider: Provider,

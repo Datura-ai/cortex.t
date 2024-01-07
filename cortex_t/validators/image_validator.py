@@ -10,9 +10,32 @@ import bittensor as bt
 
 from PIL import Image
 from io import BytesIO
+
+from cortex_t.template import utils
 from cortex_t.template.utils import get_question
+from cortex_t.validators import base_validator
 from cortex_t.validators.base_validator import BaseValidator
 from cortex_t.template.protocol import ImageResponse
+
+
+class MinerOffline(Exception):
+    pass
+
+
+class Provider(base_validator.Provider):
+    openai = 'openai'
+    stability = 'stability'
+
+
+provider_to_model = {
+    Provider.openai: "dall-e-2",
+    Provider.stability: "stable-diffusion-xl-1024-v1-0",
+}
+
+provider_to_synapse_provider = {
+    Provider.openai: "OpenAI",
+    Provider.stability: "Stability",
+}
 
 
 class ImageValidator(BaseValidator):
@@ -39,28 +62,50 @@ class ImageValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def start_query(self, available_uids, metagraph):
+    def stability_seed(self):
+        return random.randint(1000, 1000000)
+
+    def cfg_scale(self):
+        return 8.0
+
+    def samples(self):
+        return 1
+
+    def sampler(self):
+        return ""
+
+    async def start_query(self, available_uids, metagraph, provider: Provider):
         try:
             query_tasks = []
             uid_to_question = {}
 
-            # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 5 + ["Stability"] * 5
-            self.provider = random.choice(providers)
-
-            if self.provider == "Stability":
-                self.seed = random.randint(1000, 1000000)
-                self.model = "stable-diffusion-xl-1024-v1-0"
-
-            elif self.provider == "OpenAI":
-                self.model = "dall-e-2"
+            if provider in (Provider.openai, Provider.stability):
+                model = provider_to_model[provider]
+                synapse_provider = provider_to_synapse_provider[provider]
+            else:
+                raise NotImplementedError(f'Unsupported {provider=}')
 
             # Query all images concurrently
             for uid in available_uids:
                 messages = await get_question("images", len(available_uids))
                 uid_to_question[uid] = messages  # Store messages for each UID
 
-                syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
+                syn = ImageResponse(
+                    messages=messages,
+                    provider=synapse_provider,
+                    model=model,
+                    seed=self.stability_seed(),
+                    steps=self.steps,
+                    cfg_scale=self.cfg_scale(),
+                    width=self.width,
+                    height=self.height,
+                    samples=self.samples(),
+                    sampler=self.sampler(),
+
+                    size=self.size,
+                    quality=self.quality,
+                    style=self.style,
+                )
                 bt.logging.info(f"uid = {uid}, syn = {syn}")
 
                 # bt.logging.info(
@@ -102,7 +147,13 @@ class ImageValidator(BaseValidator):
         except Exception as e:
             bt.logging.error(f"Error scoring image for UID {uid}: {e}")
 
-    async def score_responses(self, query_responses, uid_to_question, metagraph):
+    async def score_responses(
+            self,
+            query_responses: list[tuple[int, list[ImageResponse]]],
+            uid_to_question: dict[int, str],  # uid -> prompt
+            metagraph: bt.metagraph,
+            provider: Provider,
+    ):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         download_tasks = []
@@ -118,24 +169,26 @@ class ImageValidator(BaseValidator):
                     scores[uid] = uid_scores_dict[uid] = 0
                     continue
 
-                if syn.provider in ["OpenAI", "Stability"]:
+                if provider == Provider.openai:
+                    image_url = completion["url"]
+                    bt.logging.info(f"UID {uid} response = {image_url}")
+                    download_tasks.append((uid, asyncio.create_task(self.download_image(image_url, session))))
+                elif provider == Provider.stability:
+                    b64s = completion["b64s"]
+                    bt.logging.info(f"UID {uid} responded with an image")
+                    for b64 in b64s:
+                        download_tasks.append((uid, asyncio.create_task(self.b64_to_image(b64))))
+                else:
+                    raise NotImplementedError(f'Unsupported {provider=}')
+
+                if will_score_all:
                     if syn.provider == "OpenAI":
-                        image_url = completion["url"]
-                        bt.logging.info(f"UID {uid} response = {image_url}")
-                        download_tasks.append((uid, asyncio.create_task(self.download_image(image_url, session))))
-                    else:  # Stability
-                        b64s = completion["b64s"]
-                        bt.logging.info(f"UID {uid} responded with an image")
-                        for b64 in b64s:
-                            download_tasks.append((uid, asyncio.create_task(self.b64_to_image(b64))))
+                        score_task = cortex_t.template.reward.dalle_score(uid, image_url, self.size, syn.messages,
+                                                                          self.weight)
+                    else:
+                        score_task = cortex_t.template.reward.deterministic_score(uid, syn, self.weight)
 
-                    if will_score_all:
-                        if syn.provider == "OpenAI":
-                            score_task = cortex_t.template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
-                        else:
-                            score_task = cortex_t.template.reward.deterministic_score(uid, syn, self.weight)
-
-                        score_tasks.append((uid, asyncio.create_task(score_task)))
+                    score_tasks.append((uid, asyncio.create_task(score_task)))
 
             await asyncio.gather(*(dt[1] for dt in download_tasks), *(st[1] for st in score_tasks))
 
@@ -150,3 +203,55 @@ class ImageValidator(BaseValidator):
 
         return scores, uid_scores_dict, self.wandb_data
 
+    async def organic(self, metagraph, prompt: str, miner_uid: int, provider: Provider):
+        # TODO this is not finished
+        if provider in (Provider.openai, Provider.stability):
+            model = provider_to_model[provider]
+            synapse_provider = provider_to_synapse_provider[provider]
+        else:
+            raise NotImplementedError(f'Unsupported {provider=}')
+
+        syn = ImageResponse(
+            messages=prompt,
+            provider=synapse_provider,
+            model=model,
+            seed=self.stability_seed(),
+            steps=self.steps,
+            cfg_scale=self.cfg_scale(),
+            width=self.width,
+            height=self.height,
+            samples=self.samples(),
+            sampler=self.sampler(),
+
+            size=self.size,
+            quality=self.quality,
+            style=self.style,
+        )
+
+
+        response = await self.query_miner(metagraph, miner_uid, syn)
+
+        resp_syn = response[1][0]
+        completion = resp_syn.completion
+        if completion is None:
+            raise MinerOffline()
+        if provider == Provider.openai:
+            image_url = completion["url"]
+            download_task = self.download_image(image_url, session)
+        elif provider == Provider.stability:
+            b64s = completion["b64s"]
+            download_task = self.b64_to_image(b64s[0])
+        asyncio.create_task()
+
+
+    async def call_stability(self, prompt: str):
+        return await utils.call_stability(
+            prompt=prompt,
+            seed=self.stability_seed(),
+            steps=self.steps,
+            cfg_scale=self.cfg_scale(),
+            width=self.width,
+            height=self.height,
+            samples=self.samples(),
+            sampler=self.sampler(),
+        )
