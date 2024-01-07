@@ -8,6 +8,7 @@ import pytest
 import torch
 
 from cortex_t.validators import weight_setter
+from cortex_t.validators.text_validator import TestTextValidator
 from cortex_t.validators.validator import main, validator_app
 
 hotkeys = os.environ.get('CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS', '').split(',')
@@ -66,7 +67,7 @@ The yellowish or amber hue in lightning might be caused by the scattering of lig
 """
 
 
-def feed_mock_data(text_validator):
+def feed_mock_data(text_validator: TestTextValidator):
     text_validator.feed_mock_data(
         {
             synthetic_question + ' 1': [synthetic_resp1, synthetic_resp2],
@@ -78,6 +79,7 @@ def feed_mock_data(text_validator):
             organic_question_1: [organic_answer_1, organic_answer_2],
             organic_question_2: [organic_answer_2, organic_answer_3],
         },
+        {},
         [synthetic_question + f' {i}' for i in range(1, 7)]
     )
 
@@ -122,6 +124,30 @@ async def test_synthetic_and_organic(aiohttp_client):
 
         client = await aiohttp_client(validator_app)
 
+        resp = await client.post(
+            '/v2/text-validator/',
+            headers={'Authorization': 'token hello'},
+            json={
+                'content': organic_question_1,
+                'miner_uid': 2,
+                'provider': 'openai',
+            },
+        )
+        resp_content = (await resp.content.read()).decode()
+        assert resp_content == organic_answer_1
+
+        resp = await client.post(
+            '/v2/text-validator/',
+            headers={'Authorization': 'token hello'},
+            json={
+                'content': organic_question_2,
+                'miner_uid': 3,
+                'provider': 'openai',
+            },
+        )
+        resp_content = (await resp.content.read()).decode()
+        assert resp_content == organic_answer_2
+
         resp = await client.post('/text-validator/', headers={'access-key': 'hello'}, json={'4': organic_question_1})
         resp_content = (await resp.content.read()).decode()
         assert resp_content == organic_answer_1
@@ -132,9 +158,12 @@ async def test_synthetic_and_organic(aiohttp_client):
 
         await assert_weights_update(
             set_weights_mock,
-            torch.tensor([0.3333333432674408, 0.111111119389534, 0.111111119389534, 0.111111119389534,
-                          0.1388888955116272,  # this one was asked a question and answered correctly
-                          0.111111119389534,  # this one was asked a question and answered incorrectly
+            torch.tensor([0.3333333432674408,
+                          0.111111119389534,
+                          0.1388888955116272,  # this one was asked a question (via v1) and answered incorrectly
+                          0.111111119389534,  # this one was asked a question (via v2) and answered incorrectly
+                          0.1388888955116272,  # this one was asked a question (via v1) and answered correctly
+                          0.111111119389534,  # this one was asked a question (via v1) and answered incorrectly
                           0.3333333432674408,
                           ])
         )

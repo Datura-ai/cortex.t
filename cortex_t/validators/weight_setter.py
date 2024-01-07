@@ -10,6 +10,9 @@ import torch
 import wandb
 
 from cortex_t.template.protocol import IsAlive
+from cortex_t.validators import base_validator, text_validator
+from cortex_t.validators.embeddings_validator import EmbeddingsValidator
+from cortex_t.validators.image_validator import ImageValidator
 from cortex_t.validators.text_validator import TextValidator
 
 iterations_per_set_weights = 12
@@ -27,7 +30,17 @@ async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        dendrite,
+        subtensor,
+        config,
+        wallet,
+        text_vali: TextValidator,
+        image_vali: ImageValidator,
+        embed_vali: EmbeddingsValidator,
+    ):
         self.loop = loop
         self.dendrite = dendrite
         self.subtensor = subtensor
@@ -80,7 +93,8 @@ class WeightSetter:
 
                 available_uids = await self.get_available_uids()
                 selected_validator = self.select_validator(steps_passed)
-                scores, _ = await self.process_modality(selected_validator, available_uids)
+                selected_provider = self.select_provider(selected_validator, steps_passed)
+                scores, _ = await self.process_modality(selected_validator, available_uids, selected_provider)
                 self.total_scores += scores
 
                 steps_since_last_update = steps_passed % iterations_per_set_weights
@@ -96,6 +110,17 @@ class WeightSetter:
 
     def select_validator(self, steps_passed):
         return self.image_vali if steps_passed % 5 in (0, 1, 2) else self.text_vali
+
+    def select_provider(
+        self,
+        selected_validator: TextValidator | ImageValidator | EmbeddingsValidator,
+        steps_passed,
+    ) -> base_validator.Provider:
+        if selected_validator == self.text_vali:
+            return random.choice([text_validator.Provider.openai, text_validator.Provider.anthropic])
+        if selected_validator == self.image_vali:
+            return random.choice([image_validator.Provider.openai, image_validator.Provider.stability])
+        raise NotImplementedError(f'Unsupported {selected_validator=}')
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
@@ -127,10 +152,19 @@ class WeightSetter:
         random.shuffle(list_)
         return list_
 
-    async def process_modality(self, selected_validator, available_uids):
+    async def process_modality(
+        self,
+        selected_validator: TextValidator | ImageValidator | EmbeddingsValidator,
+        available_uids,
+        provider: base_validator.Provider,
+    ):
         uid_list = self.shuffled(list(available_uids.keys()))
         bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-        scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(uid_list, self.metagraph)
+        scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(
+            uid_list,
+            self.metagraph,
+            provider=provider,
+        )
         if self.config.wandb_on:
             wandb.log(wandb_data)
             bt.logging.success("wandb_log successful")
@@ -150,8 +184,8 @@ class WeightSetter:
             normalized_scores = torch.zeros_like(avg_scores)
 
         bt.logging.info(f"normalized_scores = {normalized_scores}")
-        # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator class
-        # Weights get normalized anyways in weight_utils
+        # We can't set weights with normalized scores because that disrupts the weighting assigned to each validator
+        # class. Weights get normalized anyway in weight_utils
         await self.set_weights(avg_scores)
 
     async def set_weights(self, scores):
@@ -178,6 +212,7 @@ class WeightSetter:
         self,
         uid_to_response: dict[int, str],  # [(uid, response)]
         messages_dict: dict[int, str],
+        provider: base_validator.Provider,
     ):
         self.organic_scoring_tasks.add(asyncio.create_task(
             wait_for_coro_with_limit(
@@ -185,6 +220,7 @@ class WeightSetter:
                     query_responses=list(uid_to_response.items()),
                     uid_to_question=messages_dict,
                     metagraph=self.metagraph,
+                    provider=provider,
                 ),
                 scoring_organic_timeout
             )
@@ -194,6 +230,13 @@ class WeightSetter:
 class TestWeightSetter(WeightSetter):
     def select_validator(self, steps_passed):
         return self.text_vali
+
+    def select_provider(
+        self,
+        selected_validator: TextValidator | ImageValidator | EmbeddingsValidator,
+        steps_passed,
+    ) -> base_validator.Provider:
+        return text_validator.Provider.openai
 
     async def get_available_uids(self):
         return {i: None for i in range(len(self.metagraph.hotkeys))}

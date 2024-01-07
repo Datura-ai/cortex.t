@@ -1,6 +1,12 @@
+import enum
 from abc import ABC, abstractmethod
 
 import bittensor as bt
+import torch
+
+
+class Provider(enum.Enum):
+    pass
 
 
 class BaseValidator(ABC):
@@ -26,15 +32,26 @@ class BaseValidator(ABC):
         return uid, responses
 
     @abstractmethod
-    async def start_query(self, available_uids) -> tuple[list, dict]:
+    async def start_query(
+        self,
+        available_uids,
+        metagraph,
+        provider: Provider,
+    ) -> tuple[list, dict]:
         ...
 
     @abstractmethod
-    async def score_responses(self, responses):
+    async def score_responses(
+        self,
+        query_responses: list[tuple[int, str]],  # [(uid, response)]
+        uid_to_question: dict[int, str],  # uid -> prompt
+        metagraph: bt.metagraph,
+        provider: Provider,
+    ) -> tuple[torch.Tensor, dict[int, float], dict]:
         ...
 
-    async def get_and_score(self, available_uids, metagraph):
+    async def get_and_score(self, available_uids, metagraph, provider: Provider):
         bt.logging.info("starting query")
-        query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
+        query_responses, uid_to_question = await self.start_query(available_uids, metagraph, provider)
         bt.logging.info("scoring query")
-        return await self.score_responses(query_responses, uid_to_question, metagraph)
+        return await self.score_responses(query_responses, uid_to_question, metagraph, provider)

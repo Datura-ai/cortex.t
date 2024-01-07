@@ -1,12 +1,16 @@
 import argparse
 import asyncio
+import json
+import re
 import traceback
 from pathlib import Path
 
 import bittensor as bt
+import pydantic
 import wandb
 from aiohttp import web
 from aiohttp.web_response import Response
+from cortex_t.validators import image_validator, text_validator
 from cortex_t.validators.image_validator import ImageValidator
 from cortex_t.validators.embeddings_validator import EmbeddingsValidator
 from cortex_t.validators.text_validator import TextValidator, TestTextValidator
@@ -18,15 +22,12 @@ import sys
 
 from cortex_t.validators.weight_setter import WeightSetter, TestWeightSetter
 
-text_vali = None
-image_vali = None
-embed_vali = None
+text_vali: TextValidator | None = None
+image_vali: ImageValidator | None = None
+embed_vali: EmbeddingsValidator | None = None
 metagraph = None
 wandb_runs = {}
-# organic requests are scored, the tasks are stored in this queue
-# for later being consumed by `query_synapse` cycle:
-organic_scoring_tasks = set()
-EXPECTED_ACCESS_KEY = env('EXPECTED_ACCESS_KEY', default='hello')
+EXPECTED_ACCESS_KEYS = env('EXPECTED_ACCESS_KEY', default='hello').split(',')
 
 
 def get_config() -> bt.config:
@@ -106,9 +107,11 @@ def initialize_validators(vali_config, test=False):
 
 
 async def process_text_validator(request: web.Request):
+    # TODO: this is deprecated in favor process_text_validator_v2
+
     # Check access key
     access_key = request.headers.get("access-key")
-    if access_key != EXPECTED_ACCESS_KEY:
+    if access_key not in EXPECTED_ACCESS_KEYS:
         return Response(status=401, reason="Invalid access key")
 
     try:
@@ -121,15 +124,87 @@ async def process_text_validator(request: web.Request):
 
     uid_to_response = dict.fromkeys(messages_dict, "")
     try:
-        async for uid, content in text_vali.organic(validator_app.weight_setter.metagraph, messages_dict):
+        async for uid, content in text_vali.organic(
+            validator_app.weight_setter.metagraph,
+            messages_dict,
+            text_validator.Provider.openai,
+        ):
             uid_to_response[uid] += content
             await response.write(content.encode())
         validator_app.weight_setter.register_text_validator_organic_query(
-            uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
+            uid_to_response,
+            {k: v[0]['content'] for k, v in messages_dict.items()},
+            text_validator.Provider.openai,
         )
     except Exception:
         bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
         await response.write(b'<<internal error>>')
+
+    return response
+
+
+auth_regex = re.compile('token (?P<key>.+)')
+
+
+def is_auhtorized(request: web.Request) -> bool:
+    if not (authorization := request.headers.get("Authorization")):
+        return False
+
+    if not (match := auth_regex.match(authorization)):
+        return False
+
+    if match.group('key') not in EXPECTED_ACCESS_KEYS:
+        return False
+
+    return True
+
+
+class TextValidatorRequestPayload(pydantic.BaseModel):
+    provider: text_validator.Provider
+    content: str
+    miner_uid: int
+
+
+async def write_error_message(response: web.StreamResponse, msg: str):
+    await response.write(f'\n--ERROR-- {msg}'.encode())
+
+
+async def process_text_validator_v2(request: web.Request):
+    # Check access key
+    if not is_auhtorized(request):
+        return Response(status=401, reason="Invalid access key")
+
+    try:
+        payload: TextValidatorRequestPayload = TextValidatorRequestPayload.parse_raw(await request.text())
+    except pydantic.ValidationError as e:
+        return Response(status=400, reason=json.dumps(e.json()))
+
+    messages_dict = {payload.miner_uid: [{'role': 'user', 'content': payload.content}]}
+
+    text_response = ""
+
+    response = web.StreamResponse()
+    await response.prepare(request)
+
+    try:
+        async for uid, content in text_vali.organic(
+            validator_app.weight_setter.metagraph,
+            messages_dict,
+            payload.provider,
+        ):
+            text_response += content
+            await response.write(content.encode())
+        if text_response:
+            validator_app.weight_setter.register_text_validator_organic_query(
+                {payload.miner_uid: text_response},
+                {k: v[0]['content'] for k, v in messages_dict.items()},
+                payload.provider,
+            )
+    except Exception:
+        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
+        await write_error_message(response, 'INTERNAL')
+    if not text_response:
+        await write_error_message(response, 'MINER OFFLINE')
 
     return response
 
@@ -142,6 +217,7 @@ class ValidatorApplication(web.Application):
 
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
+validator_app.add_routes([web.post('/v2/text-validator/', process_text_validator_v2)])
 
 
 def main(run_aio_app=True, test=False) -> None:
