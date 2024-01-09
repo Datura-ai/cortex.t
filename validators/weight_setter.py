@@ -87,6 +87,7 @@ class WeightSetter:
                 steps_since_last_update = steps_passed % iterations_per_set_weights
 
                 if steps_since_last_update == iterations_per_set_weights - 1:
+                    # delete wandb logs
                     await self.update_weights(steps_passed)
                 else:
                     bt.logging.info(
