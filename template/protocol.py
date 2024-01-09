@@ -36,7 +36,7 @@ class ImageResponse(bt.Synapse):
     )
 
     provider: str = pydantic.Field(
-        default="DallE",
+        default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response."
     )
