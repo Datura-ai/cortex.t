@@ -5,21 +5,28 @@ import asyncio
 import copy
 import json
 import os
+import io
+import base64
 import boto3
 import pathlib
 import threading
 import time
+import requests
 import traceback
+import requests
 import anthropic
 from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
 from typing import Tuple
+from stability_sdk import client
 
 import bittensor as bt
 import wandb
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from PIL import Image
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
@@ -28,6 +35,16 @@ from template.utils import get_version
 import sys
 
 from starlette.types import Send
+
+OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
+if not OpenAI.api_key:
+    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+stability_api = client.StabilityInference(
+    key=os.environ['STABILITY_KEY'],
+    verbose=True,
+    engine="stable-diffusion-xl-1024-v1-0"
+)
 
 
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
