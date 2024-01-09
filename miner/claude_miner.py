@@ -55,7 +55,6 @@ client = AsyncOpenAI(timeout=60.0)
 valid_hotkeys = []
 
 
-
 class StreamMiner(ABC):
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
         bt.logging.info("starting stream miner")
@@ -390,14 +389,19 @@ class StreamingTemplateMiner(StreamMiner):
             model = synapse.model
             messages = synapse.messages
             size = synapse.size
-            width, height = self.size.split('x')
-            width = int(width)
-            height = int(height)
+            width = synapse.width
+            height = synapse.height
             quality = synapse.quality
             style = synapse.style
             seed = synapse.seed
             steps = synapse.steps
             image_revised_prompt = None
+            cfg_scale = synapse.cfg_scale
+            sampler = synapse.sampler
+            samples = synapse.samples
+            image_data = {}
+
+            bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
                 meta = await client.images.generate(
@@ -409,44 +413,36 @@ class StreamingTemplateMiner(StreamMiner):
                     )
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
+                image_data["url"] = image_url
+                image_data["image_revised_prompt"] = image_revised_prompt
+                bt.logging.info(f"returning image response of {image_url}")
 
             elif provider == "Stability":
+                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
+
                 meta = stability_api.generate(
                     prompt=messages,
-                    seed=steps,
+                    seed=seed,
                     steps=steps,
-                    cfg_scale=8.0,
+                    cfg_scale=cfg_scale,
                     width=width,
                     height=height,
-                    samples=1,
-                    sampler=generation.SAMPLER_K_DPMPP_2M,
+                    samples=samples,
+                    # sampler=sampler
                 )
                 # Process and upload the image
-                for artifact in meta.artifacts:
-                    if artifact.finish_reason == generation.FILTER:
-                        bt.logging.error("Safety filters activated, prompt could not be processed.")
-                    elif artifact.type == generation.ARTIFACT_IMAGE:
-                        img = Image.open(io.BytesIO(artifact.binary))
-                        img_buffer = io.BytesIO()
-                        img.save(img_buffer, format="PNG")
-                        img_buffer.seek(0)
-                        # Upload to file.io
-                        response = requests.post('https://file.io', files={'file': img_buffer})
-                        if response.status_code == 200:
-                            image_url = response.json()['link']
-                        else:
-                            raise Exception("Failed to upload the image.")
+                b64s = []
+                for image in meta:
+                    for artifact in image.artifacts:
+                        b64s.append(base64.b64encode(artifact.binary).decode())
+
+                image_data["b64s"] = b64s
+                bt.logging.info(f"returning image response to {messages}")
 
             else:
                 bt.logging.error(f"Unknown provider: {provider}")
 
-            image_data = {
-                "url": image_url,
-                "revised_prompt": image_revised_prompt,
-            }
-
             synapse.completion = image_data
-            bt.logging.info(f"returning image response of {synapse.completion}")
             return synapse
 
         except Exception as exc:
