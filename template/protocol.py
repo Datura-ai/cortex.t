@@ -180,15 +180,17 @@ class StreamPrompting(bt.StreamingSynapse):
 
     top_p: float = pydantic.Field(
         default=0.001,
-        title="Max Tokens",
-        description="Max tokens for text generation. "
+        title="Top_p",
+        description="Top_p for text generation. The sampler will pick one of "
+                    "the top p percent tokens in the logit distirbution. "
                     "This attribute is immutable and cannot be updated.",
     )
 
     top_k: int = pydantic.Field(
         default=1,
-        title="Max Tokens",
-        description="Max tokens for text generation. "
+        title="Top_k",
+        description="Top_k for text generation. Sampler will pick one of  "
+                    "the k most probablistic tokens in the logit distribtion. "
                     "This attribute is immutable and cannot be updated.",
     )
 
