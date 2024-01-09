@@ -28,7 +28,7 @@ class ImageValidator(BaseValidator):
         self.width = 1024
         self.height = 1024
         self.quality = "standard"
-        self.style = "vivid"
+        self.style = "vivid
         self.steps = 30
         self.seed = 12345
         self.wandb_data = {

@@ -179,7 +179,7 @@ class StreamPrompting(bt.StreamingSynapse):
     )
 
     top_p: float = pydantic.Field(
-        defalt=0.001,
+        default=0.001,
         title="Max Tokens",
         description="Max tokens for text generation. "
                     "This attribute is immutable and cannot be updated.",
