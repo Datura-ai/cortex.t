@@ -35,7 +35,7 @@ wandb_runs = {}
 # organic requests are scored, the tasks are stored in this queue
 # for later being consumed by `query_synapse` cycle:
 organic_scoring_tasks = set()
-EXPECTED_ACCESS_KEY = env('EXPECTED_ACCESS_KEY', default='hello')
+EXPECTED_ACCESS_KEY = env('EXPECTED_ACCESS_KEY')
 
 
 def get_config() -> bt.config:

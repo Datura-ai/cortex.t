@@ -46,7 +46,7 @@ class ImageValidator(BaseValidator):
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 5 + ["Stability"] * 5
+            providers = ["OpenAI"] * 3 + ["Stability"] * 7
             self.provider = random.choice(providers)
 
             if self.provider == "Stability":
@@ -109,7 +109,7 @@ class ImageValidator(BaseValidator):
         download_tasks = []
         score_tasks = []
         rand = random.random()
-        will_score_all = rand < 1/1
+        will_score_all = rand < 1/5
         bt.logging.info(f"random number = {rand}, will score all = {will_score_all}")
         async with aiohttp.ClientSession() as session:
             for uid, syn in query_responses:
