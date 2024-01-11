@@ -13,7 +13,7 @@ from template.utils import call_openai, get_question, call_anthropic
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-3.5-turbo" # "gpt-4-1106-preview"
@@ -103,7 +103,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 2
+        will_score_all = random_number < 1 / 6
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 

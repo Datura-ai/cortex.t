@@ -10,7 +10,7 @@ current_version = template.__version__
 
 def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
     global current_version
-    subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address, "--logging.debug"])
+    subprocess.run(["pm2", "start", "validators/validator.py", "--interpreter", "python3", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
     while True:
         latest_version = get_version()
         print(f"Current version: {current_version}")

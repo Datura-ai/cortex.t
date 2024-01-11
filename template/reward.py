@@ -196,8 +196,10 @@ async def deterministic_score(uid: int, syn, weight: float):
 
     for miner_b64, vali_b64 in zip(syn.completion["b64s"], vali_b64s):
         if miner_b64[:50] != vali_b64[:50]:
+            bt.logging.info(f"image for UID {uid} does not match the correct image! Score = 0")
             return 0
 
+    bt.logging.info(f"returned image for UID {uid} matches the correct image! Score = {weight}")
     return weight
 
 

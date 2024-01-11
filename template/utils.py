@@ -402,7 +402,8 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
         await asyncio.sleep(0.5)
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
-    bt.logging.debug(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
+    # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
+    bt.logging.info(f"calling stability for {prompt[:50]}...")
 
     # Run the synchronous stability_api.generate function in a separate thread
     meta = await asyncio.to_thread(
@@ -419,7 +420,6 @@ async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples,
 
     # Convert image binary data to base64
     b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
-
     return b64s
 
 

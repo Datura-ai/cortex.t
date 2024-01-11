@@ -97,7 +97,7 @@ class WeightSetter:
                 await asyncio.sleep(10)
 
     def select_validator(self, steps_passed):
-        return self.image_vali if steps_passed % 5 in (0, 1, 2) else self.text_vali
+        return self.image_vali if steps_passed % 5 in (0, 1,  2) else self.text_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
@@ -140,6 +140,7 @@ class WeightSetter:
 
     async def update_weights(self, steps_passed):
         """ Update weights based on total scores, using min-max normalization for display. """
+        bt.logging.info("updated weights")
         avg_scores = self.total_scores / (steps_passed + 1)
 
         # Normalize avg_scores to a range of 0 to 1

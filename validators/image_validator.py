@@ -18,7 +18,7 @@ from template.protocol import ImageResponse
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=30)
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-2"
@@ -84,9 +84,16 @@ class ImageValidator(BaseValidator):
         return await asyncio.to_thread(Image.open, BytesIO(image_data))
 
     async def download_image(self, url, session):
-        async with session.get(url) as response:
-            content = await response.read()
-            return await asyncio.to_thread(Image.open, BytesIO(content))
+        bt.logging.debug(f"Starting download for URL: {url}")
+        try:
+            async with session.get(url) as response:
+                bt.logging.info(f"Received response for URL: {url}, Status: {response.status}")
+                content = await response.read()
+                bt.logging.info(f"Read content for URL: {url}, Content Length: {len(content)}")
+                return await asyncio.to_thread(Image.open, BytesIO(content))
+        except Exception as e:
+            bt.logging.error(f"Exception occurred while downloading image from URL {url}: {e}")
+            raise
 
     async def process_download_result(self, uid, download_task):
         try:
@@ -134,20 +141,26 @@ class ImageValidator(BaseValidator):
                         if syn.provider == "OpenAI":
                             score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
                         else:
+                            pass
                             score_task = template.reward.deterministic_score(uid, syn, self.weight)
 
                         score_tasks.append((uid, asyncio.create_task(score_task)))
 
             await asyncio.gather(*(dt[1] for dt in download_tasks), *(st[1] for st in score_tasks))
 
+        bt.logging.info("Processing download results.")
         download_results = [self.process_download_result(uid, dt) for uid, dt in download_tasks]
         await asyncio.gather(*download_results)
+        bt.logging.info("Completed processing download results.")
 
+        bt.logging.info("Processing score results.")
         score_results = [self.process_score_result(uid, st, scores, uid_scores_dict) for uid, st in score_tasks]
         await asyncio.gather(*score_results)
+        bt.logging.info("Completed processing score results.")
 
         if uid_scores_dict != {}:
-            bt.logging.info(f"scores = {uid_scores_dict}")
+            bt.logging.info(f"Final scores: {uid_scores_dict}")
 
+        bt.logging.info("score_responses process completed.")
         return scores, uid_scores_dict, self.wandb_data
 
