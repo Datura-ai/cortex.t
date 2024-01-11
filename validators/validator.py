@@ -4,6 +4,7 @@ from typing import Tuple
 
 import base  # noqa
 
+import os
 import argparse
 import asyncio
 import random
@@ -35,7 +36,7 @@ wandb_runs = {}
 # organic requests are scored, the tasks are stored in this queue
 # for later being consumed by `query_synapse` cycle:
 organic_scoring_tasks = set()
-EXPECTED_ACCESS_KEY = env.get('EXPECTED_ACCESS_KEY', "hello")
+EXPECTED_ACCESS_KEY = os.environ.get('EXPECTED_ACCESS_KEY', "hello")
 
 
 def get_config() -> bt.config:

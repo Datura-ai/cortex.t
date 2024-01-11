@@ -92,21 +92,6 @@ class ImageValidator(BaseValidator):
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
             raise
 
-    # async def process_download_result(self, uid, download_task):
-    #     try:
-    #         image = await download_task
-    #         self.wandb_data["images"][uid] = wandb.Image(image)
-    #     except Exception as e:
-    #         bt.logging.error(f"Error downloading image for UID {uid}: {traceback.format_exc()}")
-
-    # async def process_score_result(self, uid, score_task, scores, uid_scores_dict):
-    #     try:
-    #         scored_response = await score_task
-    #         score = scored_response if scored_response is not None else 0
-    #         scores[uid] = uid_scores_dict[uid] = score
-    #     except Exception as e:
-    #         bt.logging.error(f"Error scoring image for UID {uid}: {traceback.format_exc()}")
-
     async def score_responses(self, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
@@ -138,6 +123,7 @@ class ImageValidator(BaseValidator):
                         if syn.provider == "OpenAI":
                             score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
                         else:
+                            continue
                             score_task = template.reward.deterministic_score(uid, syn, self.weight)
                         score_tasks.append(asyncio.create_task(score_task))
 
