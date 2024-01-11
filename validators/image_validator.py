@@ -92,6 +92,7 @@ class ImageValidator(BaseValidator):
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
             raise
 
+
     async def score_responses(self, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
@@ -127,18 +128,17 @@ class ImageValidator(BaseValidator):
                             score_task = template.reward.deterministic_score(uid, syn, self.weight)
                         score_tasks.append(asyncio.create_task(score_task))
 
-            # Wait for all tasks to complete
-            download_results = await asyncio.gather(*download_tasks)
-            score_results = await asyncio.gather(*score_tasks, return_exceptions=True)
 
             # Process download results
-            for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
-                try:
+            try:
+                download_results = await asyncio.gather(*download_tasks)
+                for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
                     self.wandb_data["images"][uid] = wandb.Image(image)
-                except Exception as e:
-                    bt.logging.error(f"Error processing image for UID {uid}: {traceback.format_exc()}")
-
+            except:
+                bt.logging.error(f"error in downloading images {traceback.exception_exc()}")
+                
             # Process score results
+            score_results = await asyncio.gather(*score_tasks, return_exceptions=True)
             for score, uid in zip(score_results, [uid for uid, _ in query_responses]):
                 try:
                     final_score = score if score is not None else 0
