@@ -14,7 +14,7 @@ from text_validator import TextValidator
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 
-iterations_per_set_weights = 12
+iterations_per_set_weights = 10
 scoring_organic_timeout = 60
 
 
