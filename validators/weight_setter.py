@@ -97,7 +97,7 @@ class WeightSetter:
                 await asyncio.sleep(10)
 
     def select_validator(self, steps_passed):
-        return self.image_vali if steps_passed % 5 in (0, 1,  2) else self.text_vali
+        return self.image_vali # if steps_passed % 5 in (0, 1, 2) else self.text_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""

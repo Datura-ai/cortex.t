@@ -18,7 +18,7 @@ from template.protocol import ImageResponse
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=30)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=25)
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-2"
@@ -46,7 +46,7 @@ class ImageValidator(BaseValidator):
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 3 + ["Stability"] * 7
+            providers = ["OpenAI"] * 7 + ["Stability"] * 3
             self.provider = random.choice(providers)
 
             if self.provider == "Stability":
@@ -87,12 +87,10 @@ class ImageValidator(BaseValidator):
         bt.logging.debug(f"Starting download for URL: {url}")
         try:
             async with session.get(url) as response:
-                bt.logging.info(f"Received response for URL: {url}, Status: {response.status}")
                 content = await response.read()
-                bt.logging.info(f"Read content for URL: {url}, Content Length: {len(content)}")
                 return await asyncio.to_thread(Image.open, BytesIO(content))
         except Exception as e:
-            bt.logging.error(f"Exception occurred while downloading image from URL {url}: {e}")
+            bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
             raise
 
     async def process_download_result(self, uid, download_task):
@@ -100,7 +98,7 @@ class ImageValidator(BaseValidator):
             image = await download_task
             self.wandb_data["images"][uid] = wandb.Image(image)
         except Exception as e:
-            bt.logging.error(f"Error downloading image for UID {uid}: {e}")
+            bt.logging.error(f"Error downloading image for UID {uid}: {traceback.format_exc()}")
 
     async def process_score_result(self, uid, score_task, scores, uid_scores_dict):
         try:
@@ -108,7 +106,7 @@ class ImageValidator(BaseValidator):
             score = scored_response if scored_response is not None else 0
             scores[uid] = uid_scores_dict[uid] = score
         except Exception as e:
-            bt.logging.error(f"Error scoring image for UID {uid}: {e}")
+            bt.logging.error(f"Error scoring image for UID {uid}: {traceback.format_exc()}")
 
     async def score_responses(self, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
@@ -116,8 +114,7 @@ class ImageValidator(BaseValidator):
         download_tasks = []
         score_tasks = []
         rand = random.random()
-        will_score_all = rand < 1/5
-        bt.logging.info(f"random number = {rand}, will score all = {will_score_all}")
+        will_score_all = rand < 1/1
         async with aiohttp.ClientSession() as session:
             for uid, syn in query_responses:
                 syn = syn[0]
@@ -140,11 +137,12 @@ class ImageValidator(BaseValidator):
                     if will_score_all:
                         if syn.provider == "OpenAI":
                             score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
+                            score_tasks.append((uid, asyncio.create_task(score_task)))
                         else:
-                            pass
+                            continue
                             score_task = template.reward.deterministic_score(uid, syn, self.weight)
 
-                        score_tasks.append((uid, asyncio.create_task(score_task)))
+                        # score_tasks.append((uid, asyncio.create_task(score_task)))
 
             await asyncio.gather(*(dt[1] for dt in download_tasks), *(st[1] for st in score_tasks))
 
@@ -152,6 +150,8 @@ class ImageValidator(BaseValidator):
         download_results = [self.process_download_result(uid, dt) for uid, dt in download_tasks]
         await asyncio.gather(*download_results)
         bt.logging.info("Completed processing download results.")
+
+        bt.logging.info(f"random number = {rand}, will score all = {will_score_all}")
 
         bt.logging.info("Processing score results.")
         score_results = [self.process_score_result(uid, st, scores, uid_scores_dict) for uid, st in score_tasks]
