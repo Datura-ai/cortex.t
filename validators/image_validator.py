@@ -102,49 +102,53 @@ class ImageValidator(BaseValidator):
         will_score_all = rand < 1/1
 
         async with aiohttp.ClientSession() as session:
-            for uid, syn in query_responses:
-                syn = syn[0]
-                completion = syn.completion
-                if completion is None:
-                    scores[uid] = uid_scores_dict[uid] = 0
-                    continue
-
-                if syn.provider in ["OpenAI", "Stability"]:
-                    if syn.provider == "OpenAI":
-                        image_url = completion["url"]
-                        bt.logging.info(f"UID {uid} response = {image_url}")
-                        download_tasks.append(asyncio.create_task(self.download_image(image_url, session)))
-                    else:  # Stability
-                        b64s = completion["b64s"]
-                        bt.logging.info(f"UID {uid} responded with an image")
-                        for b64 in b64s:
-                            download_tasks.append(asyncio.create_task(self.b64_to_image(b64)))
-
-                    if will_score_all:
-                        if syn.provider == "OpenAI":
-                            score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
-                        else:
-                            continue
-                            score_task = template.reward.deterministic_score(uid, syn, self.weight)
-                        score_tasks.append(asyncio.create_task(score_task))
-
-
-            # Process download results
             try:
-                download_results = await asyncio.gather(*download_tasks)
-                for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
-                    self.wandb_data["images"][uid] = wandb.Image(image)
-            except:
-                bt.logging.error(f"error in downloading images {traceback.exception_exc()}")
-                
-            # Process score results
-            score_results = await asyncio.gather(*score_tasks, return_exceptions=True)
-            for score, uid in zip(score_results, [uid for uid, _ in query_responses]):
+                for uid, syn in query_responses:
+                    syn = syn[0]
+                    completion = syn.completion
+                    if completion is None:
+                        scores[uid] = uid_scores_dict[uid] = 0
+                        continue
+
+                    if syn.provider in ["OpenAI", "Stability"]:
+                        if syn.provider == "OpenAI":
+                            image_url = completion["url"]
+                            bt.logging.info(f"UID {uid} response = {image_url}")
+                            download_tasks.append(asyncio.create_task(self.download_image(image_url, session)))
+                        else:  # Stability
+                            b64s = completion["b64s"]
+                            bt.logging.info(f"UID {uid} responded with an image")
+                            for b64 in b64s:
+                                download_tasks.append(asyncio.create_task(self.b64_to_image(b64)))
+
+                        if will_score_all:
+                            if syn.provider == "OpenAI":
+                                score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
+                            else:
+                                continue
+                                score_task = template.reward.deterministic_score(uid, syn, self.weight)
+                            score_tasks.append(asyncio.create_task(score_task))
+
+
+                # Process download results
                 try:
-                    final_score = score if score is not None else 0
-                    scores[uid] = uid_scores_dict[uid] = final_score
-                except Exception as e:
-                    bt.logging.error(f"Error processing score for UID {uid}: {traceback.format_exc()}")
+                    download_results = await asyncio.gather(*download_tasks)
+                    for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
+                        self.wandb_data["images"][uid] = wandb.Image(image)
+                except:
+                    bt.logging.error(f"error in downloading images {traceback.exception_exc()}")
+                    
+                # Process score results
+                score_results = await asyncio.gather(*score_tasks, return_exceptions=True)
+                for score, uid in zip(score_results, [uid for uid, _ in query_responses]):
+                    try:
+                        final_score = score if score is not None else 0
+                        scores[uid] = uid_scores_dict[uid] = final_score
+                    except Exception as e:
+                        bt.logging.error(f"Error processing score for UID {uid}: {traceback.format_exc()}")
+
+            except:
+                bt.logging.debug(f"error in score_responses {traceback.format_exc()}")
 
         bt.logging.info(f"Final scores: {uid_scores_dict}")
         bt.logging.info("score_responses process completed.")
