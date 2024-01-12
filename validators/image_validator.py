@@ -90,7 +90,6 @@ class ImageValidator(BaseValidator):
                 return await asyncio.to_thread(Image.open, BytesIO(content))
         except Exception as e:
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
-            raise
 
 
     async def score_responses(self, query_responses, uid_to_question, metagraph):
