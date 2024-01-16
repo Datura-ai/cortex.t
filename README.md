@@ -54,7 +54,7 @@ A high tier key is required for both mining and validations so it is important i
 
 Download the repository, navigate to the folder and then install the necessary requirements with the following chained command.
 
-```git clone https://github.com/BitAPAI/cortex.t.git && cd cortex.t && pip install -e .```
+```git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip install -e .```
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
 
