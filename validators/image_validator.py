@@ -21,10 +21,10 @@ class ImageValidator(BaseValidator):
         super().__init__(dendrite, config, subtensor, wallet, timeout=25)
         self.streaming = False
         self.query_type = "images"
-        self.model = "dall-e-2"
+        self.model = "dall-e-3"
         self.weight = .5
         self.provider = "OpenAI"
-        self.size = "1024x1024"
+        self.size = "1792x1024"
         self.width = 1024
         self.height = 1024
         self.quality = "standard"
@@ -46,7 +46,7 @@ class ImageValidator(BaseValidator):
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 6 + ["Stability"] * 4
+            providers = ["OpenAI"] * 8 + ["Stability"] * 2
             self.provider = random.choice(providers)
 
             if self.provider == "Stability":
@@ -54,7 +54,7 @@ class ImageValidator(BaseValidator):
                 self.model = "stable-diffusion-xl-1024-v1-0"
 
             elif self.provider == "OpenAI":
-                self.model = "dall-e-2"
+                self.model = "dall-e-3"
 
             # Query all images concurrently
             for uid in available_uids:
