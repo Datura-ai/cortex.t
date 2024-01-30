@@ -8,6 +8,8 @@ from typing import Tuple
 import bittensor as bt
 import torch
 import wandb
+import os
+import shutil
 
 from template.protocol import IsAlive
 from text_validator import TextValidator
@@ -74,6 +76,23 @@ class WeightSetter:
                 bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
 
+    def remove_directory(self, path):
+        # Remove wandb logs
+        try:
+            # Expands the '~' to the home directory
+            full_path = os.path.expanduser(path)
+        
+            # Check if the directory exists
+            if os.path.exists(full_path):
+                # Recursively delete the directory and its contents
+                shutil.rmtree(full_path)
+                print(f"Successfully removed {full_path}")
+            else:
+                print(f"The directory {full_path} does not exist.")
+        except Exception as e:
+            bt.logging.error(f"error in remove directory {traceback.format_exc()}")
+                
+            
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
             for steps_passed in itertools.count():
@@ -87,7 +106,7 @@ class WeightSetter:
                 steps_since_last_update = steps_passed % iterations_per_set_weights
 
                 if steps_since_last_update == iterations_per_set_weights - 1:
-                    # delete wandb logs
+                    self.remove_directory('~/.bittensor/miners/')
                     await self.update_weights(steps_passed)
                 else:
                     bt.logging.info(
