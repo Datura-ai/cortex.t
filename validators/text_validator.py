@@ -103,7 +103,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 6
+        will_score_all = random_number < 1 / 9
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
