@@ -68,11 +68,17 @@ async def api_score(api_answer: str, response: str, weight: float) -> float:
 
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
-        min_similarity = max(1 - 0.001 * (words_in_response - 1), 0.82)
-        # bt.logging.debug(f"Minimum similarity required: {min_similarity}")
 
-        score = weight if similarity >= min_similarity else 0
-        # bt.logging.debug(f"Score calculated: {score}")
+        # Answer must be within 15% the true answer's length
+        word_count_threshold = words_in_api * 0.15
+
+        # Check if the word count difference is within the threshold and similarity
+        if abs(words_in_response - words_in_api) <= word_count_threshold:
+            min_similarity = max(1 - 0.001 * (words_in_response - 1), 0.82)
+            score = weight if similarity >= min_similarity else 0
+        else:
+            score = 0
+
         return score
     except Exception as e:
         bt.logging.error(f"Exception in api_score: {traceback.format_exc()}")
