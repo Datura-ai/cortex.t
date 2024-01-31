@@ -116,15 +116,19 @@ def initialize_validators(vali_config, test=False):
 
 
 async def process_text_validator(request: web.Request):
+    # Basic request validation
+    if request.method != "POST" or request.path != '/text-validator/':
+        return web.Response(status=400, text="Invalid request")
+
     # Check access key
     access_key = request.headers.get("access-key")
     if access_key != EXPECTED_ACCESS_KEY:
-        return Response(status=401, reason="Invalid access key")
+        return web.Response(status=401, text="Invalid access key")
 
     try:
         messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
     except ValueError:
-        return Response(status=400)
+        return web.Response(status=400, text="Bad request format")
 
     response = web.StreamResponse()
     await response.prepare(request)
@@ -137,7 +141,7 @@ async def process_text_validator(request: web.Request):
         validator_app.weight_setter.register_text_validator_organic_query(
             uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
         )
-    except Exception:
+    except Exception as e:
         bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
         await response.write(b'<<internal error>>')
 
