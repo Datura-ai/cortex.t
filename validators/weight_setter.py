@@ -4,6 +4,7 @@ import itertools
 import traceback
 import random
 from typing import Tuple
+import template
 
 import bittensor as bt
 import torch
@@ -175,6 +176,7 @@ class WeightSetter:
                 uids=self.metagraph.uids,
                 weights=self.moving_average_scores,
                 wait_for_inclusion=False,
+                version_key=template.__weights_version__,
             )
         )
         bt.logging.success("Successfully set weights.")
