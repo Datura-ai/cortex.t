@@ -1,28 +1,52 @@
-import re
-import os
+from __future__ import annotations
+
+import io
 import ast
-import math
-import json
-import wandb
-import base64
-import random
 import asyncio
-import template
+import base64
+import json
+import boto3
+import base64
+import math
+import os
+import random
+import re
 import requests
+from PIL import Image
 import traceback
+import anthropic
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+from typing import Optional
+from stability_sdk import client as stability_client
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+
 import bittensor as bt
+import requests
+import wandb
+
+import template
+
 from . import client
-from collections import deque
 
 list_update_lock = asyncio.Lock()
+import anthropic_bedrock
+from anthropic_bedrock import AsyncAnthropicBedrock
 
-def load_state_from_file(filename="validators/state.json"):
+# Set up the API connection
+stability_api = stability_client.StabilityInference(
+    key=os.environ['STABILITY_KEY'],
+    verbose=True,
+    engine="stable-diffusion-xl-1024-v1-0"
+)
+
+
+def load_state_from_file(filename: str = "state.json"):
     if os.path.exists(filename):
         with open(filename, "r") as file:
-            bt.logging.info("loaded previous state")
+            bt.logging.debug("loaded previous state")
             return json.load(file)
     else:
-        bt.logging.info("initialized new global state")
+        bt.logging.debug("initialized new global state")
         return {
             "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
@@ -58,7 +82,7 @@ def get_validators_with_runs_in_all_projects():
     # Find common validators across all projects
     common_validators = set.intersection(*validators_runs.values())
     return common_validators
-    
+
 
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
@@ -76,20 +100,30 @@ async def get_list(list_type, num_questions_needed, theme=None):
     selected_prompts = []
     if list_type == "text_questions":
         question_pool = []
-        for theme in template.INSTRUCT_DEFAULT_THEMES:
-            for complexity_level in range(1, 11): 
-                for relevance_level in range(1, 11):
-                    prompt = f"Generate a python-formatted list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore {theme} in a manner that is consistent with their assigned complexity and relevance levels to the theme, allowing for a diverse and insightful engagement about {theme}. Format the questions as comma-separated, quote-encapsulated strings in a single Python list."
-                    question_pool.append(prompt)
-        
+        for complexity_level in range(1, 21):
+            for relevance_level in range(1, 21):
+                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} questions "
+                          f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                          f"of {complexity_level} out of 20 and a relevance level to the theme "
+                          f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                          f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                          f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                          f"Format the questions as comma-separated, quote-encapsulated strings "
+                          f"in a single Python list.")
+                question_pool.append(prompt)
+
         random.shuffle(question_pool)
-        num_questions_to_select = min(math.ceil(num_questions_needed / prompts_in_question[list_type]), len(question_pool))
+        num_questions_to_select = min(
+            math.ceil(num_questions_needed / prompts_in_question[list_type]),
+            len(question_pool),
+        )
         selected_prompts = random.sample(question_pool, num_questions_to_select)
     else:
         num_questions_to_select = math.ceil(num_questions_needed / prompts_in_question[list_type])
         selected_prompts = [list_type_mapping[list_type]["prompt"]] * num_questions_to_select
 
-    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, list_type: {list_type}, selected_prompts: {selected_prompts}")
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, "
+                     f"list_type: {list_type}, selected_prompts: {selected_prompts}")
 
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
@@ -97,10 +131,8 @@ async def get_list(list_type, num_questions_needed, theme=None):
     ]
 
     responses = await asyncio.gather(*tasks)
-
     extracted_lists = []
     max_retries = 5
-
     for i, answer in enumerate(responses):
         try:
             answer = answer.replace("\n", " ") if answer else ""
@@ -119,14 +151,17 @@ async def get_list(list_type, num_questions_needed, theme=None):
                         if new_extracted_list:
                             extracted_lists += new_extracted_list
                             break
+                        bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
-                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': "
+                                         f"{e}\n{traceback.format_exc()}")
         except Exception as e:
-            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': {e}\n{traceback.format_exc()}")
+            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': "
+                             f"{e}\n{traceback.format_exc()}")
 
     if not extracted_lists:
-        bt.logging.error(f"No valid lists found after processing and retries, using default list.")
-        return template.INSTRUCT_DEFAULT_QUESTIONS
+        bt.logging.error("No valid lists found after processing and retries, returning None")
+        return None
 
     return extracted_lists
 
@@ -137,21 +172,20 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         if item_type == "themes":
             if category == "images":
                 return template.IMAGE_THEMES
-            else:
-                return template.INSTRUCT_DEFAULT_THEMES
+            return template.INSTRUCT_DEFAULT_THEMES
         else:
-            # Ensure theme is always available for 'questions'
-            if theme is None:
-                theme = await get_current_theme(category)
+            # Never fail here, retry until valid list is found
+            while True:
+                theme = await get_random_theme(category)
+                if theme is not None:
+                    return await get_list(f"{category}_questions", num_questions_needed, theme)
 
-            return await get_list(f"{category}_questions", num_questions_needed, theme)
-
-    async def get_current_theme(category):
+    async def get_random_theme(category):
         themes = state[category]["themes"]
         if not themes:
             themes = await get_items(category, "themes")
             state[category]["themes"] = themes
-        return themes.pop() if themes else None
+        return random.choice(themes)
 
     list_type = f"{category}_{item_type}"
 
@@ -182,7 +216,7 @@ async def get_question(category, num_questions_needed):
     return question
 
 
-def preprocess_string(text):
+def preprocess_string(text: str) -> str:
     processed_text = text.replace("\t", "")
     placeholder = "___SINGLE_QUOTE___"
     processed_text = re.sub(r"(?<=\w)'(?=\w)", placeholder, processed_text)
@@ -229,7 +263,7 @@ def preprocess_string(text):
                 if no_comments_text[preceding_char_index] in '[,':  # Check for comma or opening bracket
                     found_comma_or_bracket = True
                     break
-                elif no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
+                if no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
                     break
                 preceding_char_index -= 1
 
@@ -268,19 +302,20 @@ def preprocess_string(text):
 
     return cleaned_str
 
-def convert_to_list(text):
+
+def convert_to_list(text: str) -> list[str]:
     pattern = r'\d+\.\s'
     items = [item.strip() for item in re.split(pattern, text) if item]
     return items
+
 
 def extract_python_list(text: str):
     try:
         if re.match(r'\d+\.\s', text):
             return convert_to_list(text)
-        
-        bt.logging.debug(f"Preprocessed text = {text}")
+
         text = preprocess_string(text)
-        bt.logging.debug(f"Postprocessed text = {text}")
+        bt.logging.trace(f"Postprocessed text = {text}")
 
         # Extracting list enclosed in square brackets
         match = re.search(r'\[((?:[^][]|"(?:\\.|[^"\\])*")*)\]', text, re.DOTALL)
@@ -293,13 +328,13 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
-        bt.logging.error(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
+        bt.logging.error(f"found double quotes in list, trying again")
 
     return None
 
 
-async def call_openai(messages, temperature, model, seed=1234):
-    for attempt in range(2):
+async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, top_p=1) -> str:
+    for _ in range(2):
         bt.logging.debug(f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}")
         try:
             response = await client.chat.completions.create(
@@ -307,39 +342,108 @@ async def call_openai(messages, temperature, model, seed=1234):
                 messages=messages,
                 temperature=temperature,
                 seed=seed,
+                max_tokens=max_tokens,
+                top_p=top_p,
             )
             response = response.choices[0].message.content
-            bt.logging.debug(f"validator response is {response}")
+            bt.logging.trace(f"validator response is {response}")
             return response
 
         except Exception as e:
             bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
-            await asyncio.sleep(0.5) 
-    
+            await asyncio.sleep(0.5)
+
     return None
 
 
 
+# anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+# async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000) -> str:
+
+#     for _ in range(2):
+#         bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}")
+#         try:
+#             completion = anthropic.completions.create(
+#                 model=model,
+#                 max_tokens_to_sample=max_tokens,
+#                 prompt=f"{HUMAN_PROMPT} {prompt}{AI_PROMPT}",
+#                 temperature=temperature,
+#                 top_p=top_p,
+#                 top_k=top_k,
+#             )
+#             response = completion.completion
+#             bt.logging.debug(f"Validator response is {response}")
+#             return response
+
+#         except Exception as e:
+#             bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
+#             await asyncio.sleep(0.5)
+
+#     return None
+
+async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
+    try:
+        client = AsyncAnthropicBedrock()
+        bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}")
+        completion = await client.completions.create(
+            model=model,
+            max_tokens_to_sample=max_tokens,
+            temperature=temperature,
+            prompt=f"{anthropic_bedrock.HUMAN_PROMPT} {prompt} {anthropic_bedrock.AI_PROMPT}",
+            top_p=top_p,
+            top_k=top_k,
+        )
+        bt.logging.trace(f"Validator response is {completion.completion}")
+
+        return completion.completion
+    except Exception as e:
+        bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
+        await asyncio.sleep(0.5)
+
+async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
+    # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
+    bt.logging.info(f"calling stability for {prompt[:50]}...")
+
+    # Run the synchronous stability_api.generate function in a separate thread
+    meta = await asyncio.to_thread(
+        stability_api.generate,
+        prompt=prompt,
+        seed=seed,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        width=width,
+        height=height,
+        samples=samples,
+        # sampler=sampler,
+    )
+
+    # Convert image binary data to base64
+    b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
+    return b64s
+
+
+
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
-def get_version(line_number = 22):
-    url = f"https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
-    response = requests.get(url)
-    if response.status_code == 200:
-        content = response.json()['content']
-        decoded_content = base64.b64decode(content).decode('utf-8')
-        lines = decoded_content.split('\n')
-        if line_number <= len(lines):
-            version_line = lines[line_number - 1]
-            version_match = re.search(r'__version__ = "(.*?)"', version_line)
-            if version_match:
-                return version_match.group(1)
-            else:
-                raise Exception("Version information not found in the specified line")
-        else:
-            raise Exception("Line number exceeds file length")
-    else:
+def get_version(line_number: int = 22) -> Optional[str]:
+    url = "https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
+    response = requests.get(url, timeout=10)
+    if not response.ok:
         bt.logging.error("github api call failed")
         return None
+
+    content = response.json()['content']
+    decoded_content = base64.b64decode(content).decode('utf-8')
+    lines = decoded_content.split('\n')
+    if line_number > len(lines):
+        raise Exception("Line number exceeds file length")
+
+    version_line = lines[line_number - 1]
+    version_match = re.search(r'__version__ = "(.*?)"', version_line)
+    if not version_match:
+        raise Exception("Version information not found in the specified line")
+
+    return version_match.group(1)
 
 
 def send_discord_alert(message, webhook_url):
@@ -348,7 +452,7 @@ def send_discord_alert(message, webhook_url):
         "username": "Subnet18 Updates"
     }
     try:
-        response = requests.post(webhook_url, json=data)
+        response = requests.post(webhook_url, json=data, timeout=10)
         if response.status_code == 204:
             print("Discord alert sent successfully!")
         else:
