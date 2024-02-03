@@ -89,7 +89,6 @@ def init_wandb(config, my_uid, wallet: bt.wallet):
 
 def initialize_components(config: bt.config):
     global metagraph
-    global dendrite
     bt.logging(config=config, logging_dir=config.full_path)
     bt.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
     wallet = bt.wallet(config=config)
