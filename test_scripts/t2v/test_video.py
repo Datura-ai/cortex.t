@@ -12,7 +12,7 @@ from PIL import Image
 from stability_sdk import client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 
-stability_key = os.getenv("STABILITY_API_KEY")
+api_key = os.getenv("STABILITY_API_KEY")
 openai_key = os.getenv("OPENAI_API_KEY")
 gemini_key = os.getenv("GOOGLE_API_KEY")
 
@@ -49,82 +49,82 @@ async def encode_image(image_path):
 
 
 
-async def read_video_frames(video_path):
-    video = cv2.VideoCapture(video_path)
-    base64Frames = []
-    while video.isOpened():
-        success, frame = video.read()
-        if not success:
-            break
-        _, buffer = cv2.imencode(".jpg", frame)
-        base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
-    video.release()
-    return base64Frames
+# async def read_video_frames(video_path):
+#     video = cv2.VideoCapture(video_path)
+#     base64Frames = []
+#     while video.isOpened():
+#         success, frame = video.read()
+#         if not success:
+#             break
+#         _, buffer = cv2.imencode(".jpg", frame)
+#         base64Frames.append(base64.b64encode(buffer).decode("utf-8"))
+#     video.release()
+#     return base64Frames
 
-async def display_frames(base64Frames):
-    display_handle = display(None, display_id=True)
-    for img in base64Frames:
-        display(Image(data=base64.b64decode(img.encode("utf-8"))))
-        await asyncio.sleep(0.025)
+# async def display_frames(base64Frames):
+#     display_handle = display(None, display_id=True)
+#     for img in base64Frames:
+#         display(Image(data=base64.b64decode(img.encode("utf-8"))))
+#         await asyncio.sleep(0.025)
 
-async def generate_descriptions(base64Frames, model, max_tokens):
-    PROMPT_MESSAGES = [
-        {
-            "role": "user",
-            "content": [
-                "These are frames from a video that I want to upload. Generate a compelling description that I can upload along with the video.",
-                *map(lambda x: {"image": x, "resize": 768}, base64Frames[0::50]),
-            ],
-        },
-    ]
-    params = {
-        "model": model,
-        "messages": PROMPT_MESSAGES,
-        "max_tokens": max_tokens,
-    }
+# async def generate_descriptions(base64Frames, model, max_tokens):
+#     PROMPT_MESSAGES = [
+#         {
+#             "role": "user",
+#             "content": [
+#                 "These are frames from a video that I want to upload. Generate a compelling description that I can upload along with the video.",
+#                 *map(lambda x: {"image": x, "resize": 768}, base64Frames[0::50]),
+#             ],
+#         },
+#     ]
+#     params = {
+#         "model": model,
+#         "messages": PROMPT_MESSAGES,
+#         "max_tokens": max_tokens,
+#     }
 
-    result = await client.chat.completions.create(**params)
-    return result.choices[0].message.content
+#     result = await client.chat.completions.create(**params)
+#     return result.choices[0].message.content
 
-async def generate_audio_speech(text):
-    response = requests.post(
-        "https://api.openai.com/v1/audio/speech",
-        headers={
-            "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
-        },
-        json={
-            "model": "tts-1-1106",
-            "input": text,
-            "voice": "onyx",
-        },
-    )
+# async def generate_audio_speech(text):
+#     response = requests.post(
+#         "https://api.openai.com/v1/audio/speech",
+#         headers={
+#             "Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
+#         },
+#         json={
+#             "model": "tts-1-1106",
+#             "input": text,
+#             "voice": "onyx",
+#         },
+#     )
 
-    audio_file_path = "output_audio.mp3" 
-    with open(audio_file_path, "wb") as audio_file:
-        for chunk in response.iter_content(chunk_size=1024 * 1024):
-            audio_file.write(chunk)
-    return audio_file_path
+#     audio_file_path = "output_audio.mp3" 
+#     with open(audio_file_path, "wb") as audio_file:
+#         for chunk in response.iter_content(chunk_size=1024 * 1024):
+#             audio_file.write(chunk)
+#     return audio_file_path
 
-async def main():
-    image_path = "image.jpg"
-    base64_image = await encode_image(image_path)
+# async def main():
+#     image_path = "../t2i/image.jpg"
+#     base64_image = await encode_image(image_path)
 
-    base64Frames = await read_video_frames("output.mp4")
-    print(len(base64Frames), "frames read.")
+#     base64Frames = await read_video_frames("output.mp4")
+#     print(len(base64Frames), "frames read.")
 
-    await display_frames(base64Frames)
+#     await display_frames(base64Frames)
 
-    description = await generate_descriptions(base64Frames, "gpt-4-vision-preview", 200)
-    print(description)
+#     description = await generate_descriptions(base64Frames, "gpt-4-vision-preview", 200)
+#     print(description)
 
-    voiceover_script = await generate_descriptions(base64Frames, "gpt-4-vision-preview", 500)
-    print(voiceover_script)
+#     voiceover_script = await generate_descriptions(base64Frames, "gpt-4-vision-preview", 500)
+#     print(voiceover_script)
 
-    audio_file_path = await generate_audio_speech(voiceover_script)
-    playsound(audio_file_path)
+#     audio_file_path = await generate_audio_speech(voiceover_script)
+#     playsound(audio_file_path)
 
 
-asyncio.run(main())
+# asyncio.run(main())
 
 
 # response = client.chat.completions.create(
@@ -148,6 +148,13 @@ asyncio.run(main())
 
 
 
+image_path = "../images/john2.png"
+seed = 0
+cfg_scale = 1
+motion_bucket_id = 150
+FPS = 30 # 0 to 30
+
+
 
 # response = requests.post(
 #     "https://api.stability.ai/v2alpha/generation/image-to-video",
@@ -155,12 +162,13 @@ asyncio.run(main())
 #         "authorization": api_key,
 #     },
 #     data={
-#         "seed": 0,
-#         "cfg_scale": 2.5,
-#         "motion_bucket_id": 40
+#         "seed": seed,
+#         "cfg_scale": cfg_scale,
+#         "motion_bucket_id": motion_bucket_id,
+#         "FPS": FPS,
 #     },
 #     files={
-#         "image": ("file", open("image.jpg", "rb"), "image/png")
+#         "image": ("file", open(image_path, "rb"), "image/png")
 #     },
 # )
 
@@ -169,24 +177,26 @@ asyncio.run(main())
 
 # data = response.json()
 # generation_id = data["id"]
-# generation_id = "cf55e0569c8a1575389278cf2919f3ee045064d46c97877f69588d47dccc4566"
 # print(generation_id)
+# time.sleep(30)
 
-# time.sleep(10)
-# response = requests.request(
-#     "GET",
-#     f"https://api.stability.ai/v2alpha/generation/image-to-video/result/{generation_id}",
-#     headers={
-#         'Accept': None, # Use 'application/json' to receive base64 encoded JSON
-#         'authorization': api_key,
-#     },
-# )
 
-# if response.status_code == 202:
-#     print("Generation in-progress, try again in 10 seconds.")
-# elif response.status_code == 200:
-#     print("Generation complete!")
-#     with open('./output.mp4', 'wb') as file:
-#         file.write(response.content)
-# else:
-#     raise Exception("Non-200 response: " + str(response.json()))
+generation_id = "0ca93f4172448c1f0b5f40f3c5bb3afce3f60e8da4da07e9f635228be4e6acea"
+
+response = requests.request(
+    "GET",
+    f"https://api.stability.ai/v2alpha/generation/image-to-video/result/{generation_id}",
+    headers={
+        'Accept': None, # Use 'application/json' to receive base64 encoded JSON
+        'authorization': api_key,
+    },
+)
+
+if response.status_code == 202:
+    print("Generation in-progress, try again in 10 seconds.")
+elif response.status_code == 200:
+    print("Generation complete!")
+    with open('./john5.mp4', 'wb') as file:
+        file.write(response.content)
+else:
+    raise Exception("Non-200 response: " + str(response.json()))
