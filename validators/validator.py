@@ -31,6 +31,8 @@ wandb_runs = {}
 app = FastAPI()
 EXPECTED_ACCESS_KEY = "hello" 
 
+VALIDATOR_ACCESS_KEY = os.environ.get('VALIDATOR_ACCESS_KEY')
+
 
 def get_config():
     parser = argparse.ArgumentParser()
@@ -76,6 +78,7 @@ def init_wandb(config, my_uid, wallet):
 
 def initialize_components(config):
     global metagraph
+    global dendrite
     bt.logging(config=config, logging_dir=config.full_path)
     bt.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
     wallet = bt.wallet(config=config)
@@ -218,6 +221,21 @@ async def process_text_validator(request: Request, data: dict):
 
     return StreamingResponse(response_stream())
 
+@app.post("/scoring")
+async def organic_scoring(request: Request, data: dict):
+    # Check access key
+    access_key = request.headers.get("access-key")
+    if access_key != VALIDATOR_ACCESS_KEY:
+        raise HTTPException(status_code=401, detail="Invalid access key")
+    messages = data.get('messages')
+    config = get_config()
+    wallet = bt.wallet(config=config)
+    dendrite = bt.dendrite(wallet=wallet)
+    available_uids = await get_available_uids(dendrite, metagraph)
+    responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
+
+    return responses
+
 def run_fastapi():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
@@ -232,6 +250,8 @@ def main():
     }
     initialize_validators(validator_config)
     init_wandb(config, my_uid, wallet)
+    run_fastapi()
+    
 
     try:
         asyncio.run(query_synapse(dendrite, subtensor, config, wallet))

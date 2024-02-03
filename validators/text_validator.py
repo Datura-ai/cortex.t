@@ -39,6 +39,34 @@ class TextValidator(BaseValidator):
             async for response in self.return_tokens(uid, responses):
                 yield response
 
+    async def organic_scoring(self, metagraph, available_uids, messages):
+        query_tasks = []
+        uid_to_question = {}
+        if len(messages) <= len(available_uids):
+            random_uids = random.sample(list(available_uids.keys()), len(messages))
+        else:
+            random_uids = [random.choice(list(available_uids.keys())) for _ in range(len(messages))]
+        for message_dict, uid in zip(messages, random_uids):  # Iterate over each dictionary in the list and random_uids
+            (key, message_list), = message_dict.items() 
+            prompt = message_list[-1]['content']
+            uid_to_question[uid] = prompt
+            message = message_list
+            syn = StreamPrompting(messages=message, model=self.model, seed=self.seed)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
+            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            query_tasks.append(task)
+            self.wandb_data["prompts"][uid] = prompt
+
+        query_responses = await asyncio.gather(*query_tasks)
+        await self.score_responses(query_responses, uid_to_question, metagraph)
+
+        result = {}
+        for (_, value), message_dict in zip(query_responses, messages):
+            (key, message_list), = message_dict.items() 
+            result[key] = value
+
+        return result
+        
     async def return_tokens(self, uid, responses):
         async for resp in responses:
             if isinstance(resp, str):
