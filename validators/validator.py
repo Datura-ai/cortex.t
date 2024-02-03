@@ -38,8 +38,6 @@ wandb_runs = {}
 organic_scoring_tasks = set()
 EXPECTED_ACCESS_KEY = os.environ.get('EXPECTED_ACCESS_KEY', "hello")
 
-VALIDATOR_ACCESS_KEY = os.environ.get('VALIDATOR_ACCESS_KEY')
-
 
 def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
@@ -150,29 +148,27 @@ async def process_text_validator(request: web.Request):
 
     return response
 
-
-async def organic_scoring(request: web.Request, data: dict):
-    # Check access key
-    access_key = request.headers.get("access-key")
-    if access_key != VALIDATOR_ACCESS_KEY:
-        raise HTTPException(status_code=401, detail="Invalid access key")
-    messages = data.get('messages')
-    config = get_config()
-    wallet = bt.wallet(config=config)
-    dendrite = bt.dendrite(wallet=wallet)
-    available_uids = await get_available_uids(dendrite, metagraph)
-    responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
-
-    return responses
-
 class ValidatorApplication(web.Application):
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
         self.weight_setter: WeightSetter | None = None
 
+async def organic_scoring(request: web.Request):
+    # Check access key
+    # access_key = request.headers.get("access-key")
+    # if access_key != EXPECTED_ACCESS_KEY:
+    #     raise web.Response(status_code=401, detail="Invalid access key")
+    body = await request.json()
+    messages = body['messages']
+    available_uids = await validator_app.weight_setter.get_available_uids()
+
+    responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
+
+    return web.json_response(responses)
 
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
+validator_app.add_routes([web.post('/scoring/', organic_scoring)])
 
 
 def main(run_aio_app=True, test=False) -> None:

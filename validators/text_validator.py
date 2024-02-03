@@ -69,9 +69,9 @@ class TextValidator(BaseValidator):
             prompt = message_list[-1]['content']
             uid_to_question[uid] = prompt
             message = message_list
-            syn = StreamPrompting(messages=message, model=self.model, seed=self.seed)
+            syn = StreamPrompting(messages=message_list, model=self.model, seed=self.seed, max_tokens=4048, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
             bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
-            task = self.query_miner(metagraph.axons[uid], uid, syn)
+            task = self.query_miner(metagraph, uid, syn)
             query_tasks.append(task)
             self.wandb_data["prompts"][uid] = prompt
 
