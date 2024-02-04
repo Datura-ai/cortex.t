@@ -153,17 +153,21 @@ class ValidatorApplication(web.Application):
         self.weight_setter: WeightSetter | None = None
 
 async def organic_scoring(request: web.Request):
-    # Check access key
-    # access_key = request.headers.get("access-key")
-    # if access_key != EXPECTED_ACCESS_KEY:
-    #     raise web.Response(status_code=401, detail="Invalid access key")
-    body = await request.json()
-    messages = body['messages']
-    available_uids = await validator_app.weight_setter.get_available_uids()
+    try:
+        # Check access key
+        access_key = request.headers.get("access-key")
+        if access_key != EXPECTED_ACCESS_KEY:
+            raise web.Response(status_code=401, detail="Invalid access key")
+        body = await request.json()
+        messages = body['messages']
+        available_uids = await validator_app.weight_setter.get_available_uids()
 
-    responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
+        responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
 
-    return web.json_response(responses)
+        return web.json_response(responses)
+    except Exception as e:
+        bt.logging.error(f'Organic scoring error: ${e}')
+        await web.Response(status_code=400, detail="{e}")
 
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
