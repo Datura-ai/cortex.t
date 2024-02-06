@@ -7,8 +7,9 @@ import google.generativeai as genai
 from IPython.display import display
 from IPython.display import Markdown
 
-GOOGLE_API_KEY=os.environ.get('GOOGLE_API_KEY')
-genai.configure(api_key=GOOGLE_API_KEY)
+google_api = os.environ.get('GOOGLE_API_KEY')
+google_api = "AIzaSyD0txmxjcu1jDi_MrHj4CpTLKQfdCgrc1s"
+genai.configure(api_key=google_api)
 
 # def to_markdown(text):
 #   text = text.replace('•', '  *')
@@ -21,8 +22,7 @@ genai.configure(api_key=GOOGLE_API_KEY)
 
 model = genai.GenerativeModel('gemini-pro')
 response = model.generate_content("What is the meaning of life?", stream=True)
-for chunk in response:
-  print(chunk.text)
+
 
 # from PIL import Image
 
