@@ -21,8 +21,10 @@ from PIL import Image
 from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
@@ -33,39 +35,56 @@ import sys
 from starlette.types import Send
 
 
+# Set up api keys from .env file and initialze clients
+
+# OpenAI
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-stability_api = client.StabilityInference(
-    key=os.environ['STABILITY_KEY'],
+client = AsyncOpenAI(timeout=60.0)
+
+# Stability
+stability_key = os.environ.get("STABILITY_KEY")
+if not stability_key:
+    raise ValueError("Please set the STABILITY_KEY environment variable.")
+
+stability_api = stability_client.StabilityInference(
+    key=stability_key,
     verbose=True,
-    engine="stable-diffusion-xl-1024-v1-0"
 )
 
+# Anthropic
+# Only if using the official claude for access instead of aws bedrock
 api_key = os.environ.get("ANTHROPIC_API_KEY")
+anthropic_client = anthropic.Anthropic()
+anthropic_client.api_key = api_key
 
+# For AWS bedrock (default)
 bedrock_client = AsyncAnthropicBedrock(
     # default is 10 minutes
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
 anthropic_client = anthropic.Anthropic()
-anthropic_client.api_key = api_key
 
-GOOGLE_API_KEY=os.environ.get('GOOGLE_API_KEY')
-genai.configure(api_key=GOOGLE_API_KEY)
+# For google/gemini
+google_key=os.environ.get('GOOGLE_API_KEY')
+if not google_key:
+    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
+genai.configure(api_key=google_key)
+
+
+# Wandb
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
-
 bt.logging.info("WANDB_API_KEY is set")
 bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=60.0)
 valid_hotkeys = []
 
 class StreamMiner():
@@ -116,18 +135,18 @@ class StreamMiner():
         self.axon = axon or bt.axon(wallet=self.wallet, port=self.config.axon.port)
         # Attach determiners which functions are called when servicing a request.
         bt.logging.info("Attaching forward function to axon.")
-        print(f"Attaching forward function to axon. {self._prompt}")
+        print(f"Attaching forward function to axon. {self.prompt}")
         self.axon.attach(
-            forward_fn=self._prompt,
+            forward_fn=self.prompt,
             blacklist_fn=self.blacklist_prompt,
         ).attach(
-            forward_fn=self._is_alive,
+            forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
         ).attach(
-            forward_fn=self._images,
+            forward_fn=self.images,
             blacklist_fn=self.blacklist_images,
         ).attach(
-            forward_fn=self._embeddings,
+            forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
         )
         bt.logging.info(f"Axon created: {self.axon}")
@@ -143,7 +162,6 @@ class StreamMiner():
 
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
-        self.add_args(parser)
         return bt.config(parser)
 
     def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
@@ -328,6 +346,7 @@ class StreamMiner():
                 top_k = synapse.top_k
 
                 if provider == "OpenAI":
+                    # Test seeds + higher temperature
                     response = await client.chat.completions.create(
                         model=model,
                         messages=messages,
@@ -389,6 +408,33 @@ class StreamMiner():
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
+                elif provider == "Gemini":
+                    model = genai.GenerativeModel(model)
+                    stream = model.generate_content(
+                        "What is the meaning of life?",
+                        stream=True,
+                        generation_config=genai.types.GenerationConfig(
+                            candidate_count=1,
+                            stop_sequences=['x'],
+                            temperature=temperature,
+                            max_output_tokens=max_tokens,
+                        )
+                    )
+
+                    async for completion in stream:
+                        if completion.completion:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": completion.completion.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {completion.completion}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
 
@@ -398,7 +444,7 @@ class StreamMiner():
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
-    async def _images(self, synapse: ImageResponse) -> ImageResponse:
+    async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received image request: {synapse}")
         try:
             # Extract necessary information from synapse
@@ -465,7 +511,7 @@ class StreamMiner():
         except Exception as exc:
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
-    async def _embeddings(self, synapse: Embeddings) -> Embeddings:
+    async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
 
         async def get_embeddings_in_batch(texts, model, batch_size=10):
@@ -502,15 +548,10 @@ class StreamMiner():
         except Exception:
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
-    def _is_alive(self, synapse: IsAlive) -> IsAlive:
+    def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
         synapse.completion = "True"
         return synapse
-
-if __name__ == "__main__":
-    with StreamingMiner():
-        while True:
-            time.sleep(1)
 
 
 def get_valid_hotkeys(config):
@@ -562,5 +603,10 @@ def get_valid_hotkeys(config):
         except json.JSONDecodeError as e:
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
 
+
+if __name__ == "__main__":
+    with StreamMiner():
+        while True:
+            time.sleep(1)
 
 

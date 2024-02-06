@@ -204,7 +204,8 @@ class StreamPrompting(bt.StreamingSynapse):
     provider: str = pydantic.Field(
         default="OpenAI",
         title="Provider",
-        description="The provider to use when calling for your response."
+        description="The provider to use when calling for your response. "
+                    "Options: OpenAI, Anthropic, Gemini",
     )
 
     model: str = pydantic.Field(

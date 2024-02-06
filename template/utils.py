@@ -19,6 +19,8 @@ from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 from typing import Optional
 from stability_sdk import client as stability_client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+import google.generativeai as genai
+
 
 import bittensor as bt
 import requests
@@ -38,6 +40,13 @@ stability_api = stability_client.StabilityInference(
     verbose=True,
     engine="stable-diffusion-xl-1024-v1-0"
 )
+
+
+google_key=os.environ.get('GOOGLE_API_KEY')
+if not google_key:
+    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+
+genai.configure(api_key=google_key)
 
 
 def load_state_from_file(filename: str = "state.json"):
@@ -355,7 +364,26 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
 
     return None
 
+async def call_gemini(messages, temperature, model, max_tokens):
+    bt.logging.debug(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
+    try:
+        model = genai.GenerativeModel(model)
+        responses = model.generate_content(
+            messages,
+            candidate_count=1,
+            stop_sequences=['x'],
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            stream=False,
+            )
 
+        bt.logging.debug(f"validator response is {response}")
+        return response
+
+    except Exception as e:
+        bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
+        await asyncio.sleep(0.5)
+        
 
 # anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 

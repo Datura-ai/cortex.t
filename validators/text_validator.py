@@ -8,7 +8,7 @@ from base_validator import BaseValidator
 
 import template.reward
 from template.protocol import StreamPrompting
-from template.utils import call_openai, get_question, call_anthropic
+from template.utils import call_openai, get_question, call_anthropic, call_gemini
 
 
 class TextValidator(BaseValidator):
@@ -72,34 +72,43 @@ class TextValidator(BaseValidator):
         return await get_question("text", qty)
 
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
-        query_tasks = []
-        uid_to_question = {}
-        # Randomly choose the provider based on specified probabilities
-        providers = ["OpenAI"] * 95 + ["Anthropic"] * 5
-        self.provider = random.choice(providers)
+        try:
+            query_tasks = []
+            uid_to_question = {}
+            # Randomly choose the provider based on specified probabilities
+            providers = ["OpenAI"] * 95 + ["Anthropic"] * 5 + ["Gemini"] * 5
+            providers = ["Gemini"]
+            self.provider = random.choice(providers)
 
-        if self.provider == "Anthropic":
-            # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-            # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
-            self.model = "anthropic.claude-v2:1"
-        elif self.provider == "OpenAI":
-            self.model = "gpt-4-1106-preview"
+            if self.provider == "Anthropic":
+                # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+                # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
+                # gemini models = ["gemini-pro"]
+                self.model = "anthropic.claude-v2:1"
+            elif self.provider == "OpenAI":
+                self.model = "gpt-4-1106-preview"
 
-        for uid in available_uids:
-            prompt = await self.get_question(len(available_uids))
-            uid_to_question[uid] = prompt
-            messages = [{'role': 'user', 'content': prompt}]
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
-            bt.logging.info(
-                f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                f"timeout {self.timeout}: {syn.messages[0]['content']}"
-            )
-            task = self.query_miner(metagraph, uid, syn)
-            query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = prompt
+            elif self.provider == "Gemini":
+                self.model = "gemini-pro"
 
-        query_responses = await asyncio.gather(*query_tasks)
-        return query_responses, uid_to_question
+            bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
+            for uid in available_uids:
+                prompt = await self.get_question(len(available_uids))
+                uid_to_question[uid] = prompt
+                messages = [{'role': 'user', 'content': prompt}]
+                syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+                bt.logging.info(
+                    f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+                    f"timeout {self.timeout}: {syn.messages[0]['content']}"
+                )
+                task = self.query_miner(metagraph, uid, syn)
+                query_tasks.append(task)
+                self.wandb_data["prompts"][uid] = prompt
+
+            query_responses = await asyncio.gather(*query_tasks)
+            return query_responses, uid_to_question
+        except:
+            bt.logging.error(f"error in start_query = {traceback.format_exc()}")
 
     def should_i_score(self):
         random_number = random.random()
@@ -112,6 +121,8 @@ class TextValidator(BaseValidator):
             return await call_openai([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.seed, self.max_tokens)
         elif provider == "Anthropic":
             return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        elif provider == "Gemini":
+            return await call_gemini(prompt, self.temperature, self.model, self.max_tokens)
         else:
             bt.logging.error(f"provider {provider} not found")
 
