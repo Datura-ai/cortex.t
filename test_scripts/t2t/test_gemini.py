@@ -19,20 +19,18 @@ genai.configure(api_key=GOOGLE_API_KEY)
 #   if 'generateContent' in m.supported_generation_methods:
 #     print(m.name)
 
-# model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-pro')
+response = model.generate_content("What is the meaning of life?", stream=True)
+for chunk in response:
+  print(chunk.text)
 
-# response = model.generate_content("What is the meaning of life?", stream=True)
-# for chunk in response:
-#   print(chunk.text)
-#   print("_"*80)
+# from PIL import Image
 
-from PIL import Image
+# img = Image.open('image.jpg')
+# # img.show()
 
-img = Image.open('image.jpg')
-# img.show()
+# # Initialize and use the model
+# model = genai.GenerativeModel('gemini-pro-vision')
+# response = model.generate_content(img)
 
-# Initialize and use the model
-model = genai.GenerativeModel('gemini-pro-vision')
-response = model.generate_content(img)
-
-print(response.text)
+# print(response.text)

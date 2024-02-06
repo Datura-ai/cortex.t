@@ -114,38 +114,49 @@ stability_api = client.StabilityInference(
 #             else:
 #                 print("Failed to upload the image.")
 
-prompt1 = 'a dog running in a park'
+prompt1 = 'royal king with all his riches'
 weight1 = 1.5
-prompt2 = 'grass'
-weight2 = -1
+prompt2 = 'a quick brown fox jumped over the lazy dog'
+weight2 = 1
+prompt3 = "crown"
+weight3 = -2
 
-# data = ('Stability', 'stable-diffusion-512-v2-1', prompt, '576x1024', 576, 1024, 'standard', 'vivid', 656827, 30, None, 8.0, 'SAMPLER_K_DPMPP_2M', 9, 1)
+seed = 0
+steps = 5
+cfg_scale = 17
+width = 1024
+height = 1024
+samples = 2
 
 meta = stability_api.generate(
-    prompt=[generation.Prompt(text=prompt1,parameters=generation.PromptParameters(weight=weight1)),
-    generation.Prompt(text=prompt2,parameters=generation.PromptParameters(weight=weight2))],
-    seed=100,
-    steps=50,
-    cfg_scale=17,
-    width=576,
-    height=1024,
-    samples=5,
+    prompt=
+    [generation.Prompt(text=prompt1,parameters=generation.PromptParameters(weight=weight1))
+    ,generation.Prompt(text=prompt2,parameters=generation.PromptParameters(weight=weight2))
+    ,generation.Prompt(text=prompt3,parameters=generation.PromptParameters(weight=weight3))
+    ],
+    seed=seed,
+    steps=steps,
+    cfg_scale=cfg_scale,
+    width=width,
+    height=height,
+    samples=samples,
 )
 
 # Process and upload the image
 import matplotlib.pyplot as plt
 import numpy as np
 
-for image in meta:
+image_files = []
+for i, image in enumerate(meta):
     for artifact in image.artifacts:
         img_array = np.frombuffer(artifact.binary, dtype=np.uint8)
-        img = plt.imread(io.BytesIO(img_array), format='PNG')
-        plt.imshow(img)
-        plt.axis('off')  # Do not show axis to mimic the original display
-        plt.show()
-        response = requests.post('https://file.io', files={'file': io.BytesIO(img_array)})
-        if response.status_code == 200:
-            image_url = response.json()['link']
-            print(image_url)
-        else:
-            bt.logging.error("Failed to upload the image.")
+        img_filename = f"image{i}.jpg"
+        with open(img_filename, 'wb') as img_file:
+            img_file.write(img_array)
+        image_files.append(img_filename)
+
+for img_filename in image_files:
+    img = plt.imread(img_filename)
+    plt.imshow(img)
+    plt.axis('off')  # Do not show axis to mimic the original display
+    plt.show()
