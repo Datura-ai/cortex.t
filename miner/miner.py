@@ -1,28 +1,24 @@
-import base  # noqa
-
 import argparse
 import asyncio
+import base64
 import copy
 import json
 import os
-import io
-import base64
-import boto3
 import pathlib
+import requests
 import threading
 import time
-import requests
 import traceback
-import requests
-import anthropic
-from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
 from typing import Tuple
-from stability_sdk import client
 
 import bittensor as bt
+from config import check_config, get_config
+import google.generativeai as genai
 import wandb
+from PIL import Image
+from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from PIL import Image
@@ -54,9 +50,11 @@ bedrock_client = AsyncAnthropicBedrock(
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
-
 anthropic_client = anthropic.Anthropic()
 anthropic_client.api_key = api_key
+
+GOOGLE_API_KEY=os.environ.get('GOOGLE_API_KEY')
+genai.configure(api_key=GOOGLE_API_KEY)
 
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
@@ -70,15 +68,14 @@ if not wandb_api_key and not netrc_path.exists():
 client = AsyncOpenAI(timeout=60.0)
 valid_hotkeys = []
 
-
-class StreamMiner(ABC):
+class StreamMiner():
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
         bt.logging.info("starting stream miner")
         base_config = copy.deepcopy(config or get_config())
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
-        bt.logging.info(self.config)  # TODO: duplicate print?
+        bt.logging.info(self.config)
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
 
@@ -105,7 +102,7 @@ class StreamMiner(ABC):
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
                 f"\nYour validator: {self.wallet} if not registered to chain connection: {self.subtensor} "
-                f"\nRun btcli register and try again. "
+                f"\nRun btcli recycle_register --netuid 18 and try again. "
             )
             sys.exit()
         else:
@@ -144,12 +141,10 @@ class StreamMiner(ABC):
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         # thread.start()
 
-    @abstractmethod
     def config(self) -> bt.config:
-        ...
-
-    def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        return self.prompt(synapse)
+        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
+        self.add_args(parser)
+        return bt.config(parser)
 
     def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
@@ -171,7 +166,7 @@ class StreamMiner(ABC):
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
-            tao = self.metagraph.neurons[uid].stake.tao
+            tao = self.metagraph.neurons[uid].S
             # metagraph.neurons[uid].S
             if tao < blacklist_amt:
                 return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
@@ -222,37 +217,6 @@ class StreamMiner(ABC):
         blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
-
-    @classmethod
-    @abstractmethod
-    def add_args(cls, parser: argparse.ArgumentParser):
-        ...
-
-    def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        return self.prompt(synapse)
-
-    async def _images(self, synapse: ImageResponse) -> ImageResponse:
-        return await self.images(synapse)
-
-    async def _embeddings(self, synapse: Embeddings) -> Embeddings:
-        return await self.embeddings(synapse)
-
-    def _is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.info("answered to be active")
-        synapse.completion = "True"
-        return synapse
-
-    @abstractmethod
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        ...
-
-    @abstractmethod
-    def images(self, synapse: ImageResponse) -> ImageResponse:
-        ...
-
-    @abstractmethod
-    def embeddings(self, synapse: Embeddings) -> Embeddings:
-        ...
 
     def run(self):
         if not self.subtensor.is_hotkey_registered(
@@ -349,121 +313,6 @@ class StreamMiner(ABC):
     def __exit__(self, exc_type, exc_value, traceback):
         self.stop_run_thread()
 
-
-class StreamingTemplateMiner(StreamMiner):
-    def config(self) -> bt.config:
-        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
-        self.add_args(parser)
-        return bt.config(parser)
-
-    def add_args(cls, parser: argparse.ArgumentParser):
-        pass
-
-    async def embeddings(self, synapse: Embeddings) -> Embeddings:
-        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
-
-        async def get_embeddings_in_batch(texts, model, batch_size=10):
-            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-            tasks = []
-            for batch in batches:
-                filtered_batch = [text for text in batch if text.strip()]
-                if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(
-                        input=filtered_batch, model=model, encoding_format='float'
-                    ))
-                    tasks.append(task)
-                else:
-                    bt.logging.info("Skipped an empty batch.")
-
-            all_embeddings = []
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
-                    bt.logging.error(f"Error in processing batch: {result}")
-                else:
-                    batch_embeddings = [item.embedding for item in result.data]
-                    all_embeddings.extend(batch_embeddings)
-            return all_embeddings
-
-        try:
-            texts = synapse.texts
-            model = synapse.model
-            batched_embeddings = await get_embeddings_in_batch(texts, model)
-            synapse.embeddings = batched_embeddings
-            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
-            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
-            return synapse
-        except Exception:
-            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
-
-
-    async def images(self, synapse: ImageResponse) -> ImageResponse:
-        bt.logging.info(f"received image request: {synapse}")
-        try:
-            # Extract necessary information from synapse
-            provider = synapse.provider
-            model = synapse.model
-            messages = synapse.messages
-            size = synapse.size
-            width = synapse.width
-            height = synapse.height
-            quality = synapse.quality
-            style = synapse.style
-            seed = synapse.seed
-            steps = synapse.steps
-            image_revised_prompt = None
-            cfg_scale = synapse.cfg_scale
-            sampler = synapse.sampler
-            samples = synapse.samples
-            image_data = {}
-
-            bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
-
-            if provider == "OpenAI":
-                meta = await client.images.generate(
-                    model=model,
-                    prompt=messages,
-                    size=size,
-                    quality=quality,
-                    style=style,
-                    )
-                image_url = meta.data[0].url
-                image_revised_prompt = meta.data[0].revised_prompt
-                image_data["url"] = image_url
-                image_data["image_revised_prompt"] = image_revised_prompt
-                bt.logging.info(f"returning image response of {image_url}")
-
-            elif provider == "Stability":
-                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
-
-                meta = stability_api.generate(
-                    prompt=messages,
-                    seed=seed,
-                    steps=steps,
-                    cfg_scale=cfg_scale,
-                    width=width,
-                    height=height,
-                    samples=samples,
-                    # sampler=sampler
-                )
-                # Process and upload the image
-                b64s = []
-                for image in meta:
-                    for artifact in image.artifacts:
-                        b64s.append(base64.b64encode(artifact.binary).decode())
-
-                image_data["b64s"] = b64s
-                bt.logging.info(f"returning image response to {messages}")
-
-            else:
-                bt.logging.error(f"Unknown provider: {provider}")
-
-            synapse.completion = image_data
-            return synapse
-
-        except Exception as exc:
-            bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
-
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
 
@@ -549,6 +398,121 @@ class StreamingTemplateMiner(StreamMiner):
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
+    async def _images(self, synapse: ImageResponse) -> ImageResponse:
+        bt.logging.info(f"received image request: {synapse}")
+        try:
+            # Extract necessary information from synapse
+            provider = synapse.provider
+            model = synapse.model
+            messages = synapse.messages
+            size = synapse.size
+            width = synapse.width
+            height = synapse.height
+            quality = synapse.quality
+            style = synapse.style
+            seed = synapse.seed
+            steps = synapse.steps
+            image_revised_prompt = None
+            cfg_scale = synapse.cfg_scale
+            sampler = synapse.sampler
+            samples = synapse.samples
+            image_data = {}
+
+            bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
+
+            if provider == "OpenAI":
+                meta = await client.images.generate(
+                    model=model,
+                    prompt=messages,
+                    size=size,
+                    quality=quality,
+                    style=style,
+                    )
+                image_url = meta.data[0].url
+                image_revised_prompt = meta.data[0].revised_prompt
+                image_data["url"] = image_url
+                image_data["image_revised_prompt"] = image_revised_prompt
+                bt.logging.info(f"returning image response of {image_url}")
+
+            elif provider == "Stability":
+                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
+
+                meta = stability_api.generate(
+                    prompt=messages,
+                    seed=seed,
+                    steps=steps,
+                    cfg_scale=cfg_scale,
+                    width=width,
+                    height=height,
+                    samples=samples,
+                    # sampler=sampler
+                )
+                # Process and upload the image
+                b64s = []
+                for image in meta:
+                    for artifact in image.artifacts:
+                        b64s.append(base64.b64encode(artifact.binary).decode())
+
+                image_data["b64s"] = b64s
+                bt.logging.info(f"returning image response to {messages}")
+
+            else:
+                bt.logging.error(f"Unknown provider: {provider}")
+
+            synapse.completion = image_data
+            return synapse
+
+        except Exception as exc:
+            bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
+
+    async def _embeddings(self, synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
+
+        async def get_embeddings_in_batch(texts, model, batch_size=10):
+            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            tasks = []
+            for batch in batches:
+                filtered_batch = [text for text in batch if text.strip()]
+                if filtered_batch:
+                    task = asyncio.create_task(client.embeddings.create(
+                        input=filtered_batch, model=model, encoding_format='float'
+                    ))
+                    tasks.append(task)
+                else:
+                    bt.logging.info("Skipped an empty batch.")
+
+            all_embeddings = []
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    bt.logging.error(f"Error in processing batch: {result}")
+                else:
+                    batch_embeddings = [item.embedding for item in result.data]
+                    all_embeddings.extend(batch_embeddings)
+            return all_embeddings
+
+        try:
+            texts = synapse.texts
+            model = synapse.model
+            batched_embeddings = await get_embeddings_in_batch(texts, model)
+            synapse.embeddings = batched_embeddings
+            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
+            return synapse
+        except Exception:
+            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+
+    def _is_alive(self, synapse: IsAlive) -> IsAlive:
+        bt.logging.info("answered to be active")
+        synapse.completion = "True"
+        return synapse
+
+if __name__ == "__main__":
+    with StreamingMiner():
+        while True:
+            time.sleep(1)
+
+
 def get_valid_hotkeys(config):
     global valid_hotkeys
     api = wandb.Api()
@@ -599,7 +563,4 @@ def get_valid_hotkeys(config):
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
 
 
-if __name__ == "__main__":
-    with StreamingTemplateMiner():
-        while True:
-            time.sleep(1)
+
