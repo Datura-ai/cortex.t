@@ -36,7 +36,7 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 
 # Set up the API connection
 stability_api = stability_client.StabilityInference(
-    key=os.environ['STABILITY_KEY'],
+    key=os.environ['STABILITY_API_KEY'],
     verbose=True,
     engine="stable-diffusion-xl-1024-v1-0"
 )
