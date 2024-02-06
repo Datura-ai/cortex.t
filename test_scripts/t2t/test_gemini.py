@@ -8,7 +8,6 @@ from IPython.display import display
 from IPython.display import Markdown
 
 google_api = os.environ.get('GOOGLE_API_KEY')
-google_api = "AIzaSyD0txmxjcu1jDi_MrHj4CpTLKQfdCgrc1s"
 genai.configure(api_key=google_api)
 
 # def to_markdown(text):
