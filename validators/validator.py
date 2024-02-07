@@ -26,7 +26,7 @@ import template
 from template import utils
 import sys
 
-from weight_setter import WeightSetter, TestWeightSetter
+from weight_setter import WeightSetter
 
 text_vali = None
 image_vali = None
@@ -102,7 +102,6 @@ def initialize_components(config: bt.config):
             f"{subtensor}. Run btcli register --netuid 18 and try again."
         )
         sys.exit()
-
     return wallet, subtensor, dendrite, my_uid
 
 
@@ -115,50 +114,7 @@ def initialize_validators(vali_config, test=False):
     bt.logging.info("initialized_validators")
 
 
-async def process_text_validator(request: web.Request):
-    # Basic request validation
-    if request.method != "POST" or request.path != '/text-validator/':
-        return web.Response(status=400, text="Invalid request")
-
-    # Check access key
-    access_key = request.headers.get("access-key")
-    if access_key != EXPECTED_ACCESS_KEY:
-        return web.Response(status=401, text="Invalid access key")
-
-    try:
-        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
-    except ValueError:
-        return web.Response(status=400, text="Bad request format")
-
-    response = web.StreamResponse()
-    await response.prepare(request)
-
-    uid_to_response = dict.fromkeys(messages_dict, "")
-    try:
-        async for uid, content in text_vali.organic(validator_app.weight_setter.metagraph, messages_dict):
-            uid_to_response[uid] += content
-            await response.write(content.encode())
-        validator_app.weight_setter.register_text_validator_organic_query(
-            uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
-        )
-    except Exception as e:
-        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
-        await response.write(b'<<internal error>>')
-
-    return response
-
-
-class ValidatorApplication(web.Application):
-    def __init__(self, *a, **kw):
-        super().__init__(*a, **kw)
-        self.weight_setter: WeightSetter | None = None
-
-
-validator_app = ValidatorApplication()
-validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
-
-
-def main(run_aio_app=True, test=False) -> None:
+def main(test=False) -> None:
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
@@ -170,21 +126,17 @@ def main(run_aio_app=True, test=False) -> None:
     initialize_validators(validator_config, test)
     init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
+    weight_setter = WeightSetter(loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali)
 
-    weight_setter = (WeightSetter if not test else TestWeightSetter)(
-        loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali)
-    validator_app.weight_setter = weight_setter
-
-    if run_aio_app:
-        try:
-            web.run_app(validator_app, port=config.http_port, loop=loop)
-        except KeyboardInterrupt:
-            bt.logging.info("Keyboard interrupt detected. Exiting validator.")
-        finally:
-            state = utils.get_state()
-            utils.save_state_to_file(state)
-            if config.wandb_on:
-                wandb.finish()
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        bt.logging.info("Keyboard interrupt detected. Exiting validator.")
+    finally:
+        state = utils.get_state()
+        utils.save_state_to_file(state)
+        if config.wandb_on:
+            wandb.finish()
 
 
 if __name__ == "__main__":

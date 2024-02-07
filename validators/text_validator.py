@@ -112,7 +112,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 1
+        will_score_all = random_number < 1 / 100
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
@@ -132,6 +132,7 @@ class TextValidator(BaseValidator):
         uid_to_question: dict[int, str],  # uid -> prompt
         metagraph: bt.metagraph,
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
+
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         response_tasks = []

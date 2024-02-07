@@ -214,6 +214,24 @@ class StreamPrompting(bt.StreamingSynapse):
         description="The model to use when calling provider for your response.",
     )
 
+    uid: int = pydantic.Field(
+        default=None,
+        title="uid",
+        description="The UID to send the streaming synapse to",
+    )
+
+    timeout: int = pydantic.Field(
+        default=60,
+        title="timeout",
+        description="The timeout for the dendrite of the streaming synapse",
+    )
+
+    streaming: bool = pydantic.Field(
+        default=True,
+        title="streaming",
+        description="whether to stream the output",
+    )
+
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:
         if self.completion is None:
             self.completion = ""
