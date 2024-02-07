@@ -364,21 +364,26 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
 
     return None
 
-async def call_gemini(messages, temperature, model, max_tokens):
+async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
     bt.logging.debug(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
     try:
         model = genai.GenerativeModel(model)
-        responses = model.generate_content(
-            messages,
-            candidate_count=1,
-            stop_sequences=['x'],
-            temperature=temperature,
-            max_output_tokens=max_tokens,
+        response = model.generate_content(
+            str(messages),
             stream=False,
+            generation_config=genai.types.GenerationConfig(
+                candidate_count=1,
+                # stop_sequences=['x'],
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+                top_p=top_p,
+                top_k=top_k,
+                # seed=seed,
             )
+        )
 
-        bt.logging.debug(f"validator response is {response}")
-        return response
+        bt.logging.debug(f"validator response is {response.text}")
+        return response.text
 
     except Exception as e:
         bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")

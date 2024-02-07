@@ -331,7 +331,7 @@ class StreamMiner():
     def __exit__(self, exc_type, exc_value, traceback):
         self.stop_run_thread()
 
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+    async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
 
         async def _prompt(synapse, send: Send):
@@ -411,26 +411,28 @@ class StreamMiner():
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
                     stream = model.generate_content(
-                        "What is the meaning of life?",
+                        str(messages),
                         stream=True,
                         generation_config=genai.types.GenerationConfig(
                             candidate_count=1,
-                            stop_sequences=['x'],
+                            # stop_sequences=['x'],
                             temperature=temperature,
                             max_output_tokens=max_tokens,
+                            top_p=top_p,
+                            top_k=top_k,
+                            # seed=seed,
                         )
                     )
 
-                    async for completion in stream:
-                        if completion.completion:
-                            await send(
-                                {
+                    for chunk in stream:
+                        for part in chunk.candidates[0].content.parts:
+                            encoded_part = part.text.encode("utf-8")
+                            await send({
                                     "type": "http.response.body",
-                                    "body": completion.completion.encode("utf-8"),
+                                    "body": encoded_part,
                                     "more_body": True,
-                                }
-                            )
-                            bt.logging.info(f"Streamed text: {completion.completion}")
+                                })
+                            bt.logging.info(f"Streamed text: {part}")
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
@@ -548,7 +550,7 @@ class StreamMiner():
         except Exception:
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
-    def is_alive(self, synapse: IsAlive) -> IsAlive:
+    async def is_alive(self, synapse: IsAlive) -> IsAlive:
         bt.logging.info("answered to be active")
         synapse.completion = "True"
         return synapse

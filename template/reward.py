@@ -31,6 +31,7 @@ import asyncio
 import logging
 import aiohttp
 import requests
+import traceback
 import numpy as np
 from numpy.linalg import norm
 import bittensor as bt
@@ -57,7 +58,7 @@ def calculate_text_similarity(text1: str, text2: str):
         # bt.debug(f"Similarity: {similarity}")
         return similarity
     except Exception as e:
-        bt.logging.error(f"Error in calculate_text_similarity: {e}")
+        bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")
         raise
 
 async def api_score(api_answer: str, response: str, weight: float) -> float:
@@ -70,7 +71,7 @@ async def api_score(api_answer: str, response: str, weight: float) -> float:
         words_in_api = len(api_answer.split())
 
         # Answer must be within 15% the true answer's length
-        word_count_threshold = words_in_api * 0.15
+        word_count_threshold = words_in_api * 0.25
 
         # Check if the word count difference is within the threshold and similarity
         if abs(words_in_response - words_in_api) <= word_count_threshold:

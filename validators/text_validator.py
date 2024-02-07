@@ -112,7 +112,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 9
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
@@ -122,7 +122,7 @@ class TextValidator(BaseValidator):
         elif provider == "Anthropic":
             return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Gemini":
-            return await call_gemini(prompt, self.temperature, self.model, self.max_tokens)
+            return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         else:
             bt.logging.error(f"provider {provider} not found")
 
