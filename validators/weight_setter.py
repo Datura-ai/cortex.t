@@ -117,27 +117,20 @@ class WeightSetter:
         except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
-    async def handle_response(self, uid, responses):
-        bt.logging.info(uid, responses)
-        return uid, responses
-
     async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received {synapse}")
 
-        try:
-            responses = await self.dendrite([self.metagraph.axons[synapse.uid]], synapse, deserialize=False, timeout=synapse.timeout, streaming=False)
-            return await self.handle_response(synapse.uid, responses)
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
 
-        except Exception as e:
-            bt.logging.error(f"Exception during query for uid {synapse.uid}: {traceback.format_exc()}")
-            return synapse.uid, None
+        bt.logging.info(f"new synapse = {synapse}")
+        return synapse
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"received {synapse}")
 
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, timeout=synapse.timeout)
+        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
 
-        bt.logging.info(f"synapse = {synapse}")
+        bt.logging.info(f"new synapse = {synapse}")
         return synapse
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
@@ -146,8 +139,7 @@ class WeightSetter:
         async def _prompt(synapse, send: Send):
             bt.logging.info(
                 f"Sending {synapse} request to uid: {synapse.uid}, "
-            )    
-
+            )
             async def handle_response(responses):
                 for resp in responses:
                     async for chunk in resp:
@@ -179,7 +171,7 @@ class WeightSetter:
         synapse.completion =  "completed"
         bt.logging.info("completed")
 
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, timeout=synapse.timeout)
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
 
         bt.logging.info(f"synapse = {synapse}")
         return synapse

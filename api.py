@@ -48,7 +48,7 @@ synapse = ImageResponse(
 
 print("messages", messages)
 bt.trace()
-response = dendrite.query(metagraph.axons[vali_uid], synapse, timeout=synapse.timeout)
+response = dendrite.query(metagraph.axons[vali_uid], synapse, deserialize=False, timeout=synapse.timeout)
 print('completion:', response.completion)
 
 # async def query_miner(synapse):
