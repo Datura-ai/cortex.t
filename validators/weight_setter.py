@@ -264,10 +264,9 @@ class WeightSetter:
             )    
 
             async def handle_response(responses):
-                full_response = "test response"
-                try:
-                    for resp in responses:
-                        async for chunk in resp:
+                for resp in responses:
+                    async for chunk in resp:
+                        if isinstance(chunk, str):
                             await send(
                                 {
                                     "type": "http.response.body",
@@ -276,12 +275,7 @@ class WeightSetter:
                                 }
                             )
                             bt.logging.info(f"Streamed text: {chunk}")
-
-                    # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
-                except Exception as e:
-                    print(f"Error processing response for uid {e}")
-                return full_response
 
             axon = self.metagraph.axons[synapse.uid]
             responses = self.dendrite.query(
@@ -292,9 +286,6 @@ class WeightSetter:
                 streaming=True,
             )
             return await handle_response(responses)
-
-            response = await query_miner(synapse)
-            print(response)
         
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)

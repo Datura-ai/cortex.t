@@ -64,7 +64,7 @@ async def handle_response(responses):
             async for chunk in resp:
                 if isinstance(chunk, str):
                     full_response += chunk
-                    print(chunk)
+                    bt.logging.info(chunk)
     except Exception as e:
         print(f"Error processing response for uid {e}")
     return full_response
