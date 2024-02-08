@@ -479,14 +479,22 @@ class StreamingTemplateMiner(StreamMiner):
                 top_k = synapse.top_k
 
                 if provider == "OpenAI":
-                    response = await client.chat.completions.create(
+
+                    ### Store the args in a dictionary to be passed to OpenAI
+                    args = dict(
                         model=model,
                         messages=messages,
                         temperature=temperature,
                         stream=True,
-                        seed=seed,
                         max_tokens=max_tokens
                     )
+
+                    ### If -1 is specified, this indicates that the user does not want a seed added to the request
+                    if seed != -1:
+                        args["seed"] = seed
+
+                    response = await client.chat.completions.create(**args)
+
                     buffer = []
                     n = 1
                     async for chunk in response:
