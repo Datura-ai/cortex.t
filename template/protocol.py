@@ -107,6 +107,18 @@ class ImageResponse(bt.Synapse):
         title="Quality",
         description="The quality of the image."
     )
+    
+    uid: int = pydantic.Field(
+        default=3,
+        title="uid",
+        description="The UID to send the synapse to",
+    )
+
+    timeout: int = pydantic.Field(
+        default=60,
+        title="timeout",
+        description="The timeout for the dendrite of the synapse",
+    )
 
     required_hash_fields: List[str] = pydantic.Field(
         ["messages"],
@@ -137,6 +149,18 @@ class Embeddings( bt.Synapse):
         None,
         title="Embeddings",
         description="The resulting list of embeddings, each corresponding to an input text."
+    )
+    
+    uid: int = pydantic.Field(
+        default=3,
+        title="uid",
+        description="The UID to send the synapse to",
+    )
+
+    timeout: int = pydantic.Field(
+        default=60,
+        title="timeout",
+        description="The timeout for the dendrite of the synapse",
     )
 
 

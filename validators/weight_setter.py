@@ -109,7 +109,7 @@ class WeightSetter:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey == self.wallet.hotkey.ss58_address:
+            if hotkey == self.wallet.hotkey.ss58_address or hotkey in template.VALIDATOR_API_WHITELIST:
                 return False, f"accepting {synapse_type} request from self"
 
             return True, f"rejecting {synapse_type} request from {hotkey}"
@@ -117,45 +117,28 @@ class WeightSetter:
         except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
+    async def handle_response(self, uid, responses):
+        bt.logging.info(uid, responses)
+        return uid, responses
+
     async def images(self, synapse: ImageResponse) -> ImageResponse:
-        pass
-
-    async def embeddings(self, synapse: Embeddings) -> Embeddings:
-        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
-
-        async def get_embeddings_in_batch(texts, model, batch_size=10):
-            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-            tasks = []
-            for batch in batches:
-                filtered_batch = [text for text in batch if text.strip()]
-                if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(
-                        input=filtered_batch, model=model, encoding_format='float'
-                    ))
-                    tasks.append(task)
-                else:
-                    bt.logging.info("Skipped an empty batch.")
-
-            all_embeddings = []
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
-                    bt.logging.error(f"Error in processing batch: {result}")
-                else:
-                    batch_embeddings = [item.embedding for item in result.data]
-                    all_embeddings.extend(batch_embeddings)
-            return all_embeddings
+        bt.logging.info(f"received {synapse}")
 
         try:
-            texts = synapse.texts
-            model = synapse.model
-            batched_embeddings = await get_embeddings_in_batch(texts, model)
-            synapse.embeddings = batched_embeddings
-            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
-            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
-            return synapse
-        except Exception:
-            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+            responses = await self.dendrite([self.metagraph.axons[synapse.uid]], synapse, deserialize=False, timeout=synapse.timeout, streaming=False)
+            return await self.handle_response(synapse.uid, responses)
+
+        except Exception as e:
+            bt.logging.error(f"Exception during query for uid {synapse.uid}: {traceback.format_exc()}")
+            return synapse.uid, None
+
+    async def embeddings(self, synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"received {synapse}")
+
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, timeout=synapse.timeout)
+
+        bt.logging.info(f"synapse = {synapse}")
+        return synapse
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"received {synapse}")
