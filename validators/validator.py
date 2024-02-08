@@ -14,8 +14,6 @@ from pathlib import Path
 import bittensor as bt
 import torch
 import wandb
-from aiohttp import web
-from aiohttp.web_response import Response
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 from text_validator import TextValidator, TestTextValidator
@@ -43,11 +41,12 @@ def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument('--wandb_off', action='store_false', dest='wandb_on')
-    parser.add_argument('--http_port', type=int, default=8000)
+    parser.add_argument('--axon.port', type=int, default=8000)
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
     bt.wallet.add_args(parser)
+    bt.axon.add_args(parser)
     config = bt.config(parser)
     _args = parser.parse_args()
     full_path = Path(

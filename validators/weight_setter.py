@@ -31,7 +31,6 @@ import google.generativeai as genai
 import wandb
 from PIL import Image
 from stability_sdk import client
-from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from stability_sdk import client as stability_client
 from PIL import Image
@@ -58,33 +57,22 @@ scoring_organic_timeout = 60
 class WeightSetter:
     def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
         bt.logging.info("starting stream miner")
-        # base_config = copy.deepcopy(config or get_config())
-        base_config = copy.deepcopy(get_config())
-        self.config = self.config()
-        self.config.merge(base_config)
-        check_config(WeightSetter, self.config)
-        bt.logging.info(self.config)
+        self.config = config
+        bt.logging.info(f"config:\n{self.config}")
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
-
-
         self.loop = loop
         self.dendrite = dendrite
         self.subtensor = subtensor
-        self.config = config
         self.wallet = wallet
         self.text_vali = text_vali
         self.image_vali = image_vali
         self.embed_vali = embed_vali
-
         self.moving_average_scores = None
-        self.axon = bt.axon(wallet=self.wallet, port=12000)
-
-        self.metagraph = subtensor.metagraph(config.netuid)
+        self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
+        self.metagraph = self.subtensor.metagraph(config.netuid)
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
-        self.test_string = "akjshdfkjahsdfka"
-
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
