@@ -147,6 +147,8 @@ class StreamMiner():
         ).attach(
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
+        ).attach(
+            forward_fn=self.text,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -158,6 +160,11 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         # thread.start()
+    
+    def prompt(self, synapse: TextPrompting) -> TextPrompting:
+        synapse.completion = "completed by miner"
+        return synapse
+
 
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")

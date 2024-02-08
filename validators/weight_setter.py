@@ -39,7 +39,7 @@ import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
+from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
 from template.utils import get_version
 import sys
 
@@ -256,42 +256,55 @@ class WeightSetter:
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        bt.logging.info(
-            f"Sending {synapse.model} {synapse.messages} request to uid: {synapse.uid}, "
-        )
+        bt.logging.info(f"received {synapse}")
 
-        my_synapse = StreamPrompting(
-            provider = synapse.provider,
-            model = synapse.model,
-            messages = synapse.messages,
-            seed = synapse.seed,
-            temperature = synapse.temperature,
-            max_tokens = synapse.max_tokens,
-            top_p = synapse.top_p,
-            top_k = synapse.top_k,
-        )     
+        async def _prompt(synapse, send: Send):
+            bt.logging.info(
+                f"Sending {synapse} request to uid: {synapse.uid}, "
+            )    
 
-        response = await self.dendrite([self.metagraph.axons[synapse.uid]], my_synapse, deserialize=False, timeout=synapse.timeout,
-                                        streaming=synapse.streaming)
+            # hotkey = "5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ"
+            # wallet = bt.wallet ( name = "1" , hotkey = "6" )
+            # new_dendrite = bt.dendrite( wallet = wallet )
+            response = await self.dendrite([self.metagraph.axons[synapse.uid]], synapse, deserialize=False, timeout=synapse.timeout,
+                                            streaming=synapse.streaming)
 
-        full_response = ""
-        async for chunk in response:
-            if isinstance(chunk, str):
-                bt.logging.trace(chunk)
+            full_response = ""
+            # response = ["hello", "hi", "bye", "yes", "no"]
+            bt.logging.debug(f"response = {response}")
+            async for chunk in response:
+                bt.logging.info("streaming token")
+                bt.logging.info(chunk)
                 full_response += chunk
-                if synapse.streaming == True:
-                    yield chunk
-        
-        bt.logging.debug(f"full_response for uid {uid}: {full_response}")
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": chunk.encode("utf-8"),
+                        "more_body": True,
+                    }
+                )
+                bt.logging.info(f"Streamed tokens: {chunk}")
 
-        if synapse.streaming == False:
-            yield full_response
+            await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+        
+        token_streamer = partial(_prompt, synapse)
+        return synapse.create_streaming_response(token_streamer)
+
+    def text(self, synapse: TextPrompting) -> TextPrompting:
+        synapse.completion =  "completed"
+        bt.logging.info("completed")
+
+        response = dendrite.query(metagraph.axons[target_uid], synapse)
+
+        return synapse
 
     async def consume_organic_scoring(self):
         bt.logging.info("Attaching forward function to axon.")
         self.axon.attach(
             forward_fn=self.prompt,
-            blacklist_fn=self.blacklist_prompt,
+            blacklist_fn=self.blacklist_prompt
+        )
         ).attach(
             forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
@@ -301,6 +314,8 @@ class WeightSetter:
         ).attach(
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
+        ).attach(
+            forward_fn=self.text,
         )
         self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
         self.axon.start()
@@ -351,7 +366,7 @@ class WeightSetter:
                         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
                     )
 
-                await asyncio.sleep(10)
+                await asyncio.sleep(100)
 
     def select_validator(self, steps_passed):
         return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
