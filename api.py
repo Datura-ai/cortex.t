@@ -38,7 +38,7 @@ synapse = StreamPrompting(
     streaming=streaming,
 )
 
-bt.trace()
+# bt.trace()
 # response = dendrite.query(metagraph.axons[vali_uid], synapse, timeout=synapse.timeout)
 # print('completion:', response.completion)
 
@@ -71,7 +71,7 @@ async def handle_response(responses):
 
 async def main():
     response = await query_miner(synapse)
-    print(response)
+    bt.logging.info(f"full_response = {response}")
 
 if __name__ == "__main__":
     asyncio.run(main())

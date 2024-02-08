@@ -109,114 +109,16 @@ class WeightSetter:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            # if hotkey in template.VALIDATOR_API_WHITELIST:
-            #     return False,  f"accepting {synapse_type} request from {hotkey}"
-
             if hotkey == self.wallet.hotkey.ss58_address:
                 return False, f"accepting {synapse_type} request from self"
-
-            # # check the stake
-            # tao = self.metagraph.neurons[uid].S
-            # if tao < blacklist_amt:
-            #     return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
-
-            # time_window = template.MIN_REQUEST_PERIOD * 60
-            # current_time = time.time()
-
-            # if hotkey not in self.request_timestamps:
-            #     self.request_timestamps[hotkey] = deque()
-
-            # # Remove timestamps outside the current time window
-            # while self.request_timestamps[hotkey] and current_time - self.request_timestamps[hotkey][0] > time_window:
-            #     self.request_timestamps[hotkey].popleft()
-
-            # # Check if the number of requests exceeds the limit
-            # if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
-            #     return (
-            #         True,
-            #         f"Request frequency for {hotkey} exceeded: "
-            #         f"{len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. "
-            #         f"Limit is {template.MAX_REQUESTS} requests."
-            #     )
-
-            # self.request_timestamps[hotkey].append(current_time)
 
             return True, f"rejecting {synapse_type} request from {hotkey}"
 
         except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
-    async def is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.info("answered to be active")
-        synapse.completion = "True"
-        return synapse
-
     async def images(self, synapse: ImageResponse) -> ImageResponse:
-        bt.logging.info(f"received image request: {synapse}")
-        try:
-            # Extract necessary information from synapse
-            provider = synapse.provider
-            model = synapse.model
-            messages = synapse.messages
-            size = synapse.size
-            width = synapse.width
-            height = synapse.height
-            quality = synapse.quality
-            style = synapse.style
-            seed = synapse.seed
-            steps = synapse.steps
-            image_revised_prompt = None
-            cfg_scale = synapse.cfg_scale
-            sampler = synapse.sampler
-            samples = synapse.samples
-            image_data = {}
-
-            bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
-
-            if provider == "OpenAI":
-                meta = await client.images.generate(
-                    model=model,
-                    prompt=messages,
-                    size=size,
-                    quality=quality,
-                    style=style,
-                    )
-                image_url = meta.data[0].url
-                image_revised_prompt = meta.data[0].revised_prompt
-                image_data["url"] = image_url
-                image_data["image_revised_prompt"] = image_revised_prompt
-                bt.logging.info(f"returning image response of {image_url}")
-
-            elif provider == "Stability":
-                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
-
-                meta = stability_api.generate(
-                    prompt=messages,
-                    seed=seed,
-                    steps=steps,
-                    cfg_scale=cfg_scale,
-                    width=width,
-                    height=height,
-                    samples=samples,
-                    # sampler=sampler
-                )
-                # Process and upload the image
-                b64s = []
-                for image in meta:
-                    for artifact in image.artifacts:
-                        b64s.append(base64.b64encode(artifact.binary).decode())
-
-                image_data["b64s"] = b64s
-                bt.logging.info(f"returning image response to {messages}")
-
-            else:
-                bt.logging.error(f"Unknown provider: {provider}")
-
-            synapse.completion = image_data
-            return synapse
-
-        except Exception as exc:
-            bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
+        pass
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
@@ -303,10 +205,7 @@ class WeightSetter:
         bt.logging.info("Attaching forward function to axon.")
         self.axon.attach(
             forward_fn=self.prompt,
-            blacklist_fn=self.blacklist_prompt
-        ).attach(
-            forward_fn=self.is_alive,
-            blacklist_fn=self.blacklist_is_alive,
+            blacklist_fn=self.blacklist_prompt,
         ).attach(
             forward_fn=self.images,
             blacklist_fn=self.blacklist_images,
