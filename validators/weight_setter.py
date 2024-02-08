@@ -75,7 +75,7 @@ class WeightSetter:
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
-        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
@@ -263,30 +263,38 @@ class WeightSetter:
                 f"Sending {synapse} request to uid: {synapse.uid}, "
             )    
 
-            # hotkey = "5GWpLx45mZb2AuBN96eucHgjk1i9FNxb1oSCnW4KJFEx1DFJ"
-            # wallet = bt.wallet ( name = "1" , hotkey = "6" )
-            # new_dendrite = bt.dendrite( wallet = wallet )
-            response = await self.dendrite([self.metagraph.axons[synapse.uid]], synapse, deserialize=False, timeout=synapse.timeout,
-                                            streaming=synapse.streaming)
+            async def handle_response(responses):
+                full_response = "test response"
+                try:
+                    for resp in responses:
+                        async for chunk in resp:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": chunk.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {chunk}")
 
-            full_response = ""
-            # response = ["hello", "hi", "bye", "yes", "no"]
-            bt.logging.debug(f"response = {response}")
-            async for chunk in response:
-                bt.logging.info("streaming token")
-                bt.logging.info(chunk)
-                full_response += chunk
-                await send(
-                    {
-                        "type": "http.response.body",
-                        "body": chunk.encode("utf-8"),
-                        "more_body": True,
-                    }
-                )
-                bt.logging.info(f"Streamed tokens: {chunk}")
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                except Exception as e:
+                    print(f"Error processing response for uid {e}")
+                return full_response
 
-            await send({"type": "http.response.body", "body": b'', "more_body": False})
+            axon = self.metagraph.axons[synapse.uid]
+            responses = self.dendrite.query(
+                axons=[axon], 
+                synapse=synapse, 
+                deserialize=False,
+                timeout=synapse.timeout,
+                streaming=True,
+            )
+            return await handle_response(responses)
 
+            response = await query_miner(synapse)
+            print(response)
         
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
@@ -295,8 +303,9 @@ class WeightSetter:
         synapse.completion =  "completed"
         bt.logging.info("completed")
 
-        response = dendrite.query(metagraph.axons[target_uid], synapse)
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, timeout=synapse.timeout)
 
+        bt.logging.info(f"synapse = {synapse}")
         return synapse
 
     async def consume_organic_scoring(self):
@@ -304,7 +313,6 @@ class WeightSetter:
         self.axon.attach(
             forward_fn=self.prompt,
             blacklist_fn=self.blacklist_prompt
-        )
         ).attach(
             forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
@@ -317,7 +325,7 @@ class WeightSetter:
         ).attach(
             forward_fn=self.text,
         )
-        self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
+        # self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
         self.axon.start()
         self.my_subnet_uid = self.metagraph.hotkeys.index(
             self.wallet.hotkey.ss58_address

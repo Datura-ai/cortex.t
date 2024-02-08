@@ -27,7 +27,7 @@ import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
+from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
 from template.utils import get_version
 import sys
 
@@ -161,10 +161,9 @@ class StreamMiner():
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         # thread.start()
     
-    def prompt(self, synapse: TextPrompting) -> TextPrompting:
+    def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
-
 
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
@@ -257,7 +256,7 @@ class StreamMiner():
             f"on network: {self.config.subtensor.chain_endpoint} "
             f"with netuid: {self.config.netuid}"
         )
-        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
+        # self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
         self.axon.start()
         self.last_epoch_block = self.subtensor.get_current_block()
