@@ -2439,7 +2439,13 @@ instruct_task_options = [
     "Domain Specific Tasks a Large Language Model could Perform",
     "Simulated Debates, Conversations, or Deliberations",
     "Difficult and specific instructions",
-    "Brainstorming Ideas"
+    "Brainstorming Ideas",
+    "Questions",
+    "Multiple Choice Quizzes",
+    "Multi-disciplinary questions",
+    "Academic Excersizes",
+    "Logic and Reasoning Excersizes",
+    "Creative Problem Solving"
 ]
 
 CHAT_DEFAULT_THEMES = [
