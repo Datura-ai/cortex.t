@@ -75,7 +75,7 @@ PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
 
 # Instruct themes used in https://arxiv.org/pdf/2304.12244.pdf to train WizardLM
-initial_instruct_themes = [
+INITIAL_INSTRUCT_THEMES = [
     'Philosopy', 'Technology', 'Physics', 'Ethics', 'Academic Writing', 'Economy', 'History',
     'Medicine', 'Toxicity', 'Roleplay', 'Entertainment', 'Biology', 'Counterfactual', 'Literature',
     'Chemistry', 'Writing', 'Sport', 'Law', 'Language', 'Computer Science', 'Multilangual',
