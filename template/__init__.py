@@ -2393,7 +2393,7 @@ INITIAL_INSTRUCT_THEMES = [
     "Desert landscaping and xeriscaping"
 ]
 
-more_instruct_themes = [
+MORE_INSTRUCT_THEMES = [
     "Global Cultures and Societies",
     "Modern and Ancient Civilizations",
     "Innovations in Science and Technology",
@@ -2418,7 +2418,7 @@ more_instruct_themes = [
 INSTRUCT_DEFAULT_THEMES = initial_instruct_themes + more_instruct_themes
 INSTRUCT_DEFAULT_QUESTIONS = ["ERROR in getting questions"]
 
-instruct_task_options = [
+INSTRUCT_TASK_OPTIONS = [
     "roleplay",
     "code generation",
     "lecture writing",
