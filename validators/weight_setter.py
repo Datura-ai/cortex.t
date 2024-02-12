@@ -115,7 +115,7 @@ class WeightSetter:
     async def check_uid(self, axon, uid):
         """Asynchronously check if a UID is available."""
         try:
-            response = await self.dendrite(axon, IsAlive(), deserialize=False, timeout=4)
+            response = await self.dendrite(axon, IsAlive(), deserialize=False, timeout=15)
             if response.is_success:
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
