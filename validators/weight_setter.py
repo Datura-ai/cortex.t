@@ -65,7 +65,6 @@ class WeightSetter:
             end_time = time.time()
             execution_time = end_time - start_time
             bt.logging.info(f"Execution time for getting available UIDs amound is: {execution_time} seconds")
-            selected_validator =  self.text_vali
 
             await asyncio.sleep(300)  # 300 seconds = 5 minutes
 
