@@ -49,7 +49,8 @@ class WeightSetter:
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
-
+        self.steps_passed = 0
+        
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
@@ -99,6 +100,35 @@ class WeightSetter:
 
                 await asyncio.sleep(10)
 
+    async def perform_api_scoring_and_update_weights(self, messages):
+        steps_passed = self.steps_passed
+        # self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+
+        available_uids = await self.get_available_uids()
+        selected_validator =  self.text_vali
+
+        uid_list = self.shuffled(list(available_uids.keys()))
+        bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
+        result, scores, uid_scores_dict, wandb_data = await selected_validator.organic_scoring(available_uids, self.metagraph, messages)
+        if self.config.wandb_on:
+            wandb.log(wandb_data)
+            bt.logging.success("wandb_log successful")
+
+        self.total_scores += scores
+
+        steps_since_last_update = steps_passed % iterations_per_set_weights
+
+        if steps_since_last_update == iterations_per_set_weights - 1:
+            await self.update_weights(steps_passed)
+        else:
+            bt.logging.info(
+                f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
+            )
+        self.steps_passed += 1
+        return result
+
+            
+           
     def select_validator(self, steps_passed):
         return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
 

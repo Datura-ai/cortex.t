@@ -160,9 +160,8 @@ async def organic_scoring(request: web.Request):
             raise web.Response(status_code=401, detail="Invalid access key")
         body = await request.json()
         messages = body['messages']
-        available_uids = await validator_app.weight_setter.get_available_uids()
-
-        responses = await text_vali.organic_scoring(metagraph, available_uids, messages)
+       
+        responses = await validator_app.weight_setter.perform_api_scoring_and_update_weights(messages)
 
         return web.json_response(responses)
     except Exception as e:
@@ -193,7 +192,7 @@ def main(run_aio_app=True, test=False) -> None:
 
     if run_aio_app:
         try:
-            web.run_app(validator_app, port=config.http_port, loop=loop)
+            web.run_app(validator_app, port=config.http_port, loop=loop, shutdown_timeout=120)
         except KeyboardInterrupt:
             bt.logging.info("Keyboard interrupt detected. Exiting validator.")
         finally:

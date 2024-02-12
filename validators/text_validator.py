@@ -57,7 +57,7 @@ class TextValidator(BaseValidator):
                 bt.logging.trace(resp)
                 yield uid, resp
 
-    async def organic_scoring(self, metagraph, available_uids, messages):
+    async def organic_scoring(self, available_uids, metagraph, messages):
         query_tasks = []
         uid_to_question = {}
         if len(messages) <= len(available_uids):
@@ -83,7 +83,7 @@ class TextValidator(BaseValidator):
             (key, message_list), = message_dict.items() 
             result[key] = value
 
-        return result
+        return result, scores, uid_scores_dict, wandb_data
     
     async def handle_response(self, uid: str, responses) -> tuple[str, str]:
         full_response = ""
