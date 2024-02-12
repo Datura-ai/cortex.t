@@ -11,7 +11,7 @@ import torch
 import wandb
 import os
 import shutil
-
+import time
 from template.protocol import IsAlive
 from text_validator import TextValidator
 from image_validator import ImageValidator
@@ -48,9 +48,27 @@ class WeightSetter:
 
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
-        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
         self.steps_passed = 0
+        self.loop.create_task(self.update_available_uids_periodically())
+        self.available_uids = {}
+
         
+    async def update_available_uids_periodically(self):
+        while True:
+            self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+            start_time = time.time()
+            self.available_uids = await self.get_available_uids()
+            uid_list = self.shuffled(list(self.available_uids.keys()))
+            bt.logging.info(f"Number of available UIDs for periodic update: {len(uid_list)}, UIDs: {uid_list}")
+
+            end_time = time.time()
+            execution_time = end_time - start_time
+            bt.logging.info(f"Execution time for getting available UIDs amound is: {execution_time} seconds")
+            selected_validator =  self.text_vali
+
+            await asyncio.sleep(300)  # 300 seconds = 5 minutes
+
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
@@ -102,14 +120,11 @@ class WeightSetter:
 
     async def perform_api_scoring_and_update_weights(self, messages):
         steps_passed = self.steps_passed
-        # self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
-
-        available_uids = await self.get_available_uids()
-        selected_validator =  self.text_vali
-
+        available_uids = self.available_uids
+       
         uid_list = self.shuffled(list(available_uids.keys()))
-        bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-        result, scores, uid_scores_dict, wandb_data = await selected_validator.organic_scoring(available_uids, self.metagraph, messages)
+        bt.logging.info(f"starting perform_api_scoring_and_update_weights for {uid_list}")
+        result, scores, uid_scores_dict, wandb_data = await self.text_vali.organic_scoring(available_uids, self.metagraph, messages)
         if self.config.wandb_on:
             wandb.log(wandb_data)
             bt.logging.success("wandb_log successful")
