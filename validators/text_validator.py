@@ -33,14 +33,43 @@ class TextValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
-        for uid, messages in query.items():
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
-            bt.logging.info(
-                f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                f"timeout {self.timeout}: {syn.messages[0]['content']}"
-            )
+    # async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
+    #     for uid, messages in query.items():
+    #         syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+    #         bt.logging.info(
+    #             f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+    #             f"timeout {self.timeout}: {syn.messages[0]['content']}"
+    #         )
 
+    #         self.wandb_data["prompts"][uid] = messages
+    #         responses = await self.dendrite(
+    #             metagraph.axons[uid],
+    #             syn,
+    #             deserialize=False,
+    #             timeout=self.timeout,
+    #             streaming=self.streaming,
+    #         )
+
+    #         async for resp in responses:
+    #             if not isinstance(resp, str):
+    #                 continue
+
+    #             bt.logging.trace(resp)
+    #             yield uid, resp
+    
+    async def organic(self, metagraph, available_uids, messages: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
+        uid_to_question = {}
+        if len(messages) <= len(available_uids):
+            random_uids = random.sample(list(available_uids.keys()), len(messages))
+        else:
+            random_uids = [random.choice(list(available_uids.keys())) for _ in range(len(messages))]
+        for message_dict, uid in zip(messages, random_uids):  # Iterate over each dictionary in the list and random_uids
+            (key, message_list), = message_dict.items() 
+            prompt = message_list[-1]['content']
+            uid_to_question[uid] = prompt
+            message = message_list
+            syn = StreamPrompting(messages=message_list, model='gpt-3.5-turbo-16k', seed=self.seed, max_tokens=8096, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
             self.wandb_data["prompts"][uid] = messages
             responses = await self.dendrite(
                 metagraph.axons[uid],
@@ -55,35 +84,35 @@ class TextValidator(BaseValidator):
                     continue
 
                 bt.logging.trace(resp)
-                yield uid, resp
+                yield uid, key, resp
 
-    async def organic_scoring(self, available_uids, metagraph, messages):
-        query_tasks = []
-        uid_to_question = {}
-        if len(messages) <= len(available_uids):
-            random_uids = random.sample(list(available_uids.keys()), len(messages))
-        else:
-            random_uids = [random.choice(list(available_uids.keys())) for _ in range(len(messages))]
-        for message_dict, uid in zip(messages, random_uids):  # Iterate over each dictionary in the list and random_uids
-            (key, message_list), = message_dict.items() 
-            prompt = message_list[-1]['content']
-            uid_to_question[uid] = prompt
-            message = message_list
-            syn = StreamPrompting(messages=message_list, model='gpt-3.5-turbo-16k', seed=self.seed, max_tokens=8096, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
-            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
-            task = self.query_miner(metagraph, uid, syn)
-            query_tasks.append(task)
-            self.wandb_data["prompts"][uid] = prompt
+    # async def organic_scoring(self, available_uids, metagraph, messages):
+    #     query_tasks = []
+    #     uid_to_question = {}
+    #     if len(messages) <= len(available_uids):
+    #         random_uids = random.sample(list(available_uids.keys()), len(messages))
+    #     else:
+    #         random_uids = [random.choice(list(available_uids.keys())) for _ in range(len(messages))]
+    #     for message_dict, uid in zip(messages, random_uids):  # Iterate over each dictionary in the list and random_uids
+    #         (key, message_list), = message_dict.items() 
+    #         prompt = message_list[-1]['content']
+    #         uid_to_question[uid] = prompt
+    #         message = message_list
+    #         syn = StreamPrompting(messages=message_list, model='gpt-3.5-turbo-16k', seed=self.seed, max_tokens=8096, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+    #         bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
+    #         task = self.query_miner(metagraph, uid, syn)
+    #         query_tasks.append(task)
+    #         self.wandb_data["prompts"][uid] = prompt
 
-        query_responses = await asyncio.gather(*query_tasks)
-        scores, uid_scores_dict, wandb_data = await self.score_responses(query_responses, uid_to_question, metagraph)
+    #     query_responses = await asyncio.gather(*query_tasks)
+    #     scores, uid_scores_dict, wandb_data = await self.score_responses(query_responses, uid_to_question, metagraph)
 
-        result = {}
-        for (_, value), message_dict in zip(query_responses, messages):
-            (key, message_list), = message_dict.items() 
-            result[key] = value
+    #     result = {}
+    #     for (_, value), message_dict in zip(query_responses, messages):
+    #         (key, message_list), = message_dict.items() 
+    #         result[key] = value
 
-        return result, scores, uid_scores_dict, wandb_data
+    #     return result, scores, uid_scores_dict, wandb_data
     
     async def handle_response(self, uid: str, responses) -> tuple[str, str]:
         full_response = ""

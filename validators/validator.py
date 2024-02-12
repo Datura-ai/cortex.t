@@ -125,22 +125,38 @@ async def process_text_validator(request: web.Request):
     if access_key != EXPECTED_ACCESS_KEY:
         return web.Response(status=401, text="Invalid access key")
 
-    try:
-        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
-    except ValueError:
-        return web.Response(status=400, text="Bad request format")
+    # try:
+    #     messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
+    # except ValueError:
+    #     return web.Response(status=400, text="Bad request format")
+
+    body = await request.json()
+    messages = body['messages']
 
     response = web.StreamResponse()
     await response.prepare(request)
 
-    uid_to_response = dict.fromkeys(messages_dict, "")
+    key_to_response = {}
+    uid_to_response = {}
     try:
-        async for uid, content in text_vali.organic(validator_app.weight_setter.metagraph, messages_dict):
-            uid_to_response[uid] += content
-            await response.write(content.encode())
+        async for uid, key, content in text_vali.organic(metagraph=validator_app.weight_setter.metagraph, 
+                                                         available_uids=validator_app.weight_setter.available_uids,
+                                                         messages=messages):
+            uid_to_response[uid] = uid_to_response.get(uid, '') + content
+            key_to_response[key] = key_to_response.get(key, '') + content
+            # await response.write(content.encode())
+        prompts = {}
+        for uid, message_dict in zip(uid_to_response.keys(), messages):
+            (key, message_list), = message_dict.items() 
+            prompt = message_list[-1]['content']
+            prompts = {uid: prompt}
+
+
         validator_app.weight_setter.register_text_validator_organic_query(
-            uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
+            uid_to_response = [(uid, content) for uid, content in uid_to_response.items()],
+            messages_dict= prompts
         )
+        return web.json_response(key_to_response)
     except Exception as e:
         bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
         await response.write(b'<<internal error>>')
@@ -152,25 +168,25 @@ class ValidatorApplication(web.Application):
         super().__init__(*a, **kw)
         self.weight_setter: WeightSetter | None = None
 
-async def organic_scoring(request: web.Request):
-    try:
-        # Check access key
-        access_key = request.headers.get("access-key")
-        if access_key != EXPECTED_ACCESS_KEY:
-            raise web.Response(status_code=401, detail="Invalid access key")
-        body = await request.json()
-        messages = body['messages']
+# async def organic_scoring(request: web.Request):
+#     try:
+#         # Check access key
+#         access_key = request.headers.get("access-key")
+#         if access_key != EXPECTED_ACCESS_KEY:
+#             raise web.Response(status_code=401, detail="Invalid access key")
+#         body = await request.json()
+#         messages = body['messages']
        
-        responses = await validator_app.weight_setter.perform_api_scoring_and_update_weights(messages)
+#         responses = await validator_app.weight_setter.perform_api_scoring_and_update_weights(messages)
 
-        return web.json_response(responses)
-    except Exception as e:
-        bt.logging.error(f'Organic scoring error: ${e}')
-        await web.Response(status_code=400, detail="{e}")
+#         return web.json_response(responses)
+#     except Exception as e:
+#         bt.logging.error(f'Organic scoring error: ${e}')
+#         await web.Response(status_code=400, detail="{e}")
 
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
-validator_app.add_routes([web.post('/scoring/', organic_scoring)])
+# validator_app.add_routes([web.post('/scoring/', organic_scoring)])
 
 
 def main(run_aio_app=True, test=False) -> None:
