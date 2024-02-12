@@ -47,11 +47,12 @@ class WeightSetter:
         self.organic_scoring_tasks = set()
 
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
-        self.loop.create_task(self.consume_organic_scoring())
-        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+
         self.steps_passed = 0
         self.loop.create_task(self.update_available_uids_periodically())
         self.available_uids = {}
+        self.loop.create_task(self.consume_organic_scoring())
+        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
         
     async def update_available_uids_periodically(self):
@@ -66,7 +67,7 @@ class WeightSetter:
             execution_time = end_time - start_time
             bt.logging.info(f"Execution time for getting available UIDs amound is: {execution_time} seconds")
 
-            await asyncio.sleep(300)  # 300 seconds = 5 minutes
+            await asyncio.sleep(600)  # 600 seconds = 10 minutes
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -99,9 +100,9 @@ class WeightSetter:
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
             for steps_passed in itertools.count():
-                self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+                # self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
 
-                available_uids = await self.get_available_uids()
+                available_uids = self.available_uids
                 selected_validator = self.select_validator(steps_passed)
                 scores, _ = await self.process_modality(selected_validator, available_uids)
                 self.total_scores += scores
