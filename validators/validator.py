@@ -25,7 +25,7 @@ from envparse import env
 import template
 from template import utils
 import sys
-
+import json
 from weight_setter import WeightSetter, TestWeightSetter
 
 text_vali = None
@@ -124,11 +124,9 @@ async def process_text_validator(request: web.Request):
     access_key = request.headers.get("access-key")
     if access_key != EXPECTED_ACCESS_KEY:
         return web.Response(status=401, text="Invalid access key")
-
-    # try:
-    #     messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
-    # except ValueError:
-    #     return web.Response(status=400, text="Bad request format")
+    
+    if len(validator_app.weight_setter.available_uids) == 0:
+        return web.Response(status=404, text="No available UIDs")
 
     body = await request.json()
     messages = body['messages']
@@ -147,21 +145,21 @@ async def process_text_validator(request: web.Request):
             # await response.write(content.encode())
         prompts = {}
         for uid, message_dict in zip(uid_to_response.keys(), messages):
-            (key, message_list), = message_dict.items() 
+            (key, message_list), = message_dict.items()
             prompt = message_list[-1]['content']
-            prompts = {uid: prompt}
+            prompts[uid] = prompt  # Update prompts correctly for each uid
 
 
         validator_app.weight_setter.register_text_validator_organic_query(
-            uid_to_response = [(uid, content) for uid, content in uid_to_response.items()],
-            messages_dict= prompts
+            uid_to_response=uid_to_response,
+            messages_dict=prompts
         )
-        return web.json_response(key_to_response)
+        await response.write(json.dumps(key_to_response).encode())   
     except Exception as e:
-        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
+        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}, ERROR: {e}')
         await response.write(b'<<internal error>>')
-
     return response
+
 
 class ValidatorApplication(web.Application):
     def __init__(self, *a, **kw):
