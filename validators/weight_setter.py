@@ -18,7 +18,7 @@ from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 
 iterations_per_set_weights = 5
-scoring_organic_timeout = 60
+scoring_organic_timeout = 120
 
 
 async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
@@ -202,12 +202,13 @@ class WeightSetter:
 
     def register_text_validator_organic_query(
         self,
+        text_vali,
         uid_to_response: dict[int, str],  # [(uid, response)]
         messages_dict: dict[int, str],
     ):
         self.organic_scoring_tasks.add(asyncio.create_task(
             wait_for_coro_with_limit(
-                self.text_vali.score_responses(
+                text_vali.score_responses(
                     query_responses=list(uid_to_response.items()),
                     uid_to_question=messages_dict,
                     metagraph=self.metagraph,

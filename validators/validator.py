@@ -107,9 +107,12 @@ def initialize_components(config: bt.config):
 
 
 def initialize_validators(vali_config, test=False):
-    global text_vali, image_vali, embed_vali
+    global text_vali, text_vali_organic, image_vali, embed_vali
 
     text_vali = (TextValidator if not test else TestTextValidator)(**vali_config)
+    text_vali_organic = (TextValidator if not test else TestTextValidator)(**vali_config)
+    text_vali_organic.model = 'gpt-3.5-turbo-16k'
+    text_vali_organic.max_tokens = 8096
     image_vali = ImageValidator(**vali_config)
     embed_vali = EmbeddingsValidator(**vali_config)
     bt.logging.info("initialized_validators")
@@ -137,7 +140,7 @@ async def process_text_validator(request: web.Request):
     key_to_response = {}
     uid_to_response = {}
     try:
-        async for uid, key, content in text_vali.organic(metagraph=validator_app.weight_setter.metagraph, 
+        async for uid, key, content in text_vali_organic.organic(metagraph=validator_app.weight_setter.metagraph, 
                                                          available_uids=validator_app.weight_setter.available_uids,
                                                          messages=messages):
             uid_to_response[uid] = uid_to_response.get(uid, '') + content
@@ -151,10 +154,12 @@ async def process_text_validator(request: web.Request):
 
 
         validator_app.weight_setter.register_text_validator_organic_query(
+            text_vali=text_vali_organic,
             uid_to_response=uid_to_response,
             messages_dict=prompts
         )
-        await response.write(json.dumps(key_to_response).encode())   
+        await response.write(json.dumps(key_to_response).encode())
+   
     except Exception as e:
         bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}, ERROR: {e}')
         await response.write(b'<<internal error>>')
@@ -166,26 +171,8 @@ class ValidatorApplication(web.Application):
         super().__init__(*a, **kw)
         self.weight_setter: WeightSetter | None = None
 
-# async def organic_scoring(request: web.Request):
-#     try:
-#         # Check access key
-#         access_key = request.headers.get("access-key")
-#         if access_key != EXPECTED_ACCESS_KEY:
-#             raise web.Response(status_code=401, detail="Invalid access key")
-#         body = await request.json()
-#         messages = body['messages']
-       
-#         responses = await validator_app.weight_setter.perform_api_scoring_and_update_weights(messages)
-
-#         return web.json_response(responses)
-#     except Exception as e:
-#         bt.logging.error(f'Organic scoring error: ${e}')
-#         await web.Response(status_code=400, detail="{e}")
-
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
-# validator_app.add_routes([web.post('/scoring/', organic_scoring)])
-
 
 def main(run_aio_app=True, test=False) -> None:
     config = get_config()
