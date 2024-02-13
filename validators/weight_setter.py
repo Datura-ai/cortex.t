@@ -64,7 +64,7 @@ class WeightSetter:
                 continue
 
             await self.update_weights(self.steps_passed)
-            await asyncio.sleep(600)  # 600 seconds = 10 minutes
+            await asyncio.sleep(1800)
 
 
     async def update_available_uids_periodically(self):
