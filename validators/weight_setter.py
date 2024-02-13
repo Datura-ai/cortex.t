@@ -58,26 +58,43 @@ class WeightSetter:
 
     async def update_weights_periodically(self):
         while True:
-            if len(self.available_uids) == 0 or \
-               torch.all(self.total_scores == 0):
-                await asyncio.sleep(10)
-                continue
+            try:
+                if len(self.available_uids) == 0 or torch.all(self.total_scores == 0):
+                    await asyncio.sleep(10)
+                    continue
 
-            await self.update_weights(self.steps_passed)
-            await asyncio.sleep(1800)
+                await self.update_weights(self.steps_passed)
+            except Exception as e:
+                # Log the exception or handle it as needed
+                bt.logging.error(f"An error occurred in update_weights_periodically: {e}")
+                # Optionally, decide whether to continue or break the loop based on the exception
+            finally:
+                # Ensure the sleep is in the finally block if you want the loop to always wait, 
+                # even if an error occurs.
+                await asyncio.sleep(1800)  # Sleep for 30 minutes
 
 
     async def update_available_uids_periodically(self):
         while True:
-            self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
             start_time = time.time()
-            self.available_uids = await self.get_available_uids()
-            uid_list = self.shuffled(list(self.available_uids.keys()))
-            bt.logging.info(f"Number of available UIDs for periodic update: {len(uid_list)}, UIDs: {uid_list}")
-
+            try:
+                # It's assumed run_sync_in_async is a method that correctly handles running synchronous code in async.
+                # If not, ensure it's properly implemented to avoid blocking the event loop.
+                self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+                
+                # Directly await the asynchronous method without intermediate assignment to self.available_uids,
+                # unless it's used elsewhere.
+                available_uids = await self.get_available_uids()
+                uid_list = self.shuffled(list(available_uids.keys()))  # Ensure shuffled is properly defined to work with async.
+                
+                bt.logging.info(f"update_available_uids_periodically Number of available UIDs for periodic update: {len(uid_list)}, UIDs: {uid_list}")
+            except Exception as e:
+                bt.logging.error(f"update_available_uids_periodically Failed to update available UIDs: {e}")
+                # Consider whether to continue or break the loop upon certain errors.
+            
             end_time = time.time()
             execution_time = end_time - start_time
-            bt.logging.info(f"Execution time for getting available UIDs amound is: {execution_time} seconds")
+            bt.logging.info(f"update_available_uids_periodically Execution time for getting available UIDs amount is: {execution_time} seconds")
 
             await asyncio.sleep(600)  # 600 seconds = 10 minutes
 
