@@ -121,7 +121,7 @@ class WeightSetter:
             self.total_scores += scores
             
             self.steps_passed+=1
-            await asyncio.sleep(10)
+            await asyncio.sleep(600)
 
            
     def select_validator(self, steps_passed):
