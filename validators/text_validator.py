@@ -125,7 +125,7 @@ class TextValidator(BaseValidator):
         query_responses: list[tuple[int, str]],  # [(uid, response)]
         uid_to_question: dict[int, str],  # uid -> prompt
         metagraph: bt.metagraph,
-        is_score_all : False
+        is_score_all=False
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
