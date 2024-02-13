@@ -114,23 +114,15 @@ class WeightSetter:
             if len(self.available_uids) == 0:
                 await asyncio.sleep(10)
                 continue
+            
+            available_uids = self.available_uids
+            selected_validator = self.select_validator(self.steps_passed)
+            scores, _ = await self.process_modality(selected_validator, available_uids)
+            self.total_scores += scores
+            
+            self.steps_passed+=1
+            await asyncio.sleep(10)
 
-            for steps_passed in itertools.count():
-                available_uids = self.available_uids
-                selected_validator = self.select_validator(steps_passed)
-                scores, _ = await self.process_modality(selected_validator, available_uids)
-                self.total_scores += scores
-
-                # steps_since_last_update = steps_passed % iterations_per_set_weights
-                
-                # if steps_since_last_update == iterations_per_set_weights - 1:
-                #     await self.update_weights(steps_passed)
-                # else:
-                #     bt.logging.info(
-                #         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                #     )
-
-                await asyncio.sleep(10)
            
     def select_validator(self, steps_passed):
         return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
