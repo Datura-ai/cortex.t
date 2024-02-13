@@ -52,9 +52,21 @@ class WeightSetter:
         self.loop.create_task(self.update_available_uids_periodically())
         self.available_uids = {}
         self.loop.create_task(self.consume_organic_scoring())
-        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
-
         
+        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        self.loop.create_task(self.update_weights_periodically())
+
+    async def update_weights_periodically(self):
+        while True:
+            if len(self.available_uids) == 0 or \
+               torch.all(self.total_scores == 0):
+                await asyncio.sleep(10)
+                continue
+
+            await self.update_weights(self.steps_passed)
+            await asyncio.sleep(600)  # 600 seconds = 10 minutes
+
+
     async def update_available_uids_periodically(self):
         while True:
             self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
@@ -99,16 +111,18 @@ class WeightSetter:
             
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
-            for steps_passed in itertools.count():
-                # self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+            if len(self.available_uids) == 0:
+                await asyncio.sleep(10)
+                continue
 
+            for steps_passed in itertools.count():
                 available_uids = self.available_uids
                 selected_validator = self.select_validator(steps_passed)
                 scores, _ = await self.process_modality(selected_validator, available_uids)
                 self.total_scores += scores
 
                 steps_since_last_update = steps_passed % iterations_per_set_weights
-
+                
                 if steps_since_last_update == iterations_per_set_weights - 1:
                     await self.update_weights(steps_passed)
                 else:
@@ -200,22 +214,43 @@ class WeightSetter:
         )
         bt.logging.success("Successfully set weights.")
 
+    def handle_task_result_organic_query(self, task):
+        try:
+            success, data = task.result()
+            if success:
+                scores, uid_scores_dict, wandb_data = data
+                if self.config.wandb_on:
+                    wandb.log(wandb_data)
+                    bt.logging.success("wandb_log successful")
+                self.total_scores += scores
+                bt.logging.success(f"Task completed successfully. Scores updated.")
+            else:
+                bt.logging.error("Task failed. No scores updated.")
+        except Exception as e:
+            # Handle exceptions raised during task execution
+            bt.logging.error(f"handle_task_result_organic_query An error occurred during task execution: {e}")
+
     def register_text_validator_organic_query(
         self,
         text_vali,
         uid_to_response: dict[int, str],  # [(uid, response)]
         messages_dict: dict[int, str],
     ):
-        self.organic_scoring_tasks.add(asyncio.create_task(
+        self.steps_passed += 1
+
+        task = asyncio.create_task(
             wait_for_coro_with_limit(
                 text_vali.score_responses(
                     query_responses=list(uid_to_response.items()),
                     uid_to_question=messages_dict,
                     metagraph=self.metagraph,
+                    is_score_all=True
                 ),
                 scoring_organic_timeout
             )
-        ))
+        )
+        task.add_done_callback(self.handle_task_result_organic_query)  # Attach the callback
+        self.organic_scoring_tasks.add(task)
 
 
 class TestWeightSetter(WeightSetter):
