@@ -121,14 +121,14 @@ class WeightSetter:
                 scores, _ = await self.process_modality(selected_validator, available_uids)
                 self.total_scores += scores
 
-                steps_since_last_update = steps_passed % iterations_per_set_weights
+                # steps_since_last_update = steps_passed % iterations_per_set_weights
                 
-                if steps_since_last_update == iterations_per_set_weights - 1:
-                    await self.update_weights(steps_passed)
-                else:
-                    bt.logging.info(
-                        f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                    )
+                # if steps_since_last_update == iterations_per_set_weights - 1:
+                #     await self.update_weights(steps_passed)
+                # else:
+                #     bt.logging.info(
+                #         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
+                #     )
 
                 await asyncio.sleep(10)
            
