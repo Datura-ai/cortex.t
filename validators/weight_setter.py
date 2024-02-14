@@ -11,14 +11,14 @@ import torch
 import wandb
 import os
 import shutil
-
+import time
 from template.protocol import IsAlive
 from text_validator import TextValidator
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 
 iterations_per_set_weights = 5
-scoring_organic_timeout = 60
+scoring_organic_timeout = 120
 
 
 async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
@@ -47,8 +47,56 @@ class WeightSetter:
         self.organic_scoring_tasks = set()
 
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
+
+        self.steps_passed = 0
+        self.available_uids = {}
+        self.loop.create_task(self.update_available_uids_periodically())
         self.loop.create_task(self.consume_organic_scoring())
+        
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        self.loop.create_task(self.update_weights_periodically())
+
+    async def update_weights_periodically(self):
+        while True:
+            try:
+                if len(self.available_uids) == 0 or torch.all(self.total_scores == 0):
+                    await asyncio.sleep(10)
+                    continue
+
+                await self.update_weights(self.steps_passed)
+            except Exception as e:
+                # Log the exception or handle it as needed
+                bt.logging.error(f"An error occurred in update_weights_periodically: {e}")
+                # Optionally, decide whether to continue or break the loop based on the exception
+            finally:
+                # Ensure the sleep is in the finally block if you want the loop to always wait, 
+                # even if an error occurs.
+                await asyncio.sleep(1800)  # Sleep for 30 minutes
+
+
+    async def update_available_uids_periodically(self):
+        while True:
+            start_time = time.time()
+            try:
+                # It's assumed run_sync_in_async is a method that correctly handles running synchronous code in async.
+                # If not, ensure it's properly implemented to avoid blocking the event loop.
+                self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+                
+                # Directly await the asynchronous method without intermediate assignment to self.available_uids,
+                # unless it's used elsewhere.
+                available_uids = await self.get_available_uids()
+                uid_list = self.shuffled(list(available_uids.keys()))  # Ensure shuffled is properly defined to work with async.
+                
+                bt.logging.info(f"update_available_uids_periodically Number of available UIDs for periodic update: {len(uid_list)}, UIDs: {uid_list}")
+            except Exception as e:
+                bt.logging.error(f"update_available_uids_periodically Failed to update available UIDs: {e}")
+                # Consider whether to continue or break the loop upon certain errors.
+            
+            end_time = time.time()
+            execution_time = end_time - start_time
+            bt.logging.info(f"update_available_uids_periodically Execution time for getting available UIDs amount is: {execution_time} seconds")
+
+            await asyncio.sleep(600)  # 600 seconds = 10 minutes
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -80,25 +128,19 @@ class WeightSetter:
             
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
-            for steps_passed in itertools.count():
-                self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
-
-                available_uids = await self.get_available_uids()
-                selected_validator = self.select_validator(steps_passed)
-                scores, _ = await self.process_modality(selected_validator, available_uids)
-                self.total_scores += scores
-
-                steps_since_last_update = steps_passed % iterations_per_set_weights
-
-                if steps_since_last_update == iterations_per_set_weights - 1:
-                    await self.update_weights(steps_passed)
-                else:
-                    bt.logging.info(
-                        f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                    )
-
+            if len(self.available_uids) == 0:
                 await asyncio.sleep(10)
+                continue
+            
+            available_uids = self.available_uids
+            selected_validator = self.select_validator(self.steps_passed)
+            scores, _ = await self.process_modality(selected_validator, available_uids)
+            self.total_scores += scores
+            
+            self.steps_passed+=1
+            await asyncio.sleep(600)
 
+           
     def select_validator(self, steps_passed):
         return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
 
@@ -115,7 +157,7 @@ class WeightSetter:
     async def check_uid(self, axon, uid):
         """Asynchronously check if a UID is available."""
         try:
-            response = await self.dendrite(axon, IsAlive(), deserialize=False, timeout=4)
+            response = await self.dendrite(axon, IsAlive(), deserialize=False, timeout=15)
             if response.is_success:
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
@@ -181,21 +223,43 @@ class WeightSetter:
         )
         bt.logging.success("Successfully set weights.")
 
+    def handle_task_result_organic_query(self, task):
+        try:
+            success, data = task.result()
+            if success:
+                scores, uid_scores_dict, wandb_data = data
+                if self.config.wandb_on:
+                    wandb.log(wandb_data)
+                    bt.logging.success("wandb_log successful")
+                self.total_scores += scores
+                bt.logging.success(f"Task completed successfully. Scores updated.")
+            else:
+                bt.logging.error("Task failed. No scores updated.")
+        except Exception as e:
+            # Handle exceptions raised during task execution
+            bt.logging.error(f"handle_task_result_organic_query An error occurred during task execution: {e}")
+
     def register_text_validator_organic_query(
         self,
+        text_vali,
         uid_to_response: dict[int, str],  # [(uid, response)]
         messages_dict: dict[int, str],
     ):
-        self.organic_scoring_tasks.add(asyncio.create_task(
+        self.steps_passed += 1
+
+        task = asyncio.create_task(
             wait_for_coro_with_limit(
-                self.text_vali.score_responses(
+                text_vali.score_responses(
                     query_responses=list(uid_to_response.items()),
                     uid_to_question=messages_dict,
                     metagraph=self.metagraph,
+                    is_score_all=True
                 ),
                 scoring_organic_timeout
             )
-        ))
+        )
+        task.add_done_callback(self.handle_task_result_organic_query)  # Attach the callback
+        self.organic_scoring_tasks.add(task)
 
 
 class TestWeightSetter(WeightSetter):

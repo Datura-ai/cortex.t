@@ -25,7 +25,7 @@ from envparse import env
 import template
 from template import utils
 import sys
-
+import json
 from weight_setter import WeightSetter, TestWeightSetter
 
 text_vali = None
@@ -107,9 +107,12 @@ def initialize_components(config: bt.config):
 
 
 def initialize_validators(vali_config, test=False):
-    global text_vali, image_vali, embed_vali
+    global text_vali, text_vali_organic, image_vali, embed_vali
 
     text_vali = (TextValidator if not test else TestTextValidator)(**vali_config)
+    text_vali_organic = (TextValidator if not test else TestTextValidator)(**vali_config)
+    text_vali_organic.model = 'gpt-3.5-turbo-16k'
+    text_vali_organic.max_tokens = 8096
     image_vali = ImageValidator(**vali_config)
     embed_vali = EmbeddingsValidator(**vali_config)
     bt.logging.info("initialized_validators")
@@ -124,27 +127,42 @@ async def process_text_validator(request: web.Request):
     access_key = request.headers.get("access-key")
     if access_key != EXPECTED_ACCESS_KEY:
         return web.Response(status=401, text="Invalid access key")
+    
+    if len(validator_app.weight_setter.available_uids) == 0:
+        return web.Response(status=404, text="No available UIDs")
 
-    try:
-        messages_dict = {int(k): [{'role': 'user', 'content': v}] for k, v in (await request.json()).items()}
-    except ValueError:
-        return web.Response(status=400, text="Bad request format")
+    body = await request.json()
+    messages = body['messages']
 
     response = web.StreamResponse()
     await response.prepare(request)
 
-    uid_to_response = dict.fromkeys(messages_dict, "")
+    key_to_response = {}
+    uid_to_response = {}
     try:
-        async for uid, content in text_vali.organic(validator_app.weight_setter.metagraph, messages_dict):
-            uid_to_response[uid] += content
-            await response.write(content.encode())
-        validator_app.weight_setter.register_text_validator_organic_query(
-            uid_to_response, {k: v[0]['content'] for k, v in messages_dict.items()}
-        )
-    except Exception as e:
-        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}')
-        await response.write(b'<<internal error>>')
+        async for uid, key, content in text_vali_organic.organic(metagraph=validator_app.weight_setter.metagraph, 
+                                                         available_uids=validator_app.weight_setter.available_uids,
+                                                         messages=messages):
+            uid_to_response[uid] = uid_to_response.get(uid, '') + content
+            key_to_response[key] = key_to_response.get(key, '') + content
+            # await response.write(content.encode())
+        prompts = {}
+        for uid, message_dict in zip(uid_to_response.keys(), messages):
+            (key, message_list), = message_dict.items()
+            prompt = message_list[-1]['content']
+            prompts[uid] = prompt  # Update prompts correctly for each uid
 
+
+        validator_app.weight_setter.register_text_validator_organic_query(
+            text_vali=text_vali_organic,
+            uid_to_response=uid_to_response,
+            messages_dict=prompts
+        )
+        await response.write(json.dumps(key_to_response).encode())
+   
+    except Exception as e:
+        bt.logging.error(f'Encountered in {process_text_validator.__name__}:\n{traceback.format_exc()}, ERROR: {e}')
+        await response.write(b'<<internal error>>')
     return response
 
 
@@ -153,10 +171,8 @@ class ValidatorApplication(web.Application):
         super().__init__(*a, **kw)
         self.weight_setter: WeightSetter | None = None
 
-
 validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
-
 
 def main(run_aio_app=True, test=False) -> None:
     config = get_config()
@@ -177,7 +193,7 @@ def main(run_aio_app=True, test=False) -> None:
 
     if run_aio_app:
         try:
-            web.run_app(validator_app, port=config.http_port, loop=loop)
+            web.run_app(validator_app, port=config.http_port, loop=loop, shutdown_timeout=120)
         except KeyboardInterrupt:
             bt.logging.info("Keyboard interrupt detected. Exiting validator.")
         finally:

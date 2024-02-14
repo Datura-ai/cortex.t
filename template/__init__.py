@@ -67,6 +67,7 @@ valid_validators = [
     '5FKstHjZkh4v3qAMSBa1oJcHCLjxYZ8SNTSz1opTv4hR7gVB',
     '5Dd8gaRNdhm1YP7G1hcB1N842ecAUQmbLjCRLqH5ycaTGrWv',
     '5HbLYXUBy1snPR8nfioQ7GoA9x76EELzEq9j7F32vWUQHm1x',
+    '5H66kJAzBCv2DC9poHATLQqyt3ag8FLSbHf6rMqTiRcS52rc',
 ] + os.environ.get('CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS', '').split(',')
 WHITELISTED_KEYS = testnet_key + test_key + valid_validators
 BLACKLISTED_KEYS = ["5G1NjW9YhXLadMWajvTkfcJy6up3yH2q1YzMXDTi6ijanChe"]

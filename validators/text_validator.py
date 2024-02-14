@@ -32,15 +32,20 @@ class TextValidator(BaseValidator):
             "scores": {},
             "timestamps": {},
         }
-
-    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
-        for uid, messages in query.items():
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
-            bt.logging.info(
-                f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                f"timeout {self.timeout}: {syn.messages[0]['content']}"
-            )
-
+    
+    async def organic(self, metagraph, available_uids, messages: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
+        uid_to_question = {}
+        if len(messages) <= len(available_uids):
+            random_uids = random.sample(list(available_uids.keys()), len(messages))
+        else:
+            random_uids = [random.choice(list(available_uids.keys())) for _ in range(len(messages))]
+        for message_dict, uid in zip(messages, random_uids):  # Iterate over each dictionary in the list and random_uids
+            (key, message_list), = message_dict.items() 
+            prompt = message_list[-1]['content']
+            uid_to_question[uid] = prompt
+            message = message_list
+            syn = StreamPrompting(messages=message_list, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+            bt.logging.info(f"Sending {syn.model} {self.query_type} request to uid: {uid}, timeout {self.timeout}: {message[0]['content']}")
             self.wandb_data["prompts"][uid] = messages
             responses = await self.dendrite(
                 metagraph.axons[uid],
@@ -55,8 +60,8 @@ class TextValidator(BaseValidator):
                     continue
 
                 bt.logging.trace(resp)
-                yield uid, resp
-
+                yield uid, key, resp
+    
     async def handle_response(self, uid: str, responses) -> tuple[str, str]:
         full_response = ""
         for resp in responses:
@@ -120,13 +125,14 @@ class TextValidator(BaseValidator):
         query_responses: list[tuple[int, str]],  # [(uid, response)]
         uid_to_question: dict[int, str],  # uid -> prompt
         metagraph: bt.metagraph,
+        is_score_all=False
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         response_tasks = []
 
         # Decide to score all UIDs this round based on a chance
-        will_score_all = self.should_i_score()
+        will_score_all = True if is_score_all else self.should_i_score()
 
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
