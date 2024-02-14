@@ -49,8 +49,8 @@ class WeightSetter:
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
 
         self.steps_passed = 0
-        self.loop.create_task(self.update_available_uids_periodically())
         self.available_uids = {}
+        self.loop.create_task(self.update_available_uids_periodically())
         self.loop.create_task(self.consume_organic_scoring())
         
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
