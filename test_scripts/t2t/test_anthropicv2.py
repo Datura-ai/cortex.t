@@ -50,8 +50,8 @@ async def call_anthropic(question, model, max_tokens):
     print(completion.completion)
     return completion.completion
 
-models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-model = models[1]
+models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2", "anthropic.claude-3-sonnet-20240229-v1:0"]
+model = models[-1]
 question = "tell me a short story"
 max_tokens = 2048
 
