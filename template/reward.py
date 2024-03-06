@@ -69,8 +69,8 @@ async def api_score(api_answer: str, response: str, weight: float) -> float:
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
 
-        # Answer must be within 15% the true answer's length
-        word_count_threshold = words_in_api * 0.15
+        # Answer must be within 10% the true answer's length
+        word_count_threshold = words_in_api * 0.10
 
         # Check if the word count difference is within the threshold and similarity
         if abs(words_in_response - words_in_api) <= word_count_threshold:
