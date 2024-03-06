@@ -150,10 +150,11 @@ class TextValidator(BaseValidator):
             if scored_response is not None:
                 scores[uid] = scored_response
                 uid_scores_dict[uid] = scored_response
+                self.wandb_data["scores"][uid] = score
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
-            # self.wandb_data["scores"][uid] = score
+            
 
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
