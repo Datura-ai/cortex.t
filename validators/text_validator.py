@@ -13,7 +13,7 @@ from template.utils import call_openai, get_question, call_anthropic
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
