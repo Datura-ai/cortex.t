@@ -158,7 +158,7 @@ validator_app = ValidatorApplication()
 validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
 
 
-def main(run_aio_app=True, test=False) -> None:
+def main(run_aio_app=False, test=False) -> None:
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
