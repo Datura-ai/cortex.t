@@ -43,7 +43,7 @@ def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument('--wandb_off', action='store_false', dest='wandb_on')
-    parser.add_argument('--http_port', type=int, default=8000)
+    parser.add_argument('--http_port', type=int, default=8100)
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
@@ -155,10 +155,10 @@ class ValidatorApplication(web.Application):
 
 
 validator_app = ValidatorApplication()
-validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
+# validator_app.add_routes([web.post('/text-validator/', process_text_validator)])
 
 
-def main(run_aio_app=False, test=False) -> None:
+def main(run_aio_app=True, test=False) -> None:
     config = get_config()
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
