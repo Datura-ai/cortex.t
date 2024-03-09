@@ -16,7 +16,7 @@ class TextValidator(BaseValidator):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
-        self.model =  "gpt-4-1106-preview"
+        self.model =  "gpt-4-0125-preview"
         self.max_tokens = 2048
         self.temperature = 0.0001
         self.weight = 1
@@ -83,7 +83,7 @@ class TextValidator(BaseValidator):
             # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
             self.model = "anthropic.claude-v2:1"
         elif self.provider == "OpenAI":
-            self.model = "gpt-4-1106-preview"
+            self.model = "gpt-4-0125-preview"
 
         for uid in available_uids:
             prompt = await self.get_question(len(available_uids))
