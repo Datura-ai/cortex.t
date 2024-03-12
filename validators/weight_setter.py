@@ -75,7 +75,7 @@ class WeightSetter:
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
-        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
@@ -195,7 +195,7 @@ class WeightSetter:
         self.my_subnet_uid = self.metagraph.hotkeys.index(
             self.wallet.hotkey.ss58_address
             )
-        bt.logging.info(f"Running miner on uid: {self.my_subnet_uid}")
+        bt.logging.info(f"Running validator on uid: {self.my_subnet_uid}")
         while True:
             try:
                 if self.organic_scoring_tasks:

@@ -8,7 +8,7 @@ if not api_key:
 client = anthropic.Anthropic()
 client.api_key = api_key
 
-question = "code texas holdem"
+question = "write a brief joke"
 with client.beta.messages.stream(
     max_tokens=1024,
     messages=[{"role": "user", "content": question}],
