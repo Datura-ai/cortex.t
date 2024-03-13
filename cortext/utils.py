@@ -56,12 +56,25 @@ genai.configure(api_key=google_key)
 bedrock_client = AsyncAnthropicBedrock()
 
 def load_state_from_file(filename: str):
+    load_success = False
+
+    # Check if the file exists
     if os.path.exists(filename):
         with open(filename, "r") as file:
-            bt.logging.debug("loaded previous state")
-            return json.load(file)
-    else:
+            try:
+                # Attempt to load JSON from the file
+                bt.logging.debug("loaded previous state")
+                state = json.load(file)
+                load_success = True  # Set flag to true as the operation was successful
+                return state
+            except Exception as e:  # Catch specific exceptions for better error handling
+                bt.logging.error(f"error loading state, deleting and resetting it. Error: {e}")
+                os.remove(filename) # Delete if error
+
+    # If the file does not exist or there was an error
+    if not load_success:
         bt.logging.debug("initialized new global state")
+        # Return the default state structure
         return {
             "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}

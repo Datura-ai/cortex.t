@@ -19,32 +19,36 @@ messages = [
         "content": "Hello!"
     }
 ]
-
-system_prompt = None
-max_tokens = 1024
+max_tokens = 100
 model = "claude-3-opus-20240229"
-# filtered_messages = []
-# for message in messages:
-#     if message["role"] == "system":
-#         system_prompt = message["content"]
-#     else:
-#         filtered_messages.append(message)
 
-# stream_kwargs = {
-#     "max_tokens": max_tokens,
-#     "messages": filtered_messages,
-#     "model": model,
-# }
 
-# if system_prompt:
-#     stream_kwargs["system"] = system_prompt
+# streaming
+async def call_claude(messages, max_tokens, model):
+    system_prompt = None
+    filtered_messages = []
+    for message in messages:
+        if message["role"] == "system":
+            system_prompt = message["content"]
+        else:
+            filtered_messages.append(message)
 
-# with claude_client.messages.stream(**stream_kwargs) as stream:
-#     for text in stream.text_stream:
-#         print(text, end="", flush=True)
+    stream_kwargs = {
+        "max_tokens": max_tokens,
+        "messages": filtered_messages,
+        "model": model,
+    }
 
-# print("\n")
+    if system_prompt:
+        stream_kwargs["system"] = system_prompt
 
+    completion = claude_client.messages.stream(**stream_kwargs)
+    async with completion as stream:
+        async for text in stream.text_stream:
+            print(text, end="", flush=True)
+
+    # Send final message to close the stream
+    print("\n")
 
 # non streaming
 # async def call_claude(messages, max_tokens, model):
@@ -68,8 +72,8 @@ model = "claude-3-opus-20240229"
 #     print(message.content[0].text)
 #     return message.content[0].text
 
-# async def main():
-#     await call_claude(messages, max_tokens, model)
+async def main():
+    await call_claude(messages, max_tokens, model)
 
-# if __name__ == "__main__":
-#     asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
