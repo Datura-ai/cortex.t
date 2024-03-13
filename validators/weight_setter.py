@@ -4,7 +4,7 @@ import itertools
 import traceback
 import random
 from typing import Tuple
-import template
+import cortext
 
 import bittensor as bt
 import torch
@@ -38,14 +38,14 @@ import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
-import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
-from template.utils import get_version
+import cortext
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.utils import get_version
 import sys
 
 from starlette.types import Send
 
-from template.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
+from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from text_validator import TextValidator
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
@@ -56,7 +56,7 @@ scoring_organic_timeout = 60
 
 class WeightSetter:
     def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
-        bt.logging.info("starting stream miner")
+        bt.logging.info("starting weight setter")
         self.config = config
         bt.logging.info(f"config:\n{self.config}")
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
@@ -78,39 +78,42 @@ class WeightSetter:
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     def config(self) -> bt.config:
-        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
+        parser = argparse.ArgumentParser(description="Validator Configs")
         return bt.config(parser)
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def base_blacklist(self, synapse, blacklist_amt = 1) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey == self.wallet.hotkey.ss58_address or hotkey in template.VALIDATOR_API_WHITELIST:
+            if hotkey == self.wallet.hotkey.ss58_address:
                 return False, f"accepting {synapse_type} request from self"
+
+            elif hotkey in cortext.VALIDATOR_API_WHITELIST:
+                return False, f"accepting {synapse_type} request from whitelist: {hotkey}"
 
             return True, f"rejecting {synapse_type} request from {hotkey}"
 
@@ -242,7 +245,7 @@ class WeightSetter:
                 await asyncio.sleep(100)
 
     def select_validator(self, steps_passed):
-        return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
+        return self.text_vali if steps_passed % 10 in (0, 1, 2, 3, 4, 5, 6, 7, 8) else self.image_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
@@ -318,7 +321,7 @@ class WeightSetter:
                 uids=self.metagraph.uids,
                 weights=self.moving_average_scores,
                 wait_for_inclusion=False,
-                version_key=template.__weights_version__,
+                version_key=cortext.__weights_version__,
             )
         )
         bt.logging.success("Successfully set weights.")

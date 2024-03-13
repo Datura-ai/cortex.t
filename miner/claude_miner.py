@@ -29,9 +29,9 @@ from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
-import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
-from template.utils import get_version
+import cortext
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
+from cortext.utils import get_version
 import sys
 
 from starlette.types import Send
@@ -157,7 +157,7 @@ class StreamMiner(ABC):
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in template.WHITELISTED_KEYS:
+            if hotkey in cortext.WHITELISTED_KEYS:
                 return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -168,7 +168,7 @@ class StreamMiner(ABC):
                 if _axon.hotkey == hotkey:
                     break
 
-            if uid is None and template.ALLOW_NON_REGISTERED is False:
+            if uid is None and cortext.ALLOW_NON_REGISTERED is False:
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
@@ -177,7 +177,7 @@ class StreamMiner(ABC):
             if tao < blacklist_amt:
                 return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
 
-            time_window = template.MIN_REQUEST_PERIOD * 60
+            time_window = cortext.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
 
             if hotkey not in self.request_timestamps:
@@ -188,12 +188,12 @@ class StreamMiner(ABC):
                 self.request_timestamps[hotkey].popleft()
 
             # Check if the number of requests exceeds the limit
-            if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
+            if len(self.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
                 return (
                     True,
                     f"Request frequency for {hotkey} exceeded: "
-                    f"{len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. "
-                    f"Limit is {template.MAX_REQUESTS} requests."
+                    f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
+                    f"Limit is {cortext.MAX_REQUESTS} requests."
                 )
 
             self.request_timestamps[hotkey].append(current_time)
@@ -205,22 +205,22 @@ class StreamMiner(ABC):
 
 
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
@@ -351,7 +351,7 @@ class StreamMiner(ABC):
         self.stop_run_thread()
 
 
-class StreamingTemplateMiner(StreamMiner):
+class StreamingcortextMiner(StreamMiner):
     def config(self) -> bt.config:
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
         self.add_args(parser)
@@ -584,7 +584,7 @@ def get_valid_hotkeys(config):
     while True:
         metagraph = subtensor.metagraph(18)
         try:
-            runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
+            runs = api.runs(f"cortex-t/{cortext.PROJECT_NAME}")
             latest_version = get_version()
             for run in runs:
                 if run.state == "running":
@@ -628,6 +628,6 @@ def get_valid_hotkeys(config):
 
 
 if __name__ == "__main__":
-    with StreamingTemplateMiner():
+    with StreamingcortextMiner():
         while True:
             time.sleep(1)

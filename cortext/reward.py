@@ -35,7 +35,7 @@ import traceback
 import numpy as np
 from numpy.linalg import norm
 import bittensor as bt
-from template import utils
+from cortext import utils
 from PIL import Image
 from scipy.spatial.distance import cosine
 from sklearn.metrics.pairwise import cosine_similarity

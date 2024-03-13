@@ -15,7 +15,7 @@ import requests
 from PIL import Image
 import traceback
 import anthropic
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
+from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT, AsyncAnthropic
 from typing import Optional
 from stability_sdk import client as stability_client
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
@@ -26,7 +26,7 @@ import bittensor as bt
 import requests
 import wandb
 
-import template
+import cortext
 
 from . import client
 
@@ -41,15 +41,21 @@ stability_api = stability_client.StabilityInference(
     engine="stable-diffusion-xl-1024-v1-0"
 )
 
+claude_key = os.environ.get("ANTHROPIC_API_KEY")
+if not claude_key:
+    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
+
+claude_client = AsyncAnthropic()
+claude_client.api_key = claude_key
 
 google_key=os.environ.get('GOOGLE_API_KEY')
 if not google_key:
     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
 genai.configure(api_key=google_key)
+bedrock_client = AsyncAnthropicBedrock()
 
-
-def load_state_from_file(filename: str = "state.json"):
+def load_state_from_file(filename: str):
     if os.path.exists(filename):
         with open(filename, "r") as file:
             bt.logging.debug("loaded previous state")
@@ -61,13 +67,12 @@ def load_state_from_file(filename: str = "state.json"):
             "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
         }
 
-state = load_state_from_file()
+state = None
 
-
-def get_state():
+def get_state(path):
     global state
-    if state is None:
-        load_state_from_file()
+    if not state:
+        state = load_state_from_file(path)
     return state
 
 
@@ -77,12 +82,13 @@ def save_state_to_file(state, filename="state.json"):
         json.dump(state, file)
 
 
+
 def get_validators_with_runs_in_all_projects():
     api = wandb.Api()
     validators_runs = {project: set() for project in projects}
 
     # Retrieve runs for each project and store validator UIDs
-    for project in template.PROJECT_NAMES:
+    for project in cortext.PROJECT_NAMES:
         runs = api.runs(f"cortex-t/{project}")
         for run in runs:
             if run.config['type'] == 'validator':
@@ -97,11 +103,11 @@ async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_questions": {
-            "default": template.INSTRUCT_DEFAULT_QUESTIONS,
+            "default": cortext.INSTRUCT_DEFAULT_QUESTIONS,
             "prompt": "placeholder"
         },
         "images_questions": {
-            "default": template.IMAGE_DEFAULT_QUESTIONS,
+            "default": cortext.IMAGE_DEFAULT_QUESTIONS,
             "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
         }
     }
@@ -180,8 +186,8 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
             if category == "images":
-                return template.IMAGE_THEMES
-            return template.INSTRUCT_DEFAULT_THEMES
+                return cortext.IMAGE_THEMES
+            return cortext.INSTRUCT_DEFAULT_THEMES
         else:
             # Never fail here, retry until valid list is found
             while True:
@@ -417,9 +423,8 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
 
 async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
     try:
-        client = AsyncAnthropicBedrock()
         bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}")
-        completion = await client.completions.create(
+        completion = await bedrock_client.completions.create(
             model=model,
             max_tokens_to_sample=max_tokens,
             temperature=temperature,
@@ -433,6 +438,29 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
     except Exception as e:
         bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
+
+async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
+    messages = [{'role': 'user', 'content': messages}] # temporary, until messages is an actual dict like it should be
+    system_prompt = None
+    filtered_messages = []
+    for message in messages:
+        if message["role"] == "system":
+            system_prompt = message["content"]
+        else:
+            filtered_messages.append(message)
+
+    kwargs = {
+        "max_tokens": max_tokens,
+        "messages": filtered_messages,
+        "model": model,
+    }
+
+    if system_prompt:
+        kwargs["system"] = system_prompt
+       
+    message = await claude_client.messages.create(**kwargs)
+    bt.logging.debug(f"validator response is {message.content[0].text}")
+    return message.content[0].text
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
     # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
@@ -459,7 +487,7 @@ async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples,
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
 def get_version(line_number: int = 22) -> Optional[str]:
-    url = "https://api.github.com/repos/corcel-api/cortex.t/contents/template/__init__.py"
+    url = "https://api.github.com/repos/corcel-api/cortex.t/contents/cortext/__init__.py"
     response = requests.get(url, timeout=10)
     if not response.ok:
         bt.logging.error("github api call failed")

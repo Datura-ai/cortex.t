@@ -16,12 +16,12 @@ import torch
 import wandb
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
-from text_validator import TextValidator, TestTextValidator
+from text_validator import TextValidator
 from base_validator import BaseValidator
 from envparse import env
 
-import template
-from template import utils
+import cortext
+from cortext import utils
 import sys
 
 from weight_setter import WeightSetter
@@ -31,10 +31,6 @@ image_vali = None
 embed_vali = None
 metagraph = None
 wandb_runs = {}
-# organic requests are scored, the tasks are stored in this queue
-# for later being consumed by `query_synapse` cycle:
-organic_scoring_tasks = set()
-EXPECTED_ACCESS_KEY = os.environ.get('EXPECTED_ACCESS_KEY', "hello")
 
 
 def get_config() -> bt.config:
@@ -61,17 +57,17 @@ def init_wandb(config, my_uid, wallet: bt.wallet):
     if not config.wandb_on:
         return
 
-    run_name = f'validator-{my_uid}-{template.__version__}'
+    run_name = f'validator-{my_uid}-{cortext.__version__}'
     config.uid = my_uid
     config.hotkey = wallet.hotkey.ss58_address
     config.run_name = run_name
-    config.version = template.__version__
+    config.version = cortext.__version__
     config.type = 'validator'
 
     # Initialize the wandb run for the single project
     run = wandb.init(
         name=run_name,
-        project=template.PROJECT_NAME,
+        project=cortext.PROJECT_NAME,
         entity='cortex-t',
         config=config,
         dir=config.full_path,
@@ -83,7 +79,7 @@ def init_wandb(config, my_uid, wallet: bt.wallet):
     config.signature = signature
     wandb.config.update(config, allow_val_change=True)
 
-    bt.logging.success(f"Started wandb run for project '{template.PROJECT_NAME}'")
+    bt.logging.success(f"Started wandb run for project '{cortext.PROJECT_NAME}'")
 
 
 def initialize_components(config: bt.config):
@@ -107,7 +103,7 @@ def initialize_components(config: bt.config):
 def initialize_validators(vali_config, test=False):
     global text_vali, image_vali, embed_vali
 
-    text_vali = (TextValidator if not test else TestTextValidator)(**vali_config)
+    text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     embed_vali = EmbeddingsValidator(**vali_config)
     bt.logging.info("initialized_validators")
@@ -126,14 +122,15 @@ def main(test=False) -> None:
     init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
     weight_setter = WeightSetter(loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali)
-
+    state_path = os.path.join(config.full_path, "state.json")
+    utils.get_state(state_path)
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
-        state = utils.get_state()
-        utils.save_state_to_file(state)
+        state = utils.get_state(state_path)
+        utils.save_state_to_file(state, state_path)
         if config.wandb_on:
             wandb.finish()
 

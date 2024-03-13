@@ -9,6 +9,7 @@ import requests
 import threading
 import time
 import traceback
+import anthropic
 from collections import deque
 from functools import partial
 from typing import Tuple
@@ -20,15 +21,15 @@ from PIL import Image
 from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from anthropic import AsyncAnthropic
 from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
-import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
-from template.utils import get_version
+import cortext
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.utils import get_version
 import sys
 
 from starlette.types import Send
@@ -47,6 +48,13 @@ client = AsyncOpenAI(timeout=60.0)
 stability_key = os.environ.get("STABILITY_API_KEY")
 if not stability_key:
     raise ValueError("Please set the STABILITY_KEY environment variable.")
+
+claude_key = os.environ.get("ANTHROPIC_API_KEY")
+if not claude_key:
+    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
+
+claude_client = AsyncAnthropic()
+claude_client.api_key = claude_key
 
 stability_api = stability_client.StabilityInference(
     key=stability_key,
@@ -119,7 +127,7 @@ class StreamMiner():
 
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
-                f"\nYour validator: {self.wallet} if not registered to chain connection: {self.subtensor} "
+                f"\nYour miner: {self.wallet} is not registered to this subnet"
                 f"\nRun btcli recycle_register --netuid 18 and try again. "
             )
             sys.exit()
@@ -174,7 +182,7 @@ class StreamMiner():
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in template.WHITELISTED_KEYS:
+            if hotkey in cortext.WHITELISTED_KEYS:
                 return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -185,7 +193,7 @@ class StreamMiner():
                 if _axon.hotkey == hotkey:
                     break
 
-            if uid is None and template.ALLOW_NON_REGISTERED is False:
+            if uid is None and cortext.ALLOW_NON_REGISTERED is False:
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
@@ -194,7 +202,7 @@ class StreamMiner():
             if tao < blacklist_amt:
                 return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
 
-            time_window = template.MIN_REQUEST_PERIOD * 60
+            time_window = cortext.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
 
             if hotkey not in self.request_timestamps:
@@ -205,12 +213,12 @@ class StreamMiner():
                 self.request_timestamps[hotkey].popleft()
 
             # Check if the number of requests exceeds the limit
-            if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
+            if len(self.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
                 return (
                     True,
                     f"Request frequency for {hotkey} exceeded: "
-                    f"{len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. "
-                    f"Limit is {template.MAX_REQUESTS} requests."
+                    f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
+                    f"Limit is {cortext.MAX_REQUESTS} requests."
                 )
 
             self.request_timestamps[hotkey].append(current_time)
@@ -222,22 +230,22 @@ class StreamMiner():
 
 
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
@@ -256,7 +264,7 @@ class StreamMiner():
             f"on network: {self.config.subtensor.chain_endpoint} "
             f"with netuid: {self.config.netuid}"
         )
-        # self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
+        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
         self.axon.start()
         self.last_epoch_block = self.subtensor.get_current_block()
@@ -273,7 +281,7 @@ class StreamMiner():
                     current_block - self.last_epoch_block
                     < self.config.miner.blocks_per_epoch
                 ):
-                    # --- Wait for next bloc.
+                    # --- Wait for next block.
                     time.sleep(1)
                     current_block = self.subtensor.get_current_block()
                     # --- Check if we should exit.
@@ -350,6 +358,7 @@ class StreamMiner():
                 top_p = synapse.top_p
                 top_k = synapse.top_k
 
+
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
                     response = await client.chat.completions.create(
@@ -412,6 +421,40 @@ class StreamMiner():
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+                elif provider == "Claude":
+                    system_prompt = None
+                    filtered_messages = []
+                    for message in messages:
+                        if message["role"] == "system":
+                            system_prompt = message["content"]
+                        else:
+                            filtered_messages.append(message)
+                    
+                    stream_kwargs = {
+                        "max_tokens": max_tokens,
+                        "messages": filtered_messages,
+                        "model": model,
+                    }
+
+                    if system_prompt:
+                        stream_kwargs["system"] = system_prompt
+
+                    completion = claude_client.messages.stream(**stream_kwargs)
+                    async with completion as stream:
+                        async for text in stream.text_stream:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    
 
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
@@ -568,7 +611,7 @@ def get_valid_hotkeys(config):
     while True:
         metagraph = subtensor.metagraph(18)
         try:
-            runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
+            runs = api.runs(f"cortex-t/{cortext.PROJECT_NAME}")
             latest_version = get_version()
             for run in runs:
                 if run.state == "running":

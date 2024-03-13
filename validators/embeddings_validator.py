@@ -5,10 +5,10 @@ import torch
 import random
 import asyncio
 import bittensor as bt
-import template.reward
-from template import client
+import cortext.reward
+from cortext import client
 from datasets import load_dataset
-from template.protocol import Embeddings
+from cortext.protocol import Embeddings
 from base_validator import BaseValidator
 
 class EmbeddingsValidator(BaseValidator):
@@ -123,7 +123,7 @@ class EmbeddingsValidator(BaseValidator):
             response = next(res for u, res in query_responses if u == uid)
             response = response[0]
             if response.embeddings is not None:
-                task = template.reward.embeddings_score_dot(openai_answer, response.embeddings, self.weight)
+                task = cortext.reward.embeddings_score_dot(openai_answer, response.embeddings, self.weight)
                 scoring_tasks.append((uid, task))
             else:
                 scores[uid] = 0

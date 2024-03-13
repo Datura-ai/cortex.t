@@ -1,14 +1,15 @@
 import asyncio
 import random
+import traceback
 from typing import AsyncIterator, Tuple
 
 import bittensor as bt
 import torch
 from base_validator import BaseValidator
 
-import template.reward
-from template.protocol import StreamPrompting
-from template.utils import call_openai, get_question, call_anthropic, call_gemini
+import cortext.reward
+from cortext.protocol import StreamPrompting
+from cortext.utils import call_openai, get_question, call_anthropic, call_gemini, call_claude
 
 
 class TextValidator(BaseValidator):
@@ -17,7 +18,7 @@ class TextValidator(BaseValidator):
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
-        self.max_tokens = 2048
+        self.max_tokens = 10
         self.temperature = 0.0001
         self.weight = 1
         self.seed = 1234
@@ -41,7 +42,7 @@ class TextValidator(BaseValidator):
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
             )
 
-            self.wandb_data["prompts"][uid] = messages
+            # self.wandb_data["prompts"][uid] = messages
             responses = await self.dendrite(
                 metagraph.axons[uid],
                 syn,
@@ -76,8 +77,8 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 95 + ["Anthropic"] * 5 + ["Gemini"] * 5
-            providers = ["Gemini"]
+            providers = ["OpenAI"] * 89 + ["Anthropic"] * 1 + ["Gemini"] * 5 + ["Claude"] * 5
+            providers = ["Claude"]
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -90,6 +91,9 @@ class TextValidator(BaseValidator):
 
             elif self.provider == "Gemini":
                 self.model = "gemini-pro"
+
+            elif self.provider == "Claude":
+                self.model = "claude-3-opus-20240229"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
@@ -112,7 +116,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 100
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
@@ -123,6 +127,8 @@ class TextValidator(BaseValidator):
             return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        elif provider == "Claude":
+            return await call_claude(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         else:
             bt.logging.error(f"provider {provider} not found")
 
@@ -152,7 +158,7 @@ class TextValidator(BaseValidator):
         for (uid, _), api_answer in zip(response_tasks, api_responses):
             if api_answer:
                 response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-                task = template.reward.api_score(api_answer, response, self.weight)
+                task = cortext.reward.api_score(api_answer, response, self.weight)
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
@@ -172,43 +178,3 @@ class TextValidator(BaseValidator):
         return scores, uid_scores_dict, self.wandb_data
 
 
-class TestTextValidator(TextValidator):
-    def __init__(
-        self,
-        dendrite,
-        config,
-        subtensor,
-        wallet: bt.wallet,
-    ):
-        super().__init__(dendrite, config, subtensor, wallet)
-        self.openai_prompt_to_contents: dict[str, list[str]] = {}
-        self.questions: list[str] = []
-        self._questions_retrieved = -1
-        self._openai_prompts_used: dict[str, int] = {}
-
-    def feed_mock_data(self, openai_prompt_to_contents, questions):
-        self.questions = questions
-        self.openai_prompt_to_contents = openai_prompt_to_contents
-        self._openai_prompts_used = dict.fromkeys(self.openai_prompt_to_contents, -1)
-        self._questions_retrieved = -1
-
-    def should_i_score(self):
-        return True
-
-    async def call_openai(self, prompt: str) -> str:
-        self._openai_prompts_used[prompt] += 1
-        used = self._openai_prompts_used[prompt]
-        contents = self.openai_prompt_to_contents[prompt]
-        return contents[used % len(contents)]
-
-    async def get_question(self, qty):
-        self._questions_retrieved += 1
-        return self.questions[self._questions_retrieved % len(self.questions)]
-
-    async def query_miner(self, metagraph, uid, syn: StreamPrompting):
-        return uid, await self.call_openai(syn.messages[0]['content'])
-
-    async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
-        for uid, messages in query.items():
-            for msg in messages:
-                yield uid, await self.call_openai(msg['content'])
