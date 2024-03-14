@@ -152,7 +152,7 @@ class Embeddings( bt.Synapse):
     )
     
     uid: int = pydantic.Field(
-        default=3,
+        default=60,
         title="uid",
         description="The UID to send the synapse to",
     )
