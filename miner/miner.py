@@ -56,10 +56,10 @@ if not claude_key:
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
 
-stability_api = stability_client.StabilityInference(
-    key=stability_key,
-    verbose=True,
-)
+# stability_api = stability_client.StabilityInference(
+#     key=stability_key,
+#     verbose=True,
+# )
 
 # Anthropic
 # Only if using the official claude for access instead of aws bedrock
