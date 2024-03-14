@@ -18,7 +18,7 @@ from cortext.protocol import ImageResponse
 
 class ImageValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=25)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=30)
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
