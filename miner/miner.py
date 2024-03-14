@@ -456,31 +456,33 @@ class StreamMiner():
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
                     
                 elif provider == "Gemini":
-                    bt.logging.info(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}, max tokens = {max_tokens}, top_p = {top_p}, top_k = {top_k}")
-                    try:
-                        model = genai.GenerativeModel(model)
-                        stream = model.generate_content(
-                            str(messages),
-                            stream=True,
-                            generation_config=genai.types.GenerationConfig(
-                                # candidate_count=1,
-                                # stop_sequences=['x'],
-                                temperature=temperature,
-                                # max_output_tokens=max_tokens,
-                                top_p=top_p,
-                                top_k=top_k,
-                                # seed=seed,
-                            )
+                    model = genai.GenerativeModel(model)
+                    stream = model.generate_content(
+                        str(messages),
+                        stream=True,
+                        generation_config=genai.types.GenerationConfig(
+                            # candidate_count=1,
+                            # stop_sequences=['x'],
+                            temperature=temperature,
+                            # max_output_tokens=max_tokens,
+                            top_p=top_p,
+                            top_k=top_k,
+                            # seed=seed,
                         )
-                        for chunk in stream:
-                            try:
-                                print(chunk.text, end="", flush=True)
-                            except:
-                                pass
-                        # print(f"validator response is {stream.text}")
-                        return stream.text
-                    except:
-                        print(f"error in call_gemini {traceback.format_exc()}")
+                    )
+                    for chunk in stream:
+                        for part in chunk.candidates[0].content.parts:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": chunk.text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {chunk.text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
@@ -596,7 +598,7 @@ class StreamMiner():
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.info("answered to be active")
+        bt.logging.debug("answered to be active")
         synapse.completion = "True"
         return synapse
 

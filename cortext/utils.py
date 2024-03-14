@@ -35,11 +35,11 @@ import anthropic_bedrock
 from anthropic_bedrock import AsyncAnthropicBedrock
 
 # Set up the API connection
-stability_api = stability_client.StabilityInference(
-    key=os.environ['STABILITY_API_KEY'],
-    verbose=True,
-    engine="stable-diffusion-xl-1024-v1-0"
-)
+# stability_api = stability_client.StabilityInference(
+#     key=os.environ['STABILITY_API_KEY'],
+#     verbose=True,
+#     engine="stable-diffusion-xl-1024-v1-0"
+# )
 
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:
@@ -384,29 +384,27 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
     return None
 
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
-    bt.logging.debug(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
+    print(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
     try:
         model = genai.GenerativeModel(model)
         response = model.generate_content(
             str(messages),
             stream=False,
             generation_config=genai.types.GenerationConfig(
-                candidate_count=1,
+                # candidate_count=1,
                 # stop_sequences=['x'],
                 temperature=temperature,
-                max_output_tokens=max_tokens,
+                # max_output_tokens=max_tokens,
                 top_p=top_p,
                 top_k=top_k,
                 # seed=seed,
             )
         )
 
-        bt.logging.debug(f"validator response is {response.text}")
+        print(f"validator response is {response.text}")
         return response.text
-
-    except Exception as e:
-        bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
-        await asyncio.sleep(0.5)
+    except:
+        print(f"error in call_gemini {traceback.format_exc()}")
         
 
 # anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))

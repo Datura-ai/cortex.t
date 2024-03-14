@@ -14,11 +14,11 @@ from cortext.utils import call_openai, get_question, call_anthropic, call_gemini
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=10)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=40)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
-        self.max_tokens = 10
+        self.max_tokens = 4096
         self.temperature = 0.0001
         self.weight = 1
         self.seed = 1234
@@ -77,7 +77,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 89 + ["Anthropic"] * 1 + ["Gemini"] * 999999 + ["Claude"] * 5
+            providers = ["OpenAI"] * 25 + ["Anthropic"] * 25 + ["Gemini"] * 25 + ["Claude"] * 25
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -87,13 +87,14 @@ class TextValidator(BaseValidator):
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
                 self.model = "gpt-4-1106-preview"
+                self.model = "gpt-3.5-turbo"
 
             elif self.provider == "Gemini":
                 self.model = "gemini-pro"
 
             elif self.provider == "Claude":
                 self.model = "claude-3-opus-20240229"
-
+                self.model = "claude-3-sonnet-20240229"
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
                 prompt = await self.get_question(len(available_uids))

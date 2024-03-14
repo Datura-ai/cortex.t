@@ -46,7 +46,7 @@ class ImageValidator(BaseValidator):
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 8 + ["Stability"] * 2
+            providers = ["OpenAI"] * 100 + ["Stability"] * 0
             self.provider = random.choice(providers)
 
             if self.provider == "Stability":
