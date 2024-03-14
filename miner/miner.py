@@ -45,9 +45,9 @@ if not OpenAI.api_key:
 client = AsyncOpenAI(timeout=60.0)
 
 # Stability
-stability_key = os.environ.get("STABILITY_API_KEY")
-if not stability_key:
-    raise ValueError("Please set the STABILITY_KEY environment variable.")
+# stability_key = os.environ.get("STABILITY_API_KEY")
+# if not stability_key:
+#     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:
