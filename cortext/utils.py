@@ -134,7 +134,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
                 if random_int <= 50:
                     task_type = "questions"
                 else:
-                    task_type = random.sample(template.INSTRUCT_TASK_OPTIONS, 1)
+                    task_type = random.sample(cortext.INSTRUCT_TASK_OPTIONS, 1)
                 
                 prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
                           f"or instruct tasks related to the theme '{theme}', each with a complexity level "
