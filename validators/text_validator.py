@@ -14,7 +14,7 @@ from cortext.utils import call_openai, get_question, call_anthropic, call_gemini
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=10)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
@@ -77,8 +77,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 89 + ["Anthropic"] * 1 + ["Gemini"] * 5 + ["Claude"] * 5
-            providers = ["Claude"]
+            providers = ["OpenAI"] * 89 + ["Anthropic"] * 1 + ["Gemini"] * 999999 + ["Claude"] * 5
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -128,7 +127,7 @@ class TextValidator(BaseValidator):
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Claude":
-            return await call_claude(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+            return await call_claude([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         else:
             bt.logging.error(f"provider {provider} not found")
 
@@ -158,7 +157,7 @@ class TextValidator(BaseValidator):
         for (uid, _), api_answer in zip(response_tasks, api_responses):
             if api_answer:
                 response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-                task = cortext.reward.api_score(api_answer, response, self.weight)
+                task = cortext.reward.api_score(api_answer, response, self.weight, self.temperature, self.provider)
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])

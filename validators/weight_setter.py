@@ -242,7 +242,8 @@ class WeightSetter:
                         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
                     )
 
-                await asyncio.sleep(100)
+                # if we want to slow down the speed of the validator steps
+                # await asyncio.sleep(100)
 
     def select_validator(self, steps_passed):
         return self.text_vali if steps_passed % 10 in (0, 1, 2, 3, 4, 5, 6, 7, 8) else self.image_vali

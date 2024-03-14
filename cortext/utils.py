@@ -453,7 +453,6 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
         await asyncio.sleep(0.5)
 
 async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
-    messages = [{'role': 'user', 'content': messages}] # temporary, until messages is an actual dict like it should be
     system_prompt = None
     filtered_messages = []
     for message in messages:

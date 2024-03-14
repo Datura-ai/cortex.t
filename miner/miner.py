@@ -457,13 +457,15 @@ class StreamMiner():
                     
 
                 elif provider == "Gemini":
+                    messages = ', '.join(message['content'] for message in messages)
+                    bt.logging.info(f"messages is {str(messages)}")
                     model = genai.GenerativeModel(model)
                     stream = model.generate_content(
-                        str(messages),
+                        messages,
                         stream=True,
                         generation_config=genai.types.GenerationConfig(
                             candidate_count=1,
-                            # stop_sequences=['x'],
+                            stop_sequences=['x'],
                             temperature=temperature,
                             max_output_tokens=max_tokens,
                             top_p=top_p,
@@ -471,16 +473,19 @@ class StreamMiner():
                             # seed=seed,
                         )
                     )
-
-                    for chunk in stream:
-                        for part in chunk.candidates[0].content.parts:
-                            encoded_part = part.text.encode("utf-8")
-                            await send({
-                                    "type": "http.response.body",
-                                    "body": encoded_part,
-                                    "more_body": True,
-                                })
-                            bt.logging.info(f"Streamed text: {part}")
+                    try:
+                        for chunk in stream:
+                            try:
+                                await send({
+                                        "type": "http.response.body",
+                                        "body": chunk.text.encode("utf-8"),
+                                        "more_body": True,
+                                    })
+                                bt.logging.info(f"Streamed text: {chunk.text}")
+                            except:
+                                bt.logging.error(f"error in gemini streaming {traceback.format_exc()}")
+                    except:
+                        bt.logging.error(f"caught you! {traceback.format_exc()}")
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})

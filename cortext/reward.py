@@ -55,28 +55,28 @@ def calculate_text_similarity(text1: str, text2: str):
         # Calculate the Cosine Similarity
         similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
-        # bt.debug(f"Similarity: {similarity}")
+        bt.logging.debug(f"Similarity: {similarity}")
         return similarity
     except Exception as e:
         bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")
         raise
 
-async def api_score(api_answer: str, response: str, weight: float) -> float:
+async def api_score(api_answer: str, response: str, weight: float, temperature: float, provider: str) -> float:
     try:
         loop = asyncio.get_running_loop()
         similarity = await loop.run_in_executor(None, calculate_text_similarity, api_answer, response)
-        bt.logging.debug(f"Similarity obtained: {similarity}")
 
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
 
-        # Answer must be within 15% the true answer's length
-        word_count_threshold = words_in_api * 0.25
+        # Answer must be within some percent of the true answer's length
+        word_count_threshold = words_in_api * 0.20
 
         # Check if the word count difference is within the threshold and similarity
         if abs(words_in_response - words_in_api) <= word_count_threshold:
             min_similarity = max(1 - 0.001 * (words_in_response - 1), 0.82)
-            score = weight if similarity >= min_similarity else 0
+            # score = weight if similarity >= min_similarity else 0
+            score = weight * similarity
         else:
             score = 0
 
