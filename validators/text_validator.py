@@ -14,7 +14,7 @@ from cortext.utils import call_openai, get_question, call_anthropic, call_gemini
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=60)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
@@ -116,7 +116,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 1
+        will_score_all = random_number < 1 / 12
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 

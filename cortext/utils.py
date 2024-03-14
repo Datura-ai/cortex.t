@@ -112,7 +112,6 @@ def get_validators_with_runs_in_all_projects():
     common_validators = set.intersection(*validators_runs.values())
     return common_validators
 
-
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
@@ -131,7 +130,13 @@ async def get_list(list_type, num_questions_needed, theme=None):
         question_pool = []
         for complexity_level in range(1, 21):
             for relevance_level in range(1, 21):
-                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} questions "
+                random_int = random.randint(1, 100)
+                if random_int <= 50:
+                    task_type = "questions"
+                else:
+                    task_type = random.sample(template.INSTRUCT_TASK_OPTIONS, 1)
+                
+                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
                           f"or instruct tasks related to the theme '{theme}', each with a complexity level "
                           f"of {complexity_level} out of 20 and a relevance level to the theme "
                           f"of {relevance_level} out of 20. These tasks should varyingly explore "
@@ -174,7 +179,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
                     try:
                         random_seed = random.randint(1, 10000)
                         messages = [{'role': "user", 'content': selected_prompts[i]}]
-                        new_answer = await call_openai(messages, 0.85, "gpt-4-1106-preview", random_seed)
+                        new_answer = await call_openai(messages, 0.85, "gpt-4-0125-preview", random_seed)
                         new_answer = new_answer.replace("\n", " ") if new_answer else ""
                         new_extracted_list = extract_python_list(new_answer)
                         if new_extracted_list:
