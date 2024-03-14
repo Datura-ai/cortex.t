@@ -77,7 +77,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 88 + ["Anthropic"] * 02 + ["Gemini"] * 0 + ["Claude"] * 10
+            providers = ["OpenAI"] * 88 + ["Anthropic"] * 2 + ["Gemini"] * 0 + ["Claude"] * 10
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
