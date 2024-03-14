@@ -48,11 +48,12 @@ if not claude_key:
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
 
-google_key=os.environ.get('GOOGLE_API_KEY')
-if not google_key:
-    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+# google_key=os.environ.get('GOOGLE_API_KEY')
+# if not google_key:
+#     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
-genai.configure(api_key=google_key)
+# genai.configure(api_key=google_key)
+
 bedrock_client = AsyncAnthropicBedrock()
 
 def load_state_from_file(filename: str):
