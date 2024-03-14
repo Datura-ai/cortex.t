@@ -15,15 +15,16 @@ messages = [
     },
     {
         "role": "user",
-        "content": "Hello!"
+        "content": "Tell me about miami"
     }
 ]
 # messages = ', '.join(message['content'] for message in messages)
-temperature = 0
-max_tokens = 200
-top_p = 1
+messages = [{'role': 'user', 'content': 'Compare and contrast the differences between inductive and deductive reasoning in the context of scientific research.'}]
+temperature = 0.0001
+max_tokens = 50
+top_p = 0.01
 top_k = 1
-seed = 10
+seed = 1234
 
 # for m in genai.list_models():
 #   if 'generateContent' in m.supported_generation_methods:
@@ -32,27 +33,27 @@ seed = 10
 
 # Streaming
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
-    print(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
+    print(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}, max tokens = {max_tokens}, top_p = {top_p}, top_k = {top_k}")
     try:
         model = genai.GenerativeModel(model)
         stream = model.generate_content(
             str(messages),
             stream=True,
             generation_config=genai.types.GenerationConfig(
-                candidate_count=1,
-                stop_sequences=['x'],
+                # candidate_count=1,
+                # stop_sequences=['x'],
                 temperature=temperature,
-                max_output_tokens=max_tokens,
+                # max_output_tokens=max_tokens,
                 top_p=top_p,
                 top_k=top_k,
                 # seed=seed,
             )
         )
         for chunk in stream:
-            try:
-                print(chunk.text, end="", flush=True)
-            except:
-                pass
+            # try:
+            print(chunk.text, end="", flush=True)
+            # except:
+            #     pass
         # print(f"validator response is {stream.text}")
         return stream.text
     except:
