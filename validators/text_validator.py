@@ -168,7 +168,7 @@ class TextValidator(BaseValidator):
             if scored_response is not None:
                 scores[uid] = scored_response
                 uid_scores_dict[uid] = scored_response
-                self.wandb_data["scores"][uid] = score
+                self.wandb_data["scores"][uid] = scored_response
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
