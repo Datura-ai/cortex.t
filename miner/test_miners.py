@@ -9,6 +9,8 @@ pm2_commands = []
 for i in range(num_miners):
     miner_number = start_num + i
     port = base_port + i
+    # export PYTHONPATH='/home/ec2-user/cortex.t/'
+    # export PYTHONPATH='/home/ubuntu/cortex.t/'
 
     # Construct the PM2 start command
     # command = f"pm2 start miner.py --interpreter python3 --name {wallet_name}:{miner_number} -- --wallet.name {wallet_name} --wallet.hotkey {miner_number} --subtensor.network finney --netuid 18 --axon.port {port*wallet_name} --logging.debug"

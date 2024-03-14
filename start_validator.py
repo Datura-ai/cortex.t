@@ -1,12 +1,12 @@
 import argparse
 import time
 import subprocess
-import template
-from template.utils import get_version, send_discord_alert
+import cortext
+from cortext.utils import get_version, send_discord_alert
 
 default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
 webhook_url = ""
-current_version = template.__version__
+current_version = cortext.__version__
 
 def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
     global current_version

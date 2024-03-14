@@ -6,14 +6,14 @@ import asyncio
 import aiohttp
 import base64
 import traceback
-import template.reward
+import cortext.reward
 import bittensor as bt
 
 from PIL import Image
 from io import BytesIO
-from template.utils import get_question
+from cortext.utils import get_question
 from base_validator import BaseValidator
-from template.protocol import ImageResponse
+from cortext.protocol import ImageResponse
 
 
 class ImageValidator(BaseValidator):
@@ -46,7 +46,7 @@ class ImageValidator(BaseValidator):
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 8 + ["Stability"] * 2
+            providers = ["OpenAI"] * 100 + ["Stability"] * 0
             self.provider = random.choice(providers)
 
             if self.provider == "Stability":
@@ -122,10 +122,10 @@ class ImageValidator(BaseValidator):
 
                         if will_score_all:
                             if syn.provider == "OpenAI":
-                                score_task = template.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
+                                score_task = cortext.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
                             else:
                                 continue
-                                score_task = template.reward.deterministic_score(uid, syn, self.weight)
+                                score_task = cortext.reward.deterministic_score(uid, syn, self.weight)
                             score_tasks.append(asyncio.create_task(score_task))
 
 

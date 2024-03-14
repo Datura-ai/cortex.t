@@ -19,7 +19,7 @@
 
 
 # version must stay on line 22
-__version__ = "3.2.2"
+__version__ = "3.2.3"
 version_split = __version__.split(".")
 __spec_version__ = (
     (1000 * int(version_split[0]))
@@ -51,6 +51,7 @@ MAX_REQUESTS = 12
 # must have the test_key whitelisted to avoid a global blacklist
 testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
+VALIDATOR_API_WHITELIST = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 valid_validators = [
     '5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v',
     '5EhvL1FVkQPpMjZX4MAADcW42i3xPSF1KiCpuaxTYVr28sux',

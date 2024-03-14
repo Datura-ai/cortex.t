@@ -1,84 +1,107 @@
-import base  # noqa
-
 import argparse
 import asyncio
+import base64
 import copy
 import json
 import os
-import io
-import base64
-import boto3
 import pathlib
+import requests
 import threading
 import time
-import requests
 import traceback
-import requests
 import anthropic
-from abc import ABC, abstractmethod
 from collections import deque
 from functools import partial
 from typing import Tuple
-from stability_sdk import client
 
 import bittensor as bt
+import google.generativeai as genai
 import wandb
+from PIL import Image
+from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
+from anthropic import AsyncAnthropic
+from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
-import template
-from template.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting
-from template.utils import get_version
+import cortext
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.utils import get_version
 import sys
 
 from starlette.types import Send
 
 
+# Set up api keys from .env file and initialze clients
+
+# OpenAI
 OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 if not OpenAI.api_key:
     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-stability_api = client.StabilityInference(
-    key=os.environ['STABILITY_KEY'],
+client = AsyncOpenAI(timeout=60.0)
+
+# Stability
+stability_key = os.environ.get("STABILITY_API_KEY")
+if not stability_key:
+    raise ValueError("Please set the STABILITY_KEY environment variable.")
+
+claude_key = os.environ.get("ANTHROPIC_API_KEY")
+if not claude_key:
+    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
+
+claude_client = AsyncAnthropic()
+claude_client.api_key = claude_key
+
+stability_api = stability_client.StabilityInference(
+    key=stability_key,
     verbose=True,
-    engine="stable-diffusion-xl-1024-v1-0"
 )
 
+# Anthropic
+# Only if using the official claude for access instead of aws bedrock
 api_key = os.environ.get("ANTHROPIC_API_KEY")
+anthropic_client = anthropic.Anthropic()
+anthropic_client.api_key = api_key
 
+# For AWS bedrock (default)
 bedrock_client = AsyncAnthropicBedrock(
     # default is 10 minutes
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
-
 anthropic_client = anthropic.Anthropic()
-anthropic_client.api_key = api_key
 
+# For google/gemini
+google_key=os.environ.get('GOOGLE_API_KEY')
+if not google_key:
+    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+
+genai.configure(api_key=google_key)
+
+
+# Wandb
 netrc_path = pathlib.Path.home() / ".netrc"
 wandb_api_key = os.getenv("WANDB_API_KEY")
-
 bt.logging.info("WANDB_API_KEY is set")
 bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=60.0)
 valid_hotkeys = []
 
-
-class StreamMiner(ABC):
+class StreamMiner():
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
         bt.logging.info("starting stream miner")
         base_config = copy.deepcopy(config or get_config())
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
-        bt.logging.info(self.config)  # TODO: duplicate print?
+        bt.logging.info(self.config)
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
 
@@ -104,8 +127,8 @@ class StreamMiner(ABC):
 
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
-                f"\nYour validator: {self.wallet} if not registered to chain connection: {self.subtensor} "
-                f"\nRun btcli register and try again. "
+                f"\nYour miner: {self.wallet} is not registered to this subnet"
+                f"\nRun btcli recycle_register --netuid 18 and try again. "
             )
             sys.exit()
         else:
@@ -119,19 +142,21 @@ class StreamMiner(ABC):
         self.axon = axon or bt.axon(wallet=self.wallet, port=self.config.axon.port)
         # Attach determiners which functions are called when servicing a request.
         bt.logging.info("Attaching forward function to axon.")
-        print(f"Attaching forward function to axon. {self._prompt}")
+        print(f"Attaching forward function to axon. {self.prompt}")
         self.axon.attach(
-            forward_fn=self._prompt,
+            forward_fn=self.prompt,
             blacklist_fn=self.blacklist_prompt,
         ).attach(
-            forward_fn=self._is_alive,
+            forward_fn=self.is_alive,
             blacklist_fn=self.blacklist_is_alive,
         ).attach(
-            forward_fn=self._images,
+            forward_fn=self.images,
             blacklist_fn=self.blacklist_images,
         ).attach(
-            forward_fn=self._embeddings,
+            forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
+        ).attach(
+            forward_fn=self.text,
         )
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -143,20 +168,21 @@ class StreamMiner(ABC):
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         # thread.start()
+    
+    def text(self, synapse: TextPrompting) -> TextPrompting:
+        synapse.completion = "completed by miner"
+        return synapse
 
-    @abstractmethod
     def config(self) -> bt.config:
-        ...
-
-    def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        return self.prompt(synapse)
+        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
+        return bt.config(parser)
 
     def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in template.WHITELISTED_KEYS:
+            if hotkey in cortext.WHITELISTED_KEYS:
                 return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -167,16 +193,16 @@ class StreamMiner(ABC):
                 if _axon.hotkey == hotkey:
                     break
 
-            if uid is None and template.ALLOW_NON_REGISTERED is False:
+            if uid is None and cortext.ALLOW_NON_REGISTERED is False:
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
-            tao = self.metagraph.neurons[uid].stake.tao
+            tao = self.metagraph.neurons[uid].S
             # metagraph.neurons[uid].S
             if tao < blacklist_amt:
                 return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
 
-            time_window = template.MIN_REQUEST_PERIOD * 60
+            time_window = cortext.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
 
             if hotkey not in self.request_timestamps:
@@ -187,12 +213,12 @@ class StreamMiner(ABC):
                 self.request_timestamps[hotkey].popleft()
 
             # Check if the number of requests exceeds the limit
-            if len(self.request_timestamps[hotkey]) >= template.MAX_REQUESTS:
+            if len(self.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
                 return (
                     True,
                     f"Request frequency for {hotkey} exceeded: "
-                    f"{len(self.request_timestamps[hotkey])} requests in {template.MIN_REQUEST_PERIOD} minutes. "
-                    f"Limit is {template.MAX_REQUESTS} requests."
+                    f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
+                    f"Limit is {cortext.MAX_REQUESTS} requests."
                 )
 
             self.request_timestamps[hotkey].append(current_time)
@@ -204,55 +230,24 @@ class StreamMiner(ABC):
 
 
     def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.PROMPT_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.ISALIVE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.IMAGE_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, template.EMBEDDING_BLACKLIST_STAKE)
+        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
-
-    @classmethod
-    @abstractmethod
-    def add_args(cls, parser: argparse.ArgumentParser):
-        ...
-
-    def _prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        return self.prompt(synapse)
-
-    async def _images(self, synapse: ImageResponse) -> ImageResponse:
-        return await self.images(synapse)
-
-    async def _embeddings(self, synapse: Embeddings) -> Embeddings:
-        return await self.embeddings(synapse)
-
-    def _is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.info("answered to be active")
-        synapse.completion = "True"
-        return synapse
-
-    @abstractmethod
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        ...
-
-    @abstractmethod
-    def images(self, synapse: ImageResponse) -> ImageResponse:
-        ...
-
-    @abstractmethod
-    def embeddings(self, synapse: Embeddings) -> Embeddings:
-        ...
 
     def run(self):
         if not self.subtensor.is_hotkey_registered(
@@ -286,7 +281,7 @@ class StreamMiner(ABC):
                     current_block - self.last_epoch_block
                     < self.config.miner.blocks_per_epoch
                 ):
-                    # --- Wait for next bloc.
+                    # --- Wait for next block.
                     time.sleep(1)
                     current_block = self.subtensor.get_current_block()
                     # --- Check if we should exit.
@@ -349,53 +344,154 @@ class StreamMiner(ABC):
     def __exit__(self, exc_type, exc_value, traceback):
         self.stop_run_thread()
 
+    async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+        bt.logging.info(f"started processing for synapse {synapse}")
 
-class StreamingTemplateMiner(StreamMiner):
-    def config(self) -> bt.config:
-        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
-        self.add_args(parser)
-        return bt.config(parser)
+        async def _prompt(synapse, send: Send):
+            try:
+                provider = synapse.provider
+                model = synapse.model
+                messages = synapse.messages
+                seed = synapse.seed
+                temperature = synapse.temperature
+                max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
 
-    def add_args(cls, parser: argparse.ArgumentParser):
-        pass
 
-    async def embeddings(self, synapse: Embeddings) -> Embeddings:
-        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
+                if provider == "OpenAI":
+                    # Test seeds + higher temperature
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        seed=seed,
+                        max_tokens=max_tokens
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
 
-        async def get_embeddings_in_batch(texts, model, batch_size=10):
-            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
-            tasks = []
-            for batch in batches:
-                filtered_batch = [text for text in batch if text.strip()]
-                if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(
-                        input=filtered_batch, model=model, encoding_format='float'
-                    ))
-                    tasks.append(task)
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Anthropic":
+                    stream = await bedrock_client.completions.create(
+                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                        max_tokens_to_sample=max_tokens,
+                        temperature=temperature,  # must be <= 1.0
+                        top_k=top_k,
+                        top_p=top_p,
+                        model=model,
+                        stream=True,
+                    )
+
+                    async for completion in stream:
+                        if completion.completion:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": completion.completion.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {completion.completion}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+                elif provider == "Claude":
+                    system_prompt = None
+                    filtered_messages = []
+                    for message in messages:
+                        if message["role"] == "system":
+                            system_prompt = message["content"]
+                        else:
+                            filtered_messages.append(message)
+                    
+                    stream_kwargs = {
+                        "max_tokens": max_tokens,
+                        "messages": filtered_messages,
+                        "model": model,
+                    }
+
+                    if system_prompt:
+                        stream_kwargs["system"] = system_prompt
+
+                    completion = claude_client.messages.stream(**stream_kwargs)
+                    async with completion as stream:
+                        async for text in stream.text_stream:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    
+                elif provider == "Gemini":
+                    model = genai.GenerativeModel(model)
+                    stream = model.generate_content(
+                        str(messages),
+                        stream=True,
+                        generation_config=genai.types.GenerationConfig(
+                            # candidate_count=1,
+                            # stop_sequences=['x'],
+                            temperature=temperature,
+                            # max_output_tokens=max_tokens,
+                            top_p=top_p,
+                            top_k=top_k,
+                            # seed=seed,
+                        )
+                    )
+                    for chunk in stream:
+                        for part in chunk.candidates[0].content.parts:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": chunk.text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {chunk.text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
                 else:
-                    bt.logging.info("Skipped an empty batch.")
+                    bt.logging.error(f"Unknown provider: {provider}")
 
-            all_embeddings = []
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, Exception):
-                    bt.logging.error(f"Error in processing batch: {result}")
-                else:
-                    batch_embeddings = [item.embedding for item in result.data]
-                    all_embeddings.extend(batch_embeddings)
-            return all_embeddings
+            except Exception as e:
+                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
-        try:
-            texts = synapse.texts
-            model = synapse.model
-            batched_embeddings = await get_embeddings_in_batch(texts, model)
-            synapse.embeddings = batched_embeddings
-            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
-            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
-            return synapse
-        except Exception:
-            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
-
+        token_streamer = partial(_prompt, synapse)
+        return synapse.create_streaming_response(token_streamer)
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received image request: {synapse}")
@@ -464,125 +560,48 @@ class StreamingTemplateMiner(StreamMiner):
         except Exception as exc:
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
-    def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        bt.logging.info(f"started processing for synapse {synapse}")
+    async def embeddings(self, synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
 
-        async def _prompt(synapse, send: Send):
-            try:
-                provider = synapse.provider
-                model = synapse.model
-                messages = synapse.messages
-                seed = synapse.seed
-                temperature = synapse.temperature
-                max_tokens = synapse.max_tokens
-                top_p = synapse.top_p
-                top_k = synapse.top_k
-
-                if provider == "OpenAI":
-
-                    ### Store the args in a dictionary to be passed to OpenAI
-                    args = dict(
-                        model=model,
-                        messages=messages,
-                        temperature=temperature,
-                        stream=True,
-                        max_tokens=max_tokens
-                    )
-
-                    ### If -1 is specified, this indicates that the user does not want a seed added to the request
-                    if seed != -1:
-                        args["seed"] = seed
-
-                    response = await client.chat.completions.create(**args)
-
-                    buffer = []
-                    n = 1
-                    async for chunk in response:
-                        token = chunk.choices[0].delta.content or ""
-                        buffer.append(token)
-                        if len(buffer) == n:
-                            joined_buffer = "".join(buffer)
-                            await send(
-                                {
-                                    "type": "http.response.body",
-                                    "body": joined_buffer.encode("utf-8"),
-                                    "more_body": True,
-                                }
-                            )
-                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                            buffer = []
-
-                    if buffer:
-                        joined_buffer = "".join(buffer)
-                        await send(
-                            {
-                                "type": "http.response.body",
-                                "body": joined_buffer.encode("utf-8"),
-                                "more_body": False,
-                            }
-                        )
-                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
-
-                # # for official claude users, comment out the other elif
-                # elif provider == "Anthropic":
-                #     models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-                #     if model == models[0]: model = "claude-2.1"
-                #     if model == models[1]: model = "claude-instant-1.2"
-                #     if model == models[2]: model = "claude-instant-1.2"
-                #     if model == models[3]: model = "claude-2.0"
-
-                #     with anthropic_client.beta.messages.stream(
-                #         max_tokens=max_tokens,
-                #         messages=messages,
-                #         model=model,
-                #         temperature=temperature,
-                #         top_p=top_p,
-                #         top_k=top_k,
-                #     ) as stream:
-                #         for text in stream.text_stream:
-                #             await send(
-                #                 {
-                #                     "type": "http.response.body",
-                #                     "body": text.encode("utf-8"),
-                #                     "more_body": True,
-                #                 }
-                #             )
-                #             bt.logging.info(f"Streamed text: {text}")
-
-                # For amazon bedrock users, comment out the other elif
-                elif provider == "Anthropic":
-                    stream = await bedrock_client.completions.create(
-                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
-                        max_tokens_to_sample=max_tokens,
-                        temperature=temperature,  # must be <= 1.0
-                        top_k=top_k,
-                        top_p=top_p,
-                        model=model,
-                        stream=True,
-                    )
-
-                    async for completion in stream:
-                        if completion.completion:
-                            await send(
-                                {
-                                    "type": "http.response.body",
-                                    "body": completion.completion.encode("utf-8"),
-                                    "more_body": True,
-                                }
-                            )
-                            bt.logging.info(f"Streamed text: {completion.completion}")
-
-                    # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
-
+        async def get_embeddings_in_batch(texts, model, batch_size=10):
+            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            tasks = []
+            for batch in batches:
+                filtered_batch = [text for text in batch if text.strip()]
+                if filtered_batch:
+                    task = asyncio.create_task(client.embeddings.create(
+                        input=filtered_batch, model=model, encoding_format='float'
+                    ))
+                    tasks.append(task)
                 else:
-                    bt.logging.error(f"Unknown provider: {provider}")
+                    bt.logging.info("Skipped an empty batch.")
 
-            except Exception as e:
-                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
+            all_embeddings = []
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    bt.logging.error(f"Error in processing batch: {result}")
+                else:
+                    batch_embeddings = [item.embedding for item in result.data]
+                    all_embeddings.extend(batch_embeddings)
+            return all_embeddings
 
-        token_streamer = partial(_prompt, synapse)
-        return synapse.create_streaming_response(token_streamer)
+        try:
+            texts = synapse.texts
+            model = synapse.model
+            batched_embeddings = await get_embeddings_in_batch(texts, model)
+            synapse.embeddings = batched_embeddings
+            # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+            bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
+            return synapse
+        except Exception:
+            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+
+    async def is_alive(self, synapse: IsAlive) -> IsAlive:
+        bt.logging.debug("answered to be active")
+        synapse.completion = "True"
+        return synapse
+
 
 def get_valid_hotkeys(config):
     global valid_hotkeys
@@ -591,7 +610,7 @@ def get_valid_hotkeys(config):
     while True:
         metagraph = subtensor.metagraph(18)
         try:
-            runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
+            runs = api.runs(f"cortex-t/{cortext.PROJECT_NAME}")
             latest_version = get_version()
             for run in runs:
                 if run.state == "running":
@@ -635,6 +654,8 @@ def get_valid_hotkeys(config):
 
 
 if __name__ == "__main__":
-    with StreamingTemplateMiner():
+    with StreamMiner():
         while True:
             time.sleep(1)
+
+

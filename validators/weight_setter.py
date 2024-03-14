@@ -4,7 +4,7 @@ import itertools
 import traceback
 import random
 from typing import Tuple
-import template
+import cortext
 
 import bittensor as bt
 import torch
@@ -12,7 +12,40 @@ import wandb
 import os
 import shutil
 
-from template.protocol import IsAlive
+import argparse
+import asyncio
+import base64
+import copy
+import json
+import os
+import pathlib
+import requests
+import threading
+import time
+import traceback
+from collections import deque
+from functools import partial
+from typing import Tuple
+import bittensor as bt
+import google.generativeai as genai
+import wandb
+from PIL import Image
+from stability_sdk import client
+from openai import AsyncOpenAI, OpenAI
+from stability_sdk import client as stability_client
+from PIL import Image
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+import anthropic
+from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+
+import cortext
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.utils import get_version
+import sys
+
+from starlette.types import Send
+
+from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from text_validator import TextValidator
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
@@ -21,39 +54,151 @@ iterations_per_set_weights = 5
 scoring_organic_timeout = 60
 
 
-async def wait_for_coro_with_limit(coro, timeout: int) -> Tuple[bool, object]:
-    try:
-        result = await asyncio.wait_for(coro, timeout)
-    except asyncio.TimeoutError:
-        bt.logging.error('scoring task timed out')
-        return False, None
-    return True, result
-
-
 class WeightSetter:
     def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
+        bt.logging.info("starting weight setter")
+        self.config = config
+        bt.logging.info(f"config:\n{self.config}")
+        self.prompt_cache: dict[str, Tuple[str, int]] = {}
+        self.request_timestamps = {}
         self.loop = loop
         self.dendrite = dendrite
         self.subtensor = subtensor
-        self.config = config
         self.wallet = wallet
         self.text_vali = text_vali
         self.image_vali = image_vali
         self.embed_vali = embed_vali
-
         self.moving_average_scores = None
-        self.metagraph = subtensor.metagraph(config.netuid)
+        self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
+        self.metagraph = self.subtensor.metagraph(config.netuid)
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
-
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         # self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
+    def config(self) -> bt.config:
+        parser = argparse.ArgumentParser(description="Validator Configs")
+        return bt.config(parser)
+
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
+    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
+    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
+        bt.logging.debug(blacklist[1])
+        return blacklist
+
+    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
+    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
+    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
+        try:
+            hotkey = synapse.dendrite.hotkey
+            synapse_type = type(synapse).__name__
+
+            if hotkey == self.wallet.hotkey.ss58_address:
+                return False, f"accepting {synapse_type} request from self"
+
+            elif hotkey in cortext.VALIDATOR_API_WHITELIST:
+                return False, f"accepting {synapse_type} request from whitelist: {hotkey}"
+
+            return True, f"rejecting {synapse_type} request from {hotkey}"
+
+        except Exception:
+            bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
+
+    async def images(self, synapse: ImageResponse) -> ImageResponse:
+        bt.logging.info(f"received {synapse}")
+
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+
+        bt.logging.info(f"new synapse = {synapse}")
+        return synapse
+
+    async def embeddings(self, synapse: Embeddings) -> Embeddings:
+        bt.logging.info(f"received {synapse}")
+
+        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+
+        bt.logging.info(f"new synapse = {synapse}")
+        return synapse
+
+    async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
+        bt.logging.info(f"received {synapse}")
+
+        async def _prompt(synapse, send: Send):
+            bt.logging.info(
+                f"Sending {synapse} request to uid: {synapse.uid}, "
+            )
+            async def handle_response(responses):
+                for resp in responses:
+                    async for chunk in resp:
+                        if isinstance(chunk, str):
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": chunk.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {chunk}")
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+            axon = self.metagraph.axons[synapse.uid]
+            responses = self.dendrite.query(
+                axons=[axon], 
+                synapse=synapse, 
+                deserialize=False,
+                timeout=synapse.timeout,
+                streaming=True,
+            )
+            return await handle_response(responses)
+        
+        token_streamer = partial(_prompt, synapse)
+        return synapse.create_streaming_response(token_streamer)
+
+    def text(self, synapse: TextPrompting) -> TextPrompting:
+        synapse.completion =  "completed"
+        bt.logging.info("completed")
+
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+
+        bt.logging.info(f"synapse = {synapse}")
+        return synapse
+
     async def consume_organic_scoring(self):
+        bt.logging.info("Attaching forward function to axon.")
+        self.axon.attach(
+            forward_fn=self.prompt,
+            blacklist_fn=self.blacklist_prompt,
+        ).attach(
+            forward_fn=self.images,
+            blacklist_fn=self.blacklist_images,
+        ).attach(
+            forward_fn=self.embeddings,
+            blacklist_fn=self.blacklist_embeddings,
+        ).attach(
+            forward_fn=self.text,
+        )
+        # self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
+        self.axon.start()
+        self.my_subnet_uid = self.metagraph.hotkeys.index(
+            self.wallet.hotkey.ss58_address
+            )
+        bt.logging.info(f"Running validator on uid: {self.my_subnet_uid}")
         while True:
             try:
                 if self.organic_scoring_tasks:
@@ -72,12 +217,12 @@ class WeightSetter:
                             self.total_scores += data[0]
                     self.organic_scoring_tasks.difference_update(completed)
                 else:
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(60)
             except Exception as e:
                 bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
                 
-            
+
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
             for steps_passed in itertools.count():
@@ -97,10 +242,11 @@ class WeightSetter:
                         f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
                     )
 
-                await asyncio.sleep(10)
+                # if we want to slow down the speed of the validator steps
+                await asyncio.sleep(100)
 
     def select_validator(self, steps_passed):
-        return self.text_vali if steps_passed % 5 in (0, 1, 2, 3) else self.image_vali
+        return self.text_vali if steps_passed % 10 in (0, 1, 2, 3, 4, 5, 6, 7, 8) else self.image_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
@@ -176,34 +322,7 @@ class WeightSetter:
                 uids=self.metagraph.uids,
                 weights=self.moving_average_scores,
                 wait_for_inclusion=False,
-                version_key=template.__weights_version__,
+                version_key=cortext.__weights_version__,
             )
         )
         bt.logging.success("Successfully set weights.")
-
-    def register_text_validator_organic_query(
-        self,
-        uid_to_response: dict[int, str],  # [(uid, response)]
-        messages_dict: dict[int, str],
-    ):
-        self.organic_scoring_tasks.add(asyncio.create_task(
-            wait_for_coro_with_limit(
-                self.text_vali.score_responses(
-                    query_responses=list(uid_to_response.items()),
-                    uid_to_question=messages_dict,
-                    metagraph=self.metagraph,
-                ),
-                scoring_organic_timeout
-            )
-        ))
-
-
-class TestWeightSetter(WeightSetter):
-    def select_validator(self, steps_passed):
-        return self.text_vali
-
-    async def get_available_uids(self):
-        return {i: None for i in range(len(self.metagraph.hotkeys))}
-
-    def shuffled(self, list_: list) -> list:
-        return list_

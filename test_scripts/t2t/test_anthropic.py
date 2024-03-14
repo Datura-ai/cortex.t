@@ -10,7 +10,7 @@ client = AnthropicBedrock()
 question = """
 Hey Claude! How can I recursively list all files in a directory in Python?
 """
-models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
+models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2", "anthropic.claude-3-sonnet-20240229-v1:0"]
 
 # Define an async function
 async def run_async_code():
@@ -20,7 +20,7 @@ async def run_async_code():
     max_tokens_to_sample=300,
     temperature=0.01, # must be <= 1.0
     top_p=1,
-    model=models[0],
+    model=models[-1],
     stream=True,
     )
 
