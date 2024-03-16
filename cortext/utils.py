@@ -457,26 +457,30 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
         await asyncio.sleep(0.5)
 
 async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
-    system_prompt = None
-    filtered_messages = []
-    for message in messages:
-        if message["role"] == "system":
-            system_prompt = message["content"]
-        else:
-            filtered_messages.append(message)
+    try:
+        bt.logging.info(f"calling claude for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}, top_k: {top_k}")
+        system_prompt = None
+        filtered_messages = []
+        for message in messages:
+            if message["role"] == "system":
+                system_prompt = message["content"]
+            else:
+                filtered_messages.append(message)
 
-    kwargs = {
-        "max_tokens": max_tokens,
-        "messages": filtered_messages,
-        "model": model,
-    }
+        kwargs = {
+            "max_tokens": max_tokens,
+            "messages": filtered_messages,
+            "model": model,
+        }
 
-    if system_prompt:
-        kwargs["system"] = system_prompt
-       
-    message = await claude_client.messages.create(**kwargs)
-    bt.logging.debug(f"validator response is {message.content[0].text}")
-    return message.content[0].text
+        if system_prompt:
+            kwargs["system"] = system_prompt
+        
+        message = await claude_client.messages.create(**kwargs)
+        bt.logging.debug(f"validator response is {message.content[0].text}")
+        return message.content[0].text
+    except:
+        bt.logging.error(f"error in call_claude {traceback.format_exc()}")
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
     # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
