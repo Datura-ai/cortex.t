@@ -144,17 +144,18 @@ class TextValidator(BaseValidator):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         response_tasks = []
-
         # Decide to score all UIDs this round based on a chance
         will_score_all = self.should_i_score()
-
+        bt.logging.info("starting wandb logging")
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
                 prompt = uid_to_question[uid]
                 response_tasks.append((uid, self.call_api(prompt, self.provider)))
 
+        bt.logging.info("finished wandb logging and scoring")
         api_responses = await asyncio.gather(*[task for _, task in response_tasks])
+        bt.logging.info("gathered response_tasks for api calls")
 
         scoring_tasks = []
         for (uid, _), api_answer in zip(response_tasks, api_responses):
