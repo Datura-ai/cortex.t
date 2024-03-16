@@ -1,7 +1,7 @@
 from PIL import Image
 
 # Path to the image
-image_path = '/Users/colemiller/cortex.t/test_scripts/images/john2.png'
+image_path = '/example_path/'
 
 # Desired dimensions
 desired_width = 576
