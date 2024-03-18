@@ -193,7 +193,7 @@ class WeightSetter:
         ).attach(
             forward_fn=self.text,
         )
-        # self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
+        self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
         self.axon.start()
         self.my_subnet_uid = self.metagraph.hotkeys.index(
             self.wallet.hotkey.ss58_address
