@@ -93,9 +93,9 @@ class TextValidator(BaseValidator):
                 self.model = "gemini-pro"
 
             elif self.provider == "Claude":
-                # self.model = "claude-3-opus-20240229"
+                self.model = "claude-3-opus-20240229"
                 # self.model = "claude-3-sonnet-20240229"
-                self.model = "claude-instant-1.2"
+                # self.model = "claude-instant-1.2"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
