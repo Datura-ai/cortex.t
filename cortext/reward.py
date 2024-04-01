@@ -17,6 +17,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
+import sentry_sdk
 from transformers import logging as hf_logging
 hf_logging.set_verbosity_error()
 
@@ -58,6 +59,7 @@ def calculate_text_similarity(text1: str, text2: str):
         bt.logging.debug(f"Similarity: {similarity}")
         return similarity
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")
         raise
 
@@ -82,6 +84,7 @@ async def api_score(api_answer: str, response: str, weight: float, temperature: 
 
         return score
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"Exception in api_score: {traceback.format_exc()}")
 
 
@@ -119,6 +122,7 @@ async def is_image_url(url: str) -> bool:
             async with session.head(url) as response:
                 return response.status == 200 and 'image' in response.headers.get('Content-Type', '')
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.info(f"Error checking URL: {e}")
         return False
 
@@ -134,6 +138,7 @@ async def load_image_from_url(url: str):
                 image.verify()  # Verify that this is indeed an image
                 return image
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.info(f"Failed to load image: {e}")
 
 
@@ -191,6 +196,7 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
         bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
         return 0
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0
 

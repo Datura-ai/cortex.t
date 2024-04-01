@@ -1,4 +1,5 @@
 import os
+import sentry_sdk
 import random
 import asyncio
 import traceback
@@ -34,6 +35,7 @@ async def embeddings(texts, model):
                 batch_embeddings = [item.embedding for item in response.data]
                 all_embeddings.extend(batch_embeddings)
             except Exception as e:
+                sentry_sdk.capture_exception()
                 bt.logging.error(f"Error in processing batch: {e}")
 
         return all_embeddings
@@ -43,6 +45,7 @@ async def embeddings(texts, model):
         embeddings = [np.array(embed) for embed in batched_embeddings]
         return embeddings
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 

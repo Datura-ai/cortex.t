@@ -1,4 +1,5 @@
 import io
+import sentry_sdk
 import torch
 import wandb
 import random
@@ -76,6 +77,7 @@ class ImageValidator(BaseValidator):
             query_responses = await asyncio.gather(*query_tasks)
             return query_responses, uid_to_question
         except:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 
 
@@ -89,6 +91,7 @@ class ImageValidator(BaseValidator):
                 content = await response.read()
                 return await asyncio.to_thread(Image.open, BytesIO(content))
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
 
 
@@ -135,6 +138,7 @@ class ImageValidator(BaseValidator):
                     for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
                         self.wandb_data["images"][uid] = wandb.Image(image)
                 except:
+                    sentry_sdk.capture_exception()
                     bt.logging.error(f"error in downloading images {traceback.exception_exc()}")
                     
                 # Process score results
@@ -144,9 +148,11 @@ class ImageValidator(BaseValidator):
                         final_score = score if score is not None else 0
                         scores[uid] = uid_scores_dict[uid] = final_score
                     except Exception as e:
+                        sentry_sdk.capture_exception()
                         bt.logging.error(f"Error processing score for UID {uid}: {traceback.format_exc()}")
 
             except:
+                sentry_sdk.capture_exception()
                 bt.logging.debug(f"error in score_responses {traceback.format_exc()}")
 
         bt.logging.info(f"Final scores: {uid_scores_dict}")

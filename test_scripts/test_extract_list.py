@@ -1,4 +1,5 @@
 import re
+import sentry_sdk
 import os
 import ast
 import math
@@ -126,6 +127,7 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
+        sentry_sdk.capture_exception()
         print(f"Unexpected error when extracting list: {e}\n{traceback.format_exc()}")
 
     return text
@@ -213,6 +215,7 @@ async def call_openai(messages, temperature, model, seed=1234):
             return response
 
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Error when calling OpenAI: {e}")
             await asyncio.sleep(0.5) 
     

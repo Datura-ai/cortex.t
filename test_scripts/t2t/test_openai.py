@@ -1,4 +1,5 @@
 import asyncio
+import sentry_sdk
 import os
 import traceback
 from openai import OpenAI
@@ -30,6 +31,7 @@ async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
         return all_messages
 
     except Exception as e:
+        sentry_sdk.capture_exception()
         print(f"Got exception when calling openai {e}")
         traceback.print_exc()
         return "Error calling model"

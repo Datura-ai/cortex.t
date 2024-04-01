@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sentry_sdk
 
 import io
 import ast
@@ -69,6 +70,7 @@ def load_state_from_file(filename: str):
                 load_success = True  # Set flag to true as the operation was successful
                 return state
             except Exception as e:  # Catch specific exceptions for better error handling
+                sentry_sdk.capture_exception()
                 bt.logging.error(f"error loading state, deleting and resetting it. Error: {e}")
                 os.remove(filename) # Delete if error
 
@@ -187,9 +189,11 @@ async def get_list(list_type, num_questions_needed, theme=None):
                             break
                         bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
+                        sentry_sdk.capture_exception()
                         bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': "
                                          f"{e}\n{traceback.format_exc()}")
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': "
                              f"{e}\n{traceback.format_exc()}")
 
@@ -362,6 +366,7 @@ def extract_python_list(text: str):
                 return evaluated
 
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"found double quotes in list, trying again")
 
     return None
@@ -384,6 +389,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
             return response
 
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
             await asyncio.sleep(0.5)
 
@@ -410,6 +416,7 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
         print(f"validator response is {response.text}")
         return response.text
     except:
+        sentry_sdk.capture_exception()
         print(f"error in call_gemini {traceback.format_exc()}")
         
 
@@ -453,6 +460,7 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
 
         return completion.completion
     except Exception as e:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
 
@@ -480,6 +488,7 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
         bt.logging.debug(f"validator response is {message.content[0].text}")
         return message.content[0].text
     except:
+        sentry_sdk.capture_exception()
         bt.logging.error(f"error in call_claude {traceback.format_exc()}")
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
@@ -539,4 +548,5 @@ def send_discord_alert(message, webhook_url):
         else:
             print(f"Failed to send Discord alert. Status code: {response.status_code}")
     except Exception as e:
+        sentry_sdk.capture_exception()
         print(f"Failed to send Discord alert: {e}", exc_info=True)

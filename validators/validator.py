@@ -1,4 +1,5 @@
 import logging
+import sentry_sdk
 import time
 from typing import Tuple
 
@@ -131,6 +132,7 @@ def main(test=False) -> None:
     try:
         loop.run_forever()
     except KeyboardInterrupt:
+        sentry_sdk.capture_exception()
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
         state = utils.get_state(state_path)
