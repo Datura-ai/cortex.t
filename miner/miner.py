@@ -15,6 +15,7 @@ from functools import partial
 from typing import Tuple
 
 import bittensor as bt
+from cortext.sentry import init_sentry
 import google.generativeai as genai
 import wandb
 from PIL import Image
@@ -101,6 +102,7 @@ class StreamMiner():
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
+        init_sentry(self.config, {"neuron-type", "miner"})
         bt.logging.info(self.config)
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}

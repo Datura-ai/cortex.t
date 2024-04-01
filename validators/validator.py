@@ -12,6 +12,7 @@ import traceback
 from pathlib import Path
 
 import bittensor as bt
+from cortext.sentry import init_sentry
 import torch
 import wandb
 from image_validator import ImageValidator
@@ -38,6 +39,8 @@ def get_config() -> bt.config:
     parser.add_argument("--netuid", type=int, default=18)
     parser.add_argument('--wandb_off', action='store_false', dest='wandb_on')
     parser.add_argument('--axon.port', type=int, default=8000)
+    parser.add_argument("--sentry-dsn",type=str,default=None,help="The url that sentry will use to send exception information to")
+
     parser.set_defaults(wandb_on=True)
     bt.subtensor.add_args(parser)
     bt.logging.add_args(parser)
@@ -111,6 +114,7 @@ def initialize_validators(vali_config, test=False):
 
 def main(test=False) -> None:
     config = get_config()
+    init_sentry(config, {"neuron-type", "validator"})
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,
