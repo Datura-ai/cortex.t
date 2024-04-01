@@ -80,6 +80,7 @@ class StreamMiner(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
+        init_sentry(self.config, {"neuron-type", "claude-miner"})
         bt.logging.info(self.config)  # TODO: duplicate print?
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
@@ -362,7 +363,7 @@ class StreamingcortextMiner(StreamMiner):
         return bt.config(parser)
 
     def add_args(cls, parser: argparse.ArgumentParser):
-        pass
+        parser.add_argument("--sentry-dsn",type=str,default=None,help="The url that sentry will use to send exception information to")
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
