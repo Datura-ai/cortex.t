@@ -115,7 +115,7 @@ def initialize_validators(vali_config, test=False):
 
 def main(test=False) -> None:
     config = get_config()
-    init_sentry(config, {"neuron-type", "validator"})
+    init_sentry(config, {"neuron-type": "validator"})
     wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {
         "dendrite": dendrite,

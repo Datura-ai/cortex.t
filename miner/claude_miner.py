@@ -1,5 +1,6 @@
 import base  # noqa
 
+from cortext.sentry import init_sentry
 import sentry_sdk
 import argparse
 import asyncio
@@ -80,7 +81,7 @@ class StreamMiner(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
-        init_sentry(self.config, {"neuron-type", "claude-miner"})
+        init_sentry(self.config, {"neuron-type": "claude-miner"})
         bt.logging.info(self.config)  # TODO: duplicate print?
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}

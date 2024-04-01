@@ -103,7 +103,7 @@ class StreamMiner():
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
-        init_sentry(self.config, {"neuron-type", "miner"})
+        init_sentry(self.config, {"neuron-type": "miner"})
         bt.logging.info(self.config)
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
