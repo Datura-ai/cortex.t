@@ -40,23 +40,43 @@ install `nox` (`pip install nox`) and run `nox -s test`.
 ### Before you proceed
 Before you proceed with the installation of the subnet, note the following: 
 
-**IMPORTANT**: We **strongly recommend** before proceeding that you test both subtensor and OpenAI API keys. Ensure you are running Subtensor locally to minimize chances of outages and improve the latency/connection. 
+**IMPORTANT**: We **strongly recommend** before proceeding that you test both subtensor and all API keys. Ensure you are running Subtensor locally to minimize chances of outages and improve the latency/connection. 
 
 After exporting your OpenAI API key to your bash profile, test the streaming service for both the gpt-3.5-turbo and gpt-4 engines using ```./neurons/test_openai.py```. Neither the miner or the validator will function without a valid and working [OpenAI API key](https://platform.openai.com/). 
 
 **IMPORTANT:** Make sure you are aware of the minimum compute requirements for cortex.t. See the [Minimum compute YAML configuration](./min_compute.yml).
-Note that this subnet requires very little compute. The main functionality is api calls, so we outsource the compute to openai. The cost for mining and validating on this subnet comes from api calls, not from compute. Please be aware of your API costs and monitor accordingly.
+Note that this subnet requires very little compute. The main functionality is API calls, so we outsource the compute to the providors of these keys. The cost for mining and validating on this subnet comes from API calls, not from compute. Please be aware of your API costs and monitor accordingly.
 
 A high tier key is required for both mining and validations so it is important if you do not have one to work your way up slowly by running a single miner or small numbers of miners whilst paying attention to your usage and limits.
 
+### API Key Requirements
+
+API requirements for this subnet are constantly evovling as we seek to meet the demands of the users and stay up to date with the latest developements. The current key requirements are as follows:
+
+- OpenAI key (GPT)
+- Google API key (Gemini)
+- Anthropic API key (Claude3)
+
+The higher rate limit your key has the better, and it can be advisable if mining to build up your rate limit slowly (even starting on testnet) to maximise your chances of achieving optimum performance.
 
 ### Installation
 
+Before starting make sure you have pm2, nano and any other useful tools installed.
+
+```bash
+apt update -y && apt-get install git -y && apt install python3-pip -y && apt install npm -y && npm install pm2@latest -g  && apt install nano
+```
+
 Download the repository, navigate to the folder and then install the necessary requirements with the following chained command.
 
-```git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip install -e .```
+```bash
+git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip install -e .
+```
 
-Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command `btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]`.
+Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command 
+```bash
+btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]
+```
 
 We recommend using [direnv](https://direnv.net). After installing it, copy `envrc.example` to `.envrc` and substitute
 all env vars with values appropriate for your accounts. After making changes to `.envrc` run `direnv allow` and start a 
@@ -66,15 +86,30 @@ new terminal tab.
 
 You can launch your miners via pm2 using the following command. 
 
-`pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>`
+```bash
+pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
+```
 
 
 ## Validating
 
-You can launch your validator via pm2 using the following command.
+Login to wandb using 
 
-`pm2 start ./validators/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>`
+```bash
+wand login
+```
 
+You can launch your validator via pm2 WITH AUTO-UPDATES (reccomended) using the following command.
+
+```bash
+pm2 start ./start_validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+```
+
+You can launch your validator via pm2 WITHOUT AUTO-UPDATES using the following command.
+
+```bash
+pm2 start ./validators/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+```
 
 ## Logging
 
