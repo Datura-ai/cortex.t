@@ -384,3 +384,48 @@ class TextPrompting(bt.Synapse):
         title="streaming",
         description="whether to stream the output",
     )
+
+
+class TTSResponse(bt.Synapse):
+    """ A class to represent the TTS request and response. """
+
+    text: str = pydantic.Field(
+        title="Text",
+        description="The input text to generate audio for."
+    )
+
+    provider: Literal["ElevenLabs"] = pydantic.Field(
+        default="ElevenLabs",
+        title="Provider",
+        description="The provider to use when calling for your response."
+    )
+
+    model: str = pydantic.Field(
+        default="eleven_multilingual_v2",
+        title="Model",
+        description="The model used for TTS."
+    )
+
+    voice: str = pydantic.Field(
+        default="Rachel",
+        title="Voice",
+        description="The voice used for TTS."
+    )
+
+    audio_b64: Optional[str] = pydantic.Field(
+        None,
+        title="Base64-encoded audio",
+        description="The resulting audio in base64 encoding corresponding to the input text."
+    )
+
+    uid: int = pydantic.Field(
+        default=60,
+        title="uid",
+        description="The UID to send the synapse to",
+    )
+
+    timeout: int = pydantic.Field(
+        default=60,
+        title="timeout",
+        description="The timeout for the dendrite of the synapse",
+    )

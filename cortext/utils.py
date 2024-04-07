@@ -78,7 +78,8 @@ def load_state_from_file(filename: str):
         # Return the default state structure
         return {
             "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
-            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
+            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
+            "tts": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
         }
 
 state = None
@@ -113,7 +114,7 @@ def get_validators_with_runs_in_all_projects():
     return common_validators
 
 async def get_list(list_type, num_questions_needed, theme=None):
-    prompts_in_question = {'text_questions': 10, 'images_questions': 20}
+    prompts_in_question = {'text_questions': 10, 'images_questions': 20, 'tts_questions': 20}
     list_type_mapping = {
         "text_questions": {
             "default": cortext.INSTRUCT_DEFAULT_QUESTIONS,
@@ -122,6 +123,13 @@ async def get_list(list_type, num_questions_needed, theme=None):
         "images_questions": {
             "default": cortext.IMAGE_DEFAULT_QUESTIONS,
             "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
+        },
+        "tts_questions": {
+            "prompt": (
+                f"Provide a python-formatted list of {prompts_in_question[list_type]} sentences for text-to-speech about the theme '{theme}'."
+                "The sentences should be around 20-30 words long and should be relevant to the theme but not monotinic statements. Instead, make them engaging and emotionally expressive to inspire a rich and diverse set of audio samples."
+                "Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
+            )
         }
     }
 
@@ -206,6 +214,8 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         if item_type == "themes":
             if category == "images":
                 return cortext.IMAGE_THEMES
+            elif category == "tts":
+                return cortext.TTS_THEMES
             return cortext.INSTRUCT_DEFAULT_THEMES
         else:
             # Never fail here, retry until valid list is found
@@ -238,13 +248,12 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         item = items.pop() if items else None
         if not items:
             state[category][item_type] = None
-
     return item
 
 
 async def get_question(category, num_questions_needed):
-    if category not in ["text", "images"]:
-        raise ValueError("Invalid category. Must be 'text' or 'images'.")
+    if category not in ["text", "images", "tts"]:
+        raise ValueError("Invalid category. Must be 'text', 'images', or 'tts'.")
 
     question = await update_counters_and_get_new_list(category, "questions", num_questions_needed)
     return question

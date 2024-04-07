@@ -26,21 +26,26 @@ import io
 import torch
 import openai
 import typing
+import string
 import difflib
 import asyncio
 import logging
 import aiohttp
 import requests
 import traceback
+import jiwer
 import numpy as np
 from numpy.linalg import norm
 import bittensor as bt
 from cortext import utils
 from PIL import Image
 from scipy.spatial.distance import cosine
+import scipy.stats
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 from transformers import CLIPProcessor, CLIPModel
+from speechmos import dnsmos
+from faster_whisper import WhisperModel
 
 # ==== TEXT ====
 
@@ -264,3 +269,41 @@ async def embeddings_score_dot(openai_answer: list, response: list, weight: floa
 
     bt.logging.info(f"Average embeddings cosine similarity does not exceed threshold: {avg_cosine_similarity}")
     return 0
+
+# ==== TTS =====
+def get_whisper_model(
+    model_type: typing.Literal["tiny", "base", "small", "medium", "large", "large-v2", "large-v3"],
+    device: str = "cpu",
+    compute_type: typing.Literal["float16", "float32", "bfloat16", "int8", "int8_float16"] = "int8",
+    max_length: int = 2048,
+) -> WhisperModel:
+    model = WhisperModel(model_type, device=device, compute_type=compute_type)
+    model.max_length = max_length
+    return model
+
+def calculate_odds(mean_observed: float, n: int, mean_y: float, var_y: float) -> np.ndarray:
+    std_y = var_y ** 0.5
+    Z = (mean_observed - mean_y) / (std_y / (n**0.5))
+
+    # Calculate the probability using the CDF
+    probability = scipy.stats.norm.cdf(Z)
+    odds = probability / (1 - probability)
+
+    return odds
+
+def lower_remove_punctuation(text: str) -> str:
+    return text.lower().translate(str.maketrans('', '', string.punctuation)).strip()
+
+def calculate_wer(audio, model: WhisperModel, text: str) -> float:
+    with torch.inference_mode():
+        segments, _ = model.transcribe(audio, beam_size=5, max_new_tokens=4000, without_timestamps=True, language=None)
+        output = " ".join(x.text for x in segments)
+
+    output = lower_remove_punctuation(output)
+    text = lower_remove_punctuation(text)
+    wer = jiwer.wer(output, text)
+
+    return wer
+
+def dnsmos_score(audio, sr: int) -> float:
+    return dnsmos.run(audio, sr=sr, return_df=True, verbose=False)['ovrl_mos']

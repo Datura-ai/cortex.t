@@ -17,6 +17,7 @@ import wandb
 from image_validator import ImageValidator
 from embeddings_validator import EmbeddingsValidator
 from text_validator import TextValidator
+from tts_validator import TTSValidator
 from base_validator import BaseValidator
 from envparse import env
 
@@ -29,6 +30,7 @@ from weight_setter import WeightSetter
 text_vali = None
 image_vali = None
 embed_vali = None
+tts_vali = None
 metagraph = None
 wandb_runs = {}
 
@@ -101,11 +103,12 @@ def initialize_components(config: bt.config):
 
 
 def initialize_validators(vali_config, test=False):
-    global text_vali, image_vali, embed_vali
+    global text_vali, image_vali, embed_vali, tts_vali
 
     text_vali = TextValidator(**vali_config)
     image_vali = ImageValidator(**vali_config)
     embed_vali = EmbeddingsValidator(**vali_config)
+    tts_vali = TTSValidator(**vali_config)
     bt.logging.info("initialized_validators")
 
 
@@ -121,7 +124,7 @@ def main(test=False) -> None:
     initialize_validators(validator_config, test)
     init_wandb(config, my_uid, wallet)
     loop = asyncio.get_event_loop()
-    weight_setter = WeightSetter(loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali)
+    weight_setter = WeightSetter(loop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali, tts_vali)
     state_path = os.path.join(config.full_path, "state.json")
     utils.get_state(state_path)
     try:

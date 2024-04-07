@@ -13,6 +13,7 @@ import anthropic
 from collections import deque
 from functools import partial
 from typing import Tuple
+from base64 import b64encode
 
 import bittensor as bt
 import google.generativeai as genai
@@ -26,11 +27,13 @@ from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+from elevenlabs.client import AsyncElevenLabs
 
 import cortext
-from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting, TTSResponse
 from cortext.utils import get_version
 import sys
+from functools import partial
 
 from starlette.types import Send
 
@@ -81,6 +84,15 @@ if not google_key:
     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
 genai.configure(api_key=google_key)
+
+# ElevenLabs
+eleven_key = os.environ.get("ELEVEN_API_KEY")
+if not eleven_key:
+    raise ValueError("Please set the ELEVEN_API_KEY environment variable.")
+eleven_client = AsyncElevenLabs(
+    api_key=eleven_key
+)
+
 
 
 # Wandb
@@ -155,6 +167,9 @@ class StreamMiner():
         ).attach(
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
+        ).attach(
+            forward_fn=self.tts,
+            blacklist_fn=self.blacklist_tts,
         ).attach(
             forward_fn=self.text,
         )
@@ -246,6 +261,11 @@ class StreamMiner():
 
     def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
+    def blacklist_tts( self, synapse: TTSResponse ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.TTS_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
@@ -593,6 +613,36 @@ class StreamMiner():
             synapse.embeddings = batched_embeddings
             # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
             bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
+            return synapse
+        except Exception:
+            bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
+
+    async def tts(self, synapse: TTSResponse) -> TTSResponse:
+        bt.logging.info(f"entered tts processing")
+
+        if synapse.provider == "ElevenLabs":
+            generation_fn = eleven_client.generate
+            generation_kwargs = {
+                'voice': synapse.voice,
+                'model': synapse.model,
+                'text': synapse.text,
+            }
+        else:
+            raise ValueError(f"Unknown provider: {synapse.provider}")
+
+        try:
+            tasks = [asyncio.create_task(generation_fn(**generation_kwargs))]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, Exception):
+                    bt.logging.error(f"Error in processing batch: {result}")
+                elif synapse.provider == "ElevenLabs":
+                    output = b''
+                    async for value in result:
+                        output += value
+                    synapse.audio_b64 = b64encode(output).decode('ascii')
+
+            bt.logging.info(f"tts completed successfully")
             return synapse
         except Exception:
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
