@@ -17,7 +17,7 @@ class TextValidator(BaseValidator):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
-        self.model = "gpt-4-1106-preview"
+        self.model = "gpt-4-turbo-2024-04-09"
         self.max_tokens = 4096
         self.temperature = 0.0001
         self.weight = 1
