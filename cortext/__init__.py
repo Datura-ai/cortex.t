@@ -45,6 +45,7 @@ ALLOW_NON_REGISTERED = False
 PROMPT_BLACKLIST_STAKE = 20000
 IMAGE_BLACKLIST_STAKE = 20000
 EMBEDDING_BLACKLIST_STAKE = 20000
+TTS_BLACKLIST_STAKE = 20000
 ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE, EMBEDDING_BLACKLIST_STAKE)
 MIN_REQUEST_PERIOD = 2
 MAX_REQUESTS = 12
@@ -3735,6 +3736,16 @@ IMAGE_THEMES = [
     'Cosmic Vibrations',
     'The Language of Flowers',
     'Mystical Landscapes'
+]
+
+TTS_THEMES = [
+    'News and weather',
+    'Advertising',
+    'Health and wellness',
+    'Historical events',
+    'Sports news',
+    'Trivia',
+    'Paparaazi',
 ]
 
 

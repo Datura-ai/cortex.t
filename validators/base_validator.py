@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 import bittensor as bt
+import torch
 
 
 class BaseValidator(ABC):
@@ -26,11 +28,20 @@ class BaseValidator(ABC):
         return uid, responses
 
     @abstractmethod
-    async def start_query(self, available_uids) -> tuple[list, dict]:
+    async def start_query(
+        self,
+        available_uids: list[int],
+        metagraph: bt.metagraph
+    ) -> tuple[list, dict]:
         ...
 
     @abstractmethod
-    async def score_responses(self, responses):
+    async def score_responses(
+        self,
+        query_responses: list[tuple[int, Any]],  # [(uid, response)]
+        uid_to_question: dict[int, str],  # uid -> prompt
+        metagraph: bt.metagraph,
+    ) -> tuple[torch.Tensor, dict[int, float], dict]:
         ...
 
     async def get_and_score(self, available_uids, metagraph):

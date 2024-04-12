@@ -39,7 +39,7 @@ import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import cortext
-from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
+from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting, TTSResponse
 from cortext.utils import get_version
 import sys
 
@@ -55,7 +55,7 @@ scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
+    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali, tts_vali):
         bt.logging.info("starting weight setter")
         self.config = config
         bt.logging.info(f"config:\n{self.config}")
@@ -68,6 +68,7 @@ class WeightSetter:
         self.text_vali = text_vali
         self.image_vali = image_vali
         self.embed_vali = embed_vali
+        self.tts_vali = tts_vali
         self.moving_average_scores = None
         self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
         self.metagraph = self.subtensor.metagraph(config.netuid)
@@ -104,6 +105,11 @@ class WeightSetter:
         bt.logging.info(blacklist[1])
         return blacklist
 
+    def blacklist_tts( self, synapse: TTSResponse ) -> Tuple[bool, str]:
+        blacklist = self.base_blacklist(synapse, cortext.TTS_BLACKLIST_STAKE)
+        bt.logging.info(blacklist[1])
+        return blacklist
+
     def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
@@ -132,6 +138,14 @@ class WeightSetter:
         bt.logging.info(f"received {synapse}")
 
         synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+
+        bt.logging.info(f"new synapse = {synapse}")
+        return synapse
+
+    async def tts(self, synapse: TTSResponse) -> TTSResponse:
+        bt.logging.info(f"received {synapse}")
+
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
 
         bt.logging.info(f"new synapse = {synapse}")
         return synapse
@@ -191,6 +205,9 @@ class WeightSetter:
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
         ).attach(
+            forward_fn=self.tts,
+            blacklist_fn=self.blacklist_tts,
+        ).attach(
             forward_fn=self.text,
         )
         self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
@@ -246,7 +263,13 @@ class WeightSetter:
                 await asyncio.sleep(60)
 
     def select_validator(self, steps_passed):
-        return self.text_vali if steps_passed % 10 in (0, 1, 2, 3, 4, 5, 6, 7, 8) else self.image_vali
+        step_mod = steps_passed % 12
+        if step_mod <= 9:
+            return self.text_vali
+        elif step_mod <= 11:
+            return self.image_vali
+        elif step_mod <= 13:
+            return self.tts_vali
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
