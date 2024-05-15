@@ -513,7 +513,7 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
         bt.logging.error(f"error in call_claude {traceback.format_exc()}")
 
 
-async def call_groq(messages, temperature, model, max_tokens, top_p):
+async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
     try:
         bt.logging.info(
             f"calling groq for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}"
@@ -525,6 +525,7 @@ async def call_groq(messages, temperature, model, max_tokens, top_p):
             "temperature": temperature,
             "max_tokens": max_tokens,
             "top_p": top_p,
+            "seed": seed,
         }
 
         message = await groq_client.chat.completions.create(**kwargs)

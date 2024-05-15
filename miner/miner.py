@@ -22,6 +22,7 @@ from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
+from groq import AsyncGroq
 from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
@@ -81,6 +82,16 @@ if not google_key:
     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
 genai.configure(api_key=google_key)
+
+# For Groq
+groq_key = os.environ.get("GROQ_API_KEY")
+if not groq_key:
+    raise ValueError(
+        "groq api key not found in environment variables. Go to https://console.groq.com/keys to get one. Then set it as GROQ_API_KEY in your .env"
+    )
+
+groq_client = AsyncGroq()
+groq_client.api_key = groq_key
 
 
 # Wandb
@@ -153,7 +164,7 @@ class StreamMiner():
         else:
             bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
             self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-        
+
         # Attach determiners which functions are called when servicing a request.
         bt.logging.info("Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self.prompt}")
@@ -182,7 +193,7 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         # thread.start()
-    
+
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
@@ -444,7 +455,7 @@ class StreamMiner():
                             system_prompt = message["content"]
                         else:
                             filtered_messages.append(message)
-                    
+
                     stream_kwargs = {
                         "max_tokens": max_tokens,
                         "messages": filtered_messages,
@@ -468,7 +479,47 @@ class StreamMiner():
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
-                    
+
+                elif provider == "Groq":
+                    stream_kwargs = {
+                        "messages": messages,
+                        "model": model,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "top_p": top_p,
+                        "seed": seed,
+                        "stream": True,
+                    }
+
+                    stream = await groq_client.chat.completions.create(**stream_kwargs)
+                    buffer = []
+                    n = 1
+                    async for chunk in stream:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
                     stream = model.generate_content(
@@ -671,5 +722,3 @@ if __name__ == "__main__":
     with StreamMiner():
         while True:
             time.sleep(1)
-
-

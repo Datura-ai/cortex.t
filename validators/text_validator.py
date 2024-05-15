@@ -107,8 +107,8 @@ class TextValidator(BaseValidator):
                 # self.model = "claude-instant-1.2"
 
             elif self.provider == "Groq":
-                self.model = "llama3-70b-8192"
-                # self.model = "gemma-7b-it"
+                self.model = "gemma-7b-it"
+                # self.model = "llama3-70b-8192"
                 # self.model = "llama3-8b-8192"
                 # self.model = "mixtral-8x7b-32768"
 
@@ -171,6 +171,7 @@ class TextValidator(BaseValidator):
                 self.model,
                 self.max_tokens,
                 self.top_p,
+                self.seed,
             )
         else:
             bt.logging.error(f"provider {provider} not found")
