@@ -107,7 +107,7 @@ class ImageResponse(bt.Synapse):
         title="Quality",
         description="The quality of the image."
     )
-    
+
     uid: int = pydantic.Field(
         default=3,
         title="uid",
@@ -150,7 +150,7 @@ class Embeddings( bt.Synapse):
         title="Embeddings",
         description="The resulting list of embeddings, each corresponding to an input text."
     )
-    
+
     uid: int = pydantic.Field(
         default=60,
         title="uid",
@@ -229,7 +229,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini",
+                    "Options: OpenAI, Anthropic, Gemini, Groq",
     )
 
     model: str = pydantic.Field(
@@ -358,7 +358,7 @@ class TextPrompting(bt.Synapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini",
+                    "Options: OpenAI, Anthropic, Gemini, Groq",
     )
 
     model: str = pydantic.Field(

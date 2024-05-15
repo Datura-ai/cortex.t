@@ -9,7 +9,7 @@ from base_validator import BaseValidator
 
 import cortext.reward
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_openai, get_question, call_anthropic, call_gemini, call_claude
+from cortext.utils import call_openai, get_question, call_anthropic, call_gemini, call_claude, call_groq
 
 
 class TextValidator(BaseValidator):
@@ -36,7 +36,16 @@ class TextValidator(BaseValidator):
 
     async def organic(self, metagraph, query: dict[str, list[dict[str, str]]]) -> AsyncIterator[tuple[int, str]]:
         for uid, messages in query.items():
-            syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+            syn = StreamPrompting(
+                messages=messages,
+                model=self.model,
+                seed=self.seed,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+                provider=self.provider,
+                top_p=self.top_p,
+                top_k=self.top_k,
+            )
             bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
@@ -77,7 +86,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 50 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 50
+            providers = ["OpenAI"] * 50 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 50 + ["Groq"] * 50
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -97,12 +106,27 @@ class TextValidator(BaseValidator):
                 # self.model = "claude-3-sonnet-20240229"
                 # self.model = "claude-instant-1.2"
 
+            elif self.provider == "Groq":
+                self.model = "llama3-70b-8192"
+                # self.model = "gemma-7b-it"
+                # self.model = "llama3-8b-8192"
+                # self.model = "mixtral-8x7b-32768"
+
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
                 prompt = await self.get_question(len(available_uids))
                 uid_to_question[uid] = prompt
-                messages = [{'role': 'user', 'content': prompt}]
-                syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens, temperature=self.temperature, provider=self.provider, top_p=self.top_p, top_k=self.top_k)
+                messages = [{"role": "user", "content": prompt}]
+                syn = StreamPrompting(
+                    messages=messages,
+                    model=self.model,
+                    seed=self.seed,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                    provider=self.provider,
+                    top_p=self.top_p,
+                    top_k=self.top_k,
+                )
                 bt.logging.info(
                     f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                     f"timeout {self.timeout}: {syn.messages[0]['content']}"
@@ -124,13 +148,30 @@ class TextValidator(BaseValidator):
 
     async def call_api(self, prompt: str, provider: str) -> str:
         if provider == "OpenAI":
-            return await call_openai([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.seed, self.max_tokens)
+            return await call_openai(
+                [{"role": "user", "content": prompt}], self.temperature, self.model, self.seed, self.max_tokens
+            )
         elif provider == "Anthropic":
             return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Claude":
-            return await call_claude([{'role': 'user', 'content': prompt}], self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+            return await call_claude(
+                [{"role": "user", "content": prompt}],
+                self.temperature,
+                self.model,
+                self.max_tokens,
+                self.top_p,
+                self.top_k,
+            )
+        elif provider == "Groq":
+            return await call_groq(
+                [{"role": "user", "content": prompt}],
+                self.temperature,
+                self.model,
+                self.max_tokens,
+                self.top_p,
+            )
         else:
             bt.logging.error(f"provider {provider} not found")
 
@@ -179,5 +220,3 @@ class TextValidator(BaseValidator):
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         return scores, uid_scores_dict, self.wandb_data
-
-
