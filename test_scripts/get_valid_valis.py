@@ -3,10 +3,10 @@ import time
 import wandb
 import json
 import traceback
-import template
+import cortext
 import argparse
 import bittensor as bt
-from template.utils import get_version
+from cortext.utils import get_version
 
 valid_hotkeys = []
 
@@ -32,7 +32,7 @@ def get_valid_hotkeys(config):
     while True:
         metagraph = subtensor.metagraph(18)
         try:
-            runs = api.runs(f"cortex-t/{template.PROJECT_NAME}")
+            runs = api.runs(f"cortex-t/{cortext.PROJECT_NAME}")
             latest_version = get_version()
             for run in runs:
                 if run.state == "running":

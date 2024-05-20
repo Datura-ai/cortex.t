@@ -95,7 +95,7 @@ def get_config() -> bt.config:
     bt.axon.add_args(parser)
 
     # Activating the parser to read any command-line inputs.
-    # To print help message, run python3 template/miner.py --help
+    # To print help message, run python3 cortext/miner.py --help
     config = bt.config(parser)
 
     # Logging captures events for diagnosis or understanding miner's behavior.

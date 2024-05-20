@@ -1,7 +1,7 @@
 validators/state.json
 bittensor_subnet_template.egg-info/
 bittensor_subnet_template.egg-info
-template/__pycache__/
+cortext/__pycache__/
 __pycache__/
 *.pyc
 state.json

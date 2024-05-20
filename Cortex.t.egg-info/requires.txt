@@ -9,8 +9,9 @@ scikit-learn==1.*
 torch==2.*
 transformers==4.*
 wandb
-anthropic
+anthropic==0.19.2
 stability-sdk
 boto3
 anthropic_bedrock
 pyOpenSSL
+google-generativeai

@@ -6,11 +6,11 @@ import json
 import wandb
 import random
 import asyncio
-import template
+import cortext
 import traceback
 import bittensor as bt
 
-from template import client
+from cortext import client
 
 
 instruct_questions = []
@@ -135,26 +135,26 @@ async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {'text_questions': 10, 'images_questions': 20}
     list_type_mapping = {
         "text_themes": {
-            "default": template.INSTRUCT_DEFAULT_THEMES,
+            "default": cortext.INSTRUCT_DEFAULT_THEMES,
             "prompt": "Please generate a list of broad, informational themes suitable for creating a diverse range of instructive prompts. These themes should be ideal for training an LLM to produce detailed, educational, and insightful content. They should span across multiple disciplines and be general enough to allow for the generation of many sub-topics. Each theme should be a seed for countless questions that delve into the specifics of the subject matter, aiming to inform and educate users about complex topics in an accessible way. Avoid themes that are too narrow or niche and focus on those that could be universally recognized and widely applicable for educational purposes."
         },
         "images_themes": {
-            "default": template.IMAGE_DEFAULT_THEMES,
+            "default": cortext.IMAGE_DEFAULT_THEMES,
             "prompt": "Generate a Python list of 50 unique and broad creative themes for artistic inspiration. Each theme should be no more than four words, open to interpretation, and suitable for various artistic expressions. Present the list in a single-line Python list structure."
         },
         "text_questions": {
-            "default": template.INSTRUCT_DEfAULT_QUESTIONS,
+            "default": cortext.INSTRUCT_DEfAULT_QUESTIONS,
             "prompt": "placeholder"
         },
         "images_questions": {
-            "default": template.IMAGE_DEFAULT_QUESTIONS,
+            "default": cortext.IMAGE_DEFAULT_QUESTIONS,
             "prompt": f"Provide a Python list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, encompassing elements such as natural landscapes, historical settings, futuristic scenes, and imaginative contexts related to '{theme}'. Each element in the list should be a concise but descriptive scenario, designed to inspire visually rich images. Format these as elements in a Python list."
         }
     }
 
     if list_type == "text_questions":
         if len(instruct_questions) < num_questions_needed:
-            for theme in template.INSTRUCT_DEFAULT_THEMES:
+            for theme in cortext.INSTRUCT_DEFAULT_THEMES:
                 for complexity_level in range(1, 11): 
                     for relevance_level in range(1, 11):
                         prompt = f"Generate a Python list of {prompts_in_question[list_type]} questions or instruct tasks related to the theme '{theme}', each with a complexity level of {complexity_level} out of 10 and a relevance level to the theme of {relevance_level} out of 10. These tasks should varyingly explore the theme in a manner that is consistent with their assigned complexity and relevance levels, allowing for a diverse and insightful engagement with the topic. Ensure that the output is formatted as elements in a Python list."
@@ -221,7 +221,7 @@ async def call_openai(messages, temperature, model, seed=1234):
 
 category = "text"
 num_questions_needed = 30
-themes = template.INSTRUCT_DEFAULT_THEMES
+themes = cortext.INSTRUCT_DEFAULT_THEMES
 theme = random.choice(themes)
 
 

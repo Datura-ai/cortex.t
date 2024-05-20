@@ -2,7 +2,7 @@ import bittensor as bt
 import asyncio
 import json
 import traceback
-from template.protocol import StreamPrompting, TextPrompting, ImageResponse
+from cortext.protocol import StreamPrompting, TextPrompting, ImageResponse
 
 # Assuming initial setup remains the same
 wallet = bt.wallet( name="validator", hotkey="default" )

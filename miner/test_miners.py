@@ -2,8 +2,8 @@ import subprocess
 
 num_miners = 5
 base_port = 10000
-start_num = 1
-wallet_name = 1
+start_num = 1 # miner wallet hotkey names are 1-5
+wallet_name = 1 # miner wallet name
 pm2_commands = []
 
 for i in range(num_miners):

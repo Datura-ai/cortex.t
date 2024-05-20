@@ -22,7 +22,7 @@ def get_version(owner, repo, file_path, line_number):
         raise Exception("Failed to fetch file from GitHub")
 
 try:
-    version = get_version('corcel-api', 'cortex.t', 'template/__init__.py', 22)
+    version = get_version('corcel-api', 'cortex.t', 'cortext/__init__.py', 22)
     print(f"Version: {version}")
 except Exception as e:
     print(f"Error: {e}")

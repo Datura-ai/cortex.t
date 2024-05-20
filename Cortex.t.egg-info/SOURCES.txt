@@ -7,8 +7,8 @@ Cortex.t.egg-info/dependency_links.txt
 Cortex.t.egg-info/requires.txt
 Cortex.t.egg-info/top_level.txt
 base/__init__.py
-template/__init__.py
-template/protocol.py
-template/reward.py
-template/utils.py
+cortext/__init__.py
+cortext/protocol.py
+cortext/reward.py
+cortext/utils.py
 test_base/__init__.py
