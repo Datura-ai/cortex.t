@@ -181,7 +181,7 @@ class StreamMiner():
         self.lock = asyncio.Lock()
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        # thread.start()
+        thread.start()
     
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
@@ -196,8 +196,8 @@ class StreamMiner():
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in cortext.WHITELISTED_KEYS:
-                return False,  f"accepting {synapse_type} request from {hotkey}"
+            # if hotkey in cortext.WHITELISTED_KEYS:  
+            #     return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
                 return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
