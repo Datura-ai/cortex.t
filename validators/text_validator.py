@@ -86,7 +86,8 @@ class TextValidator(BaseValidator):
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
-                self.model = "gpt-4-1106-preview"
+                self.model = "gpt-4o"
+                # self.model = "gpt-4-1106-preview"
                 # self.model = "gpt-3.5-turbo"
 
             elif self.provider == "Gemini":
