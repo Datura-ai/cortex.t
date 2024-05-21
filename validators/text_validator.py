@@ -14,7 +14,7 @@ from cortext.utils import call_openai, get_question, call_anthropic, call_gemini
 
 class TextValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
+        super().__init__(dendrite, config, subtensor, wallet, timeout=30)
         self.streaming = True
         self.query_type = "text"
         self.model =  "gpt-4-1106-preview"
@@ -77,7 +77,9 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 88 + ["Anthropic"] * 2 + ["Gemini"] * 0 + ["Claude"] * 10
+            providers = ["OpenAI"] * 880000 + ["Anthropic"] * 2 + ["Gemini"] * 0 + ["Claude"] * 10
+            # providers = ["OpenAI"] * 0 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 0 + ["Groq"] * 100
+
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -86,7 +88,8 @@ class TextValidator(BaseValidator):
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
-                self.model = "gpt-4-1106-preview"
+                self.model = "gpt-4o"
+                # self.model = "gpt-4-1106-preview"
                 # self.model = "gpt-3.5-turbo"
 
             elif self.provider == "Gemini":
@@ -116,7 +119,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 12
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
@@ -168,7 +171,7 @@ class TextValidator(BaseValidator):
             if scored_response is not None:
                 scores[uid] = scored_response
                 uid_scores_dict[uid] = scored_response
-                self.wandb_data["scores"][uid] = score
+                self.wandb_data["scores"][uid] = scored_response
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
