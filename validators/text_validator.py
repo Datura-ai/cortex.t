@@ -4,12 +4,11 @@ import traceback
 from typing import AsyncIterator, Tuple
 
 import bittensor as bt
+import cortext.reward
 import torch
 from base_validator import BaseValidator
-
-import cortext.reward
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_openai, get_question, call_anthropic, call_gemini, call_claude, call_groq
+from cortext.utils import call_anthropic, call_claude, call_gemini, call_groq, call_openai, call_hugging_face, get_question
 
 
 class TextValidator(BaseValidator):
@@ -19,7 +18,7 @@ class TextValidator(BaseValidator):
         self.query_type = "text"
         self.model = "gpt-4-turbo-2024-04-09"
         self.max_tokens = 4096
-        self.temperature = 0.0001
+        self.temperature = 0.001
         self.weight = 1
         self.seed = 1234
         self.top_p = 0.01
@@ -86,7 +85,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 50 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 50 + ["Groq"] * 50
+            providers = ["OpenAI"] * 25 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -95,8 +94,8 @@ class TextValidator(BaseValidator):
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
-                self.model = "gpt-4-1106-preview"
-                # self.model = "gpt-3.5-turbo"
+                # self.model = "gpt-4-1106-preview"
+                self.model = "gpt-3.5-turbo"
 
             elif self.provider == "Gemini":
                 self.model = "gemini-pro"
@@ -111,6 +110,9 @@ class TextValidator(BaseValidator):
                 # self.model = "llama3-70b-8192"
                 # self.model = "llama3-8b-8192"
                 # self.model = "mixtral-8x7b-32768"
+
+            elif self.provider == "HuggingFace":
+                self.model = "HuggingFaceH4/zephyr-7b-beta"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
@@ -172,6 +174,15 @@ class TextValidator(BaseValidator):
                 self.max_tokens,
                 self.top_p,
                 self.seed,
+            )
+        elif provider == "HuggingFace":
+            return await call_hugging_face(
+                [{"role": "user", "content": prompt}],
+                self.temperature,
+                self.model,
+                self.seed,
+                self.max_tokens,
+                self.top_p,
             )
         else:
             bt.logging.error(f"provider {provider} not found")

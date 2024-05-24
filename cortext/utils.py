@@ -1,72 +1,71 @@
 from __future__ import annotations
 
-import io
 import ast
 import asyncio
 import base64
+import io
 import json
-import boto3
-import base64
 import math
 import os
 import random
 import re
-import requests
-from PIL import Image
 import traceback
+from typing import Any, Optional
+
 import anthropic
-from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT, AsyncAnthropic
-from typing import Optional
-from stability_sdk import client as stability_client
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-import google.generativeai as genai
-
-
+import anthropic_bedrock
 import bittensor as bt
-import requests
-import wandb
-
+import boto3
 import cortext
+import google.generativeai as genai
+import requests
+import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+import wandb
+from anthropic import AI_PROMPT, HUMAN_PROMPT, Anthropic, AsyncAnthropic
+from anthropic_bedrock import AsyncAnthropicBedrock
+from groq import AsyncGroq
+from huggingface_hub import AsyncInferenceClient
+from PIL import Image
+from stability_sdk import client as stability_client
 
 from . import client
 
 list_update_lock = asyncio.Lock()
-import anthropic_bedrock
-from anthropic_bedrock import AsyncAnthropicBedrock
-from groq import AsyncGroq
 
-# Set up the API connection
-# stability_api = stability_client.StabilityInference(
-#     key=os.environ['STABILITY_API_KEY'],
-#     verbose=True,
-#     engine="stable-diffusion-xl-1024-v1-0"
-# )
+# Function to get API key from environment variables
+def get_api_key(service_name, env_var):
+    key = os.environ.get(env_var)
+    if not key:
+        raise ValueError(
+            f"{service_name} API key not found in environment variables. "
+            f"Go to the respective service's settings to get one. Then set it as {env_var} in your .env"
+        )
+    return key
 
-claude_key = os.environ.get("ANTHROPIC_API_KEY")
-if not claude_key:
-    raise ValueError(
-        "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
-    )
+# Stability API
+# stability_key = get_api_key("Stability", "STABILITY_API_KEY")
+# stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
 
+# Claude
+claude_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
 
-# google_key=os.environ.get('GOOGLE_API_KEY')
-# if not google_key:
-#     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+# Google
+google_key=get_api_key("Google", "GOOGLE_API_KEY")
+genai.configure(api_key=google_key)
 
-# genai.configure(api_key=google_key)
-
+# Anthropic
 bedrock_client = AsyncAnthropicBedrock()
 
-groq_key = os.environ.get("GROQ_API_KEY")
-if not groq_key:
-    raise ValueError(
-        "groq api key not found in environment variables. Go to https://console.groq.com/keys to get one. Then set it as GROQ_API_KEY in your .env"
-    )
-
+# Groq
+groq_key = get_api_key("Groq", "GROQ_API_KEY")
 groq_client = AsyncGroq()
 groq_client.api_key = groq_key
+
+# Hugging Face
+hugging_face_key = get_api_key("Hugging Face", "HUGGING_FACE_API_KEY")
+hugging_face_client = AsyncInferenceClient(token=hugging_face_key)
 
 
 def load_state_from_file(filename: str):
@@ -388,7 +387,7 @@ def extract_python_list(text: str):
     return None
 
 
-async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, top_p=1) -> str:
+async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, top_p=1):
     for _ in range(2):
         bt.logging.debug(
             f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
@@ -409,8 +408,6 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
         except Exception as e:
             bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
             await asyncio.sleep(0.5)
-
-    return None
 
 
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
@@ -533,6 +530,28 @@ async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
         return message.choices[0].message.content
     except:
         bt.logging.error(f"error in call_groq {traceback.format_exc()}")
+
+
+async def call_hugging_face(messages, temperature, model, seed=1234, max_tokens=2048, top_p=0.01):
+    bt.logging.debug(
+        f"Calling Hugging Face. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
+    )
+    try:
+        response = await hugging_face_client.chat_completion(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            seed=seed,
+            max_tokens=max_tokens,
+            top_p=top_p,
+        )
+        response = response.choices[0].message.content
+        bt.logging.trace(f"validator response is {response}")
+        return response
+
+    except Exception as e:
+        bt.logging.error(f"Error when calling Hugging Face: {traceback.format_exc()}")
+        await asyncio.sleep(0.5)
 
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):

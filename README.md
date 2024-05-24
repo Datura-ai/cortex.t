@@ -57,6 +57,7 @@ API requirements for this subnet are constantly evovling as we seek to meet the 
 - Google API key (Gemini)
 - Anthropic API key (Claude3)
 - Groq API key (Llama)
+- Hugging Face API key (Zephyr)
 
 The higher rate limit your key has the better, and it can be advisable if mining to build up your rate limit slowly (even starting on testnet) to maximise your chances of achieving optimum performance.
 

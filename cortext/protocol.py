@@ -229,7 +229,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini, Groq",
+                    "Options: OpenAI, Anthropic, Gemini, Groq, Hugging Face",
     )
 
     model: str = pydantic.Field(
@@ -358,7 +358,7 @@ class TextPrompting(bt.Synapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini, Groq",
+                    "Options: OpenAI, Anthropic, Gemini, Groq, Hugging Face",
     )
 
     model: str = pydantic.Field(
