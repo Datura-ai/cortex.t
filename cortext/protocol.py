@@ -229,13 +229,39 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini",
+                    "Options: OpenAI, Claude",
     )
 
     model: str = pydantic.Field(
         default="gpt-3.5-turbo",
         title="model",
-        description="The model to use when calling provider for your response.",
+        description="""
+        The model to use when calling provider for your response.
+        "For Provider OpenAI: 
+         text_models = [                   
+            "davinci-002",
+            "gpt-4-1106-preview",
+            "gpt-4-turbo-preview",
+            "gpt-4-0125-preview",
+            "babbage-002",
+            "gpt-4",
+            "gpt-4-0613",
+            "gpt-3.5-turbo-16k",
+            "gpt-3.5-turbo-1106",
+            "gpt-3.5-turbo-instruct-0914",
+            "gpt-3.5-turbo-instruct",
+            "gpt-3.5-turbo-0301",
+            "gpt-3.5-turbo-0125",
+            "gpt-3.5-turbo",
+            "gpt-4-turbo-2024-04-09",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo-0613",
+            "gpt-4o",
+            "gpt-4o-2024-05-13"
+        ]
+        For Provider Claude: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
+        last_updated = 27 may 2024
+        """
     )
 
     uid: int = pydantic.Field(
