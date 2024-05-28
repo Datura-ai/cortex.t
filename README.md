@@ -1,7 +1,7 @@
 <div align="left">
 
 # **Cortex.t Subnet** <!-- omit in toc -->
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ---
 
 ---
@@ -14,7 +14,7 @@
 
 ## Introduction
 
-**IMPORTANT**: If you are new to Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section. 
+**IMPORTANT**: If you are new to Bittensor, please checkout the [Bittensor Website](https://bittensor.com/) before proceeding to the [Setup](#setup) section.
 
 Introducing Bittensor Subnet 18 (Cortex.t): A Pioneering Platform for AI Development and Synthetic Data Generation.
 
@@ -38,11 +38,11 @@ install `nox` (`pip install nox`) and run `nox -s test`.
 ## Setup
 
 ### Before you proceed
-Before you proceed with the installation of the subnet, note the following: 
+Before you proceed with the installation of the subnet, note the following:
 
-**IMPORTANT**: We **strongly recommend** before proceeding that you test both subtensor and all API keys. Ensure you are running Subtensor locally to minimize chances of outages and improve the latency/connection. 
+**IMPORTANT**: We **strongly recommend** before proceeding that you test both subtensor and all API keys. Ensure you are running Subtensor locally to minimize chances of outages and improve the latency/connection.
 
-After exporting your OpenAI API key to your bash profile, test the streaming service for both the gpt-3.5-turbo and gpt-4 engines using ```./neurons/test_openai.py```. Neither the miner or the validator will function without a valid and working [OpenAI API key](https://platform.openai.com/). 
+After exporting your OpenAI API key to your bash profile, test the streaming service for both the gpt-3.5-turbo and gpt-4 engines using ```./neurons/test_openai.py```. Neither the miner or the validator will function without a valid and working [OpenAI API key](https://platform.openai.com/).
 
 **IMPORTANT:** Make sure you are aware of the minimum compute requirements for cortex.t. See the [Minimum compute YAML configuration](./min_compute.yml).
 Note that this subnet requires very little compute. The main functionality is API calls, so we outsource the compute to the providors of these keys. The cost for mining and validating on this subnet comes from API calls, not from compute. Please be aware of your API costs and monitor accordingly.
@@ -56,6 +56,8 @@ API requirements for this subnet are constantly evovling as we seek to meet the 
 - OpenAI key (GPT)
 - Google API key (Gemini)
 - Anthropic API key (Claude3)
+- Groq API key (Llama)
+- Hugging Face API key (Zephyr)
 
 The higher rate limit your key has the better, and it can be advisable if mining to build up your rate limit slowly (even starting on testnet) to maximise your chances of achieving optimum performance.
 
@@ -73,18 +75,18 @@ Download the repository, navigate to the folder and then install the necessary r
 git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip install -e .
 ```
 
-Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command 
+Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command
 ```bash
 btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]
 ```
 
 We recommend using [direnv](https://direnv.net). After installing it, copy `envrc.example` to `.envrc` and substitute
-all env vars with values appropriate for your accounts. After making changes to `.envrc` run `direnv allow` and start a 
+all env vars with values appropriate for your accounts. After making changes to `.envrc` run `direnv allow` and start a
 new terminal tab.
 
 ## Mining
 
-You can launch your miners via pm2 using the following command. 
+You can launch your miners via pm2 using the following command.
 
 ```bash
 pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
@@ -93,7 +95,7 @@ pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.netw
 
 ## Validating
 
-Login to wandb using 
+Login to wandb using
 
 ```bash
 wand login

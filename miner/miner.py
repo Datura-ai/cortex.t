@@ -22,6 +22,8 @@ from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
+from groq import AsyncGroq
+from huggingface_hub import AsyncInferenceClient
 from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
@@ -29,7 +31,7 @@ from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, An
 
 import cortext
 from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
-from cortext.utils import get_version
+from cortext.utils import get_version, get_api_key
 import sys
 
 from starlette.types import Send
@@ -38,34 +40,22 @@ from starlette.types import Send
 # Set up api keys from .env file and initialze clients
 
 # OpenAI
-OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
-if not OpenAI.api_key:
-    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
-
+OpenAI.api_key = get_api_key("OpenAI", "OPENAI_API_KEY")
 client = AsyncOpenAI(timeout=60.0)
 
-# Stability
-# stability_key = os.environ.get("STABILITY_API_KEY")
-# if not stability_key:
-#     raise ValueError("Please set the STABILITY_KEY environment variable.")
+# Stability API
+# stability_key = get_api_key("Stability", "STABILITY_API_KEY")
+# stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
 
-claude_key = os.environ.get("ANTHROPIC_API_KEY")
-if not claude_key:
-    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
-
+claude_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
 
-# stability_api = stability_client.StabilityInference(
-#     key=stability_key,
-#     verbose=True,
-# )
-
 # Anthropic
 # Only if using the official claude for access instead of aws bedrock
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-anthropic_client = anthropic.Anthropic()
-anthropic_client.api_key = api_key
+# api_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
+# anthropic_client = anthropic.Anthropic()
+# anthropic_client.api_key = api_key
 
 # For AWS bedrock (default)
 bedrock_client = AsyncAnthropicBedrock(
@@ -73,14 +63,19 @@ bedrock_client = AsyncAnthropicBedrock(
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
-anthropic_client = anthropic.Anthropic()
 
 # For google/gemini
-google_key=os.environ.get('GOOGLE_API_KEY')
-if not google_key:
-    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
-
+google_key=get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
+
+# Groq
+groq_key = get_api_key("Groq", "GROQ_API_KEY")
+groq_client = AsyncGroq()
+groq_client.api_key = groq_key
+
+# Hugging Face
+hugging_face_key = get_api_key("Hugging Face", "HUGGING_FACE_API_KEY")
+hugging_face_client = AsyncInferenceClient(token=hugging_face_key)
 
 
 # Wandb
@@ -153,7 +148,7 @@ class StreamMiner():
         else:
             bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
             self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-        
+
         # Attach determiners which functions are called when servicing a request.
         bt.logging.info("Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self.prompt}")
@@ -182,7 +177,7 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         thread.start()
-    
+        
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
@@ -444,7 +439,7 @@ class StreamMiner():
                             system_prompt = message["content"]
                         else:
                             filtered_messages.append(message)
-                    
+
                     stream_kwargs = {
                         "max_tokens": max_tokens,
                         "messages": filtered_messages,
@@ -468,7 +463,7 @@ class StreamMiner():
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
-                    
+
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
                     stream = model.generate_content(
@@ -497,6 +492,86 @@ class StreamMiner():
 
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+                elif provider == "Groq":
+                    stream_kwargs = {
+                        "messages": messages,
+                        "model": model,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "top_p": top_p,
+                        "seed": seed,
+                        "stream": True,
+                    }
+
+                    stream = await groq_client.chat.completions.create(**stream_kwargs)
+                    buffer = []
+                    n = 1
+                    async for chunk in stream:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "HuggingFace":
+                    stream_kwargs = {
+                        "messages": messages,
+                        "model": model,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "top_p": top_p,
+                        "seed": seed,
+                        "stream": True,
+                    }
+
+                    stream = await hugging_face_client.chat_completion(**stream_kwargs)
+                    buffer = []
+                    n = 1
+                    async for chunk in stream:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
@@ -543,27 +618,27 @@ class StreamMiner():
                 image_data["image_revised_prompt"] = image_revised_prompt
                 bt.logging.info(f"returning image response of {image_url}")
 
-            elif provider == "Stability":
-                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
+            # elif provider == "Stability":
+            #     bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
 
-                meta = stability_api.generate(
-                    prompt=messages,
-                    seed=seed,
-                    steps=steps,
-                    cfg_scale=cfg_scale,
-                    width=width,
-                    height=height,
-                    samples=samples,
-                    # sampler=sampler
-                )
-                # Process and upload the image
-                b64s = []
-                for image in meta:
-                    for artifact in image.artifacts:
-                        b64s.append(base64.b64encode(artifact.binary).decode())
+            #     meta = stability_api.generate(
+            #         prompt=messages,
+            #         seed=seed,
+            #         steps=steps,
+            #         cfg_scale=cfg_scale,
+            #         width=width,
+            #         height=height,
+            #         samples=samples,
+            #         # sampler=sampler
+            #     )
+            #     # Process and upload the image
+            #     b64s = []
+            #     for image in meta:
+            #         for artifact in image.artifacts:
+            #             b64s.append(base64.b64encode(artifact.binary).decode())
 
-                image_data["b64s"] = b64s
-                bt.logging.info(f"returning image response to {messages}")
+            #     image_data["b64s"] = b64s
+            #     bt.logging.info(f"returning image response to {messages}")
 
             else:
                 bt.logging.error(f"Unknown provider: {provider}")
@@ -671,5 +746,3 @@ if __name__ == "__main__":
     with StreamMiner():
         while True:
             time.sleep(1)
-
-
