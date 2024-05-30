@@ -8,7 +8,7 @@ import cortext.reward
 import torch
 from base_validator import BaseValidator
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_anthropic, call_claude, call_gemini, call_groq, call_openai, call_hugging_face, get_question
+from cortext.utils import call_anthropic_bedrock, call_anthropic, call_gemini, call_groq, call_openai, call_hugging_face, get_question
 
 
 class TextValidator(BaseValidator):
@@ -85,12 +85,12 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 25 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
+            providers = ["OpenAI"] * 25 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
             self.provider = random.choice(providers)
 
-            if self.provider == "Anthropic":
+            if self.provider == "AnthropicBedrock":
                 # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-                # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
+                # anthropic models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
@@ -101,7 +101,7 @@ class TextValidator(BaseValidator):
             elif self.provider == "Gemini":
                 self.model = "gemini-pro"
 
-            elif self.provider == "Claude":
+            elif self.provider == "Anthropic":
                 self.model = "claude-3-opus-20240229"
                 # self.model = "claude-3-sonnet-20240229"
                 # self.model = "claude-instant-1.2"
@@ -154,12 +154,12 @@ class TextValidator(BaseValidator):
             return await call_openai(
                 [{"role": "user", "content": prompt}], self.temperature, self.model, self.seed, self.max_tokens
             )
-        elif provider == "Anthropic":
-            return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        elif provider == "AnthropicBedrock":
+            return await call_anthropic_bedrock(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
-        elif provider == "Claude":
-            return await call_claude(
+        elif provider == "Anthropic":
+            return await call_anthropic(
                 [{"role": "user", "content": prompt}],
                 self.temperature,
                 self.model,
