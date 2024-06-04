@@ -581,16 +581,17 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
                 native_request = {
                     "prompt": messages[0]["content"],
                     "temperature": temperature,
-                    "max_gen_len": max_tokens,
+                    "max_gen_len": 2048 if max_tokens > 2048 else max_tokens,
                     "top_p": top_p,
                 }
-            elif model.startswith("anthropic"):
-                native_request = {
-                    "prompt": messages[0]["content"],
-                    "temperature": temperature,
-                    "max_tokens_to_sample": max_tokens,
-                    "top_p": top_p,
-                }
+            # elif model.startswith("anthropic"):
+            #     native_request = {
+            #         "anthropic_version": "bedrock-2023-05-31",
+            #         "messages": messages,
+            #         "temperature": temperature,
+            #         "max_tokens": max_tokens,
+            #         "top_p": top_p,
+            #     }
             elif model.startswith("mistral"):
                 native_request = {
                     "prompt": messages[0]["content"],
@@ -621,8 +622,8 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
                 message = json.loads(message)["text"]
             elif model.startswith("meta"):
                 message = json.loads(message)["generation"]
-            elif model.startswith("anthropic"):
-                message = json.loads(message)["completion"]
+            # elif model.startswith("anthropic"):
+            #     message = json.loads(message)["completion"]
             elif model.startswith("mistral"):
                 message = json.loads(message)["outputs"][0]["text"]
             elif model.startswith("amazon"):

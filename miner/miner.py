@@ -592,16 +592,17 @@ class StreamMiner():
                             native_request = {
                                 "prompt": messages[0]["content"],
                                 "temperature": temperature,
-                                "max_gen_len": max_tokens,
+                                "max_gen_len": 2048 if max_tokens > 2048 else max_tokens,
                                 "top_p": top_p,
                             }
-                        elif model.startswith("anthropic"):
-                            native_request = {
-                                "prompt": messages[0]["content"],
-                                "temperature": temperature,
-                                "max_tokens_to_sample": max_tokens,
-                                "top_p": top_p,
-                            }
+                        # elif model.startswith("anthropic"):
+                        #     native_request = {
+                        #         "anthropic_version": "bedrock-2023-05-31",
+                        #         "messages": messages,
+                        #         "temperature": temperature,
+                        #         "max_tokens": max_tokens,
+                        #         "top_p": top_p,
+                        #     }
                         elif model.startswith("mistral"):
                             native_request = {
                                 "prompt": messages[0]["content"],
@@ -629,17 +630,20 @@ class StreamMiner():
 
                     async def extract_token(chunk):
                         if model.startswith("cohere"):
-                            token = chunk["text"] or ""
+                            token = chunk.get("text") or ""
                         elif model.startswith("meta"):
-                            token = chunk["generation"] or ""
-                        elif model.startswith("anthropic"):
-                            token = chunk["completion"] or ""
+                            token = chunk.get("generation") or ""
+                        # elif model.startswith("anthropic"):
+                        #     # token = chunk.get("completion") or ""
+                        #     if chunk['type'] == 'content_block_delta':
+                        #         if chunk['delta']['type'] == 'text_delta':
+                        #             token = chunk['delta']['text'] or ""
                         elif model.startswith("mistral"):
-                            token = chunk["outputs"][0]["text"] or ""
+                            token = chunk.get("outputs")[0]["text"] or ""
                         elif model.startswith("amazon"):
-                            token = chunk["outputText"] or ""
+                            token = chunk.get("outputText") or ""
                         elif model.startswith("ai21"):
-                            token = chunk["completions"][0]["data"]["text"] or ""
+                            token = chunk.get("completions")[0]["data"]["text"] or ""
                         return token
                     aws_session = aioboto3.Session()
                     aws_bedrock_client = aws_session.client(**bedrock_client_parameters)

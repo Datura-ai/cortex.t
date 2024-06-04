@@ -116,8 +116,12 @@ class TextValidator(BaseValidator):
                 self.model = "HuggingFaceH4/zephyr-7b-beta"
 
             elif self.provider == "Bedrock":
-                # self.model = "meta.llama3-8b-instruct-v1:0"
                 self.model = "cohere.command-r-v1:0"
+                # self.model = "meta.llama2-70b-chat-v1"
+                # self.model = "amazon.titan-text-express-v1"
+                # self.model = "mistral.mistral-7b-instruct-v0:2"
+                # self.model = "ai21.j2-ultra-v1" #unsupported for streaming
+                # self.model = "anthropic.claude-3-sonnet-20240229-v1:0"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
