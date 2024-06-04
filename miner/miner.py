@@ -373,7 +373,7 @@ class StreamMiner():
                         "content": [],
                         }
                     ]
-                    if message.get("text"):
+                    if message.get("content"):
                         filtered_messages[0]["content"].append(
                             {
                                 "type": "text",
@@ -475,7 +475,7 @@ class StreamMiner():
                                         },
                                     }
                                 )
-                            if message.get("text"):
+                            if message.get("content"):
                                 message_to_append["content"].append(
                                     {
                                         "type": "text",

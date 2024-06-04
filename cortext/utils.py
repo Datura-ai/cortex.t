@@ -148,15 +148,28 @@ async def get_list(list_type, num_questions_needed, theme=None):
                 else:
                     task_type = random.sample(cortext.INSTRUCT_TASK_OPTIONS, 1)
 
+                # prompt = (
+                #     f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
+                #     f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                #     f"of {complexity_level} out of 20 and a relevance level to the theme "
+                #     f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                #     f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                #     f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                #     f"Format the questions as comma-separated, quote-encapsulated strings "
+                #     f"in a single Python list."
+                # )
                 prompt = (
-                    f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
-                    f"or instruct tasks related to the theme '{theme}', each with a complexity level "
-                    f"of {complexity_level} out of 20 and a relevance level to the theme "
-                    f"of {relevance_level} out of 20. These tasks should varyingly explore "
-                    f"{theme} in a manner that is consistent with their assigned complexity and relevance "
-                    f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
-                    f"Format the questions as comma-separated, quote-encapsulated strings "
-                    f"in a single Python list."
+                    {
+                        "prompt": f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
+                                f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                                f"of {complexity_level} out of 20 and a relevance level to the theme "
+                                f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                                f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                                f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                                f"Format the questions as comma-separated, quote-encapsulated strings "
+                                f"in a single Python list."
+                    }
+
                 )
                 question_pool.append(prompt)
 
@@ -176,7 +189,8 @@ async def get_list(list_type, num_questions_needed, theme=None):
     )
 
     tasks = [
-        call_openai([{"role": "user", "content": prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
+        # call_openai([{"role": "user", "content": prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
+        call_openai([{"role": "user", "content": prompt.get("text"), "image": prompt.get("image")}], 0.65, "gpt-4o", random.randint(1, 10000))
         for prompt in selected_prompts
     ]
 
@@ -401,7 +415,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
                 "content": [],
                 }
             ]
-            if message.get("text"):
+            if message.get("content"):
                 filtered_messages[0]["content"].append(
                     {
                         "type": "text",
@@ -420,7 +434,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
                 )
             response = await client.chat.completions.create(
                 model=model,
-                messages=messages,
+                messages=filtered_messages,
                 temperature=temperature,
                 seed=seed,
                 max_tokens=max_tokens,
@@ -534,7 +548,7 @@ async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k)
                             },
                         }
                     )
-                if message.get("text"):
+                if message.get("content"):
                     message_to_append["content"].append(
                         {
                             "type": "text",
