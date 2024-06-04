@@ -1,6 +1,5 @@
 from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional
-
+from typing import AsyncIterator, Dict, List, Literal, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
@@ -167,7 +166,7 @@ class Embeddings( bt.Synapse):
 
 class StreamPrompting(bt.StreamingSynapse):
 
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "
@@ -322,7 +321,7 @@ class StreamPrompting(bt.StreamingSynapse):
 
 class TextPrompting(bt.Synapse):
 
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "

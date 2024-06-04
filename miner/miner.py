@@ -5,6 +5,7 @@ import copy
 import json
 import os
 import pathlib
+import httpx
 import requests
 import threading
 import time
@@ -365,9 +366,33 @@ class StreamMiner():
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
+                    message = messages[0]
+                    filtered_messages = [
+                        {
+                        "role": message["role"],
+                        "content": [],
+                        }
+                    ]
+                    if message.get("text"):
+                        filtered_messages[0]["content"].append(
+                            {
+                                "type": "text",
+                                "text": message["content"],
+                            }
+                        )
+                    if message.get("image"):
+                        image_url = message.get("image")
+                        filtered_messages[0]["content"].append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url,
+                                },
+                            }
+                        )
                     response = await client.chat.completions.create(
                         model=model,
-                        messages=messages,
+                        messages=filtered_messages,
                         temperature=temperature,
                         stream=True,
                         seed=seed,
@@ -433,7 +458,31 @@ class StreamMiner():
                         if message["role"] == "system":
                             system_prompt = message["content"]
                         else:
-                            filtered_messages.append(message)
+                            message_to_append = {
+                                    "role": message["role"],
+                                    "content": [],
+                                }
+                            if message.get("image"):
+                                image_url = message.get("image")
+                                image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
+                                message_to_append["content"].append(
+                                    {
+                                        "type": "image",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": "image/jpeg",
+                                            "data": image_data,
+                                        },
+                                    }
+                                )
+                            if message.get("text"):
+                                message_to_append["content"].append(
+                                    {
+                                        "type": "text",
+                                        "text": message["content"],
+                                    }
+                                )
+                        filtered_messages.append(message_to_append)
 
                     stream_kwargs = {
                         "max_tokens": max_tokens,
