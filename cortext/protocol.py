@@ -1,6 +1,5 @@
 from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional
-
+from typing import AsyncIterator, Dict, List, Literal, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
@@ -167,7 +166,7 @@ class Embeddings( bt.Synapse):
 
 class StreamPrompting(bt.StreamingSynapse):
 
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "
@@ -229,7 +228,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Claude"
+                    "Options: OpenAI, Anthropic"
     )
 
     model: str = pydantic.Field(
@@ -237,8 +236,8 @@ class StreamPrompting(bt.StreamingSynapse):
         title="model",
         description="""
         The model to use when calling provider for your response.
-        "For Provider OpenAI: 
-         text_models = [                   
+        "For Provider OpenAI:
+         text_models = [
             "davinci-002",
             "gpt-4-1106-preview",
             "gpt-4-turbo-preview",
@@ -259,7 +258,7 @@ class StreamPrompting(bt.StreamingSynapse):
             "gpt-4o",
             "gpt-4o-2024-05-13"
         ]
-        For Provider Claude: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
+        For Provider Anthropic: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
         last_updated = 27 may 2024
         """
     )
@@ -322,7 +321,7 @@ class StreamPrompting(bt.StreamingSynapse):
 
 class TextPrompting(bt.Synapse):
 
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "

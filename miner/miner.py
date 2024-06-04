@@ -5,6 +5,7 @@ import copy
 import json
 import os
 import pathlib
+import httpx
 import requests
 import threading
 import time
@@ -47,24 +48,19 @@ client = AsyncOpenAI(timeout=60.0)
 # stability_key = get_api_key("Stability", "STABILITY_API_KEY")
 # stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
 
-claude_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
-claude_client = AsyncAnthropic()
-claude_client.api_key = claude_key
-
 # Anthropic
-# Only if using the official claude for access instead of aws bedrock
-# api_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
-# anthropic_client = anthropic.Anthropic()
-# anthropic_client.api_key = api_key
+anthropic_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
+anthropic_client = AsyncAnthropic()
+anthropic_client.api_key = anthropic_key
 
-# For AWS bedrock (default)
-bedrock_client = AsyncAnthropicBedrock(
+# Anthropic Bedrock (default)
+anthropic_bedrock_client = AsyncAnthropicBedrock(
     # default is 10 minutes
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
 
-# For google/gemini
+# Google/gemini
 google_key=get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
 
@@ -177,7 +173,7 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         thread.start()
-        
+
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
@@ -191,7 +187,7 @@ class StreamMiner():
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            # if hotkey in cortext.WHITELISTED_KEYS:  
+            # if hotkey in cortext.WHITELISTED_KEYS:
             #     return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -370,9 +366,33 @@ class StreamMiner():
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
+                    message = messages[0]
+                    filtered_messages = [
+                        {
+                        "role": message["role"],
+                        "content": [],
+                        }
+                    ]
+                    if message.get("text"):
+                        filtered_messages[0]["content"].append(
+                            {
+                                "type": "text",
+                                "text": message["content"],
+                            }
+                        )
+                    if message.get("image"):
+                        image_url = message.get("image")
+                        filtered_messages[0]["content"].append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url,
+                                },
+                            }
+                        )
                     response = await client.chat.completions.create(
                         model=model,
-                        messages=messages,
+                        messages=filtered_messages,
                         temperature=temperature,
                         stream=True,
                         seed=seed,
@@ -406,8 +426,8 @@ class StreamMiner():
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
-                elif provider == "Anthropic":
-                    stream = await bedrock_client.completions.create(
+                elif provider == "AnthropicBedrock":
+                    stream = await anthropic_bedrock_client.completions.create(
                         prompt=f"\n\nHuman: {messages}\n\nAssistant:",
                         max_tokens_to_sample=max_tokens,
                         temperature=temperature,  # must be <= 1.0
@@ -431,14 +451,38 @@ class StreamMiner():
                     # Send final message to close the stream
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
-                elif provider == "Claude":
+                elif provider == "Anthropic":
                     system_prompt = None
                     filtered_messages = []
                     for message in messages:
                         if message["role"] == "system":
                             system_prompt = message["content"]
                         else:
-                            filtered_messages.append(message)
+                            message_to_append = {
+                                    "role": message["role"],
+                                    "content": [],
+                                }
+                            if message.get("image"):
+                                image_url = message.get("image")
+                                image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
+                                message_to_append["content"].append(
+                                    {
+                                        "type": "image",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": "image/jpeg",
+                                            "data": image_data,
+                                        },
+                                    }
+                                )
+                            if message.get("text"):
+                                message_to_append["content"].append(
+                                    {
+                                        "type": "text",
+                                        "text": message["content"],
+                                    }
+                                )
+                        filtered_messages.append(message_to_append)
 
                     stream_kwargs = {
                         "max_tokens": max_tokens,
@@ -449,7 +493,7 @@ class StreamMiner():
                     if system_prompt:
                         stream_kwargs["system"] = system_prompt
 
-                    completion = claude_client.messages.stream(**stream_kwargs)
+                    completion = anthropic_client.messages.stream(**stream_kwargs)
                     async with completion as stream:
                         async for text in stream.text_stream:
                             await send(

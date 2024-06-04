@@ -6,6 +6,7 @@ import base64
 import io
 import json
 import math
+import httpx
 import os
 import random
 import re
@@ -46,17 +47,17 @@ def get_api_key(service_name, env_var):
 # stability_key = get_api_key("Stability", "STABILITY_API_KEY")
 # stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
 
-# Claude
-claude_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
-claude_client = AsyncAnthropic()
-claude_client.api_key = claude_key
+# Anthropic
+anthropic_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
+anthropic_client = AsyncAnthropic()
+anthropic_client.api_key = anthropic_key
 
 # Google
 google_key=get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
 
-# Anthropic
-bedrock_client = AsyncAnthropicBedrock()
+# Anthropic Bedrock
+anthropic_bedrock_client = AsyncAnthropicBedrock()
 
 # Groq
 groq_key = get_api_key("Groq", "GROQ_API_KEY")
@@ -393,6 +394,30 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
             f"Calling Openai. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
         )
         try:
+            message = messages[0]
+            filtered_messages = [
+                {
+                "role": message["role"],
+                "content": [],
+                }
+            ]
+            if message.get("text"):
+                filtered_messages[0]["content"].append(
+                    {
+                        "type": "text",
+                        "text": message["content"],
+                    }
+                )
+            if message.get("image"):
+                image_url = message.get("image")
+                filtered_messages[0]["content"].append(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url,
+                        },
+                    }
+                )
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -460,12 +485,12 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
 #     return None
 
 
-async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
+async def call_anthropic_bedrock(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
     try:
         bt.logging.debug(
-            f"Calling Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}"
+            f"Calling Bedrock via Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}"
         )
-        completion = await bedrock_client.completions.create(
+        completion = await anthropic_bedrock_client.completions.create(
             model=model,
             max_tokens_to_sample=max_tokens,
             temperature=temperature,
@@ -477,14 +502,14 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
 
         return completion.completion
     except Exception as e:
-        bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
+        bt.logging.error(f"Error when calling Bedrock via Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
 
 
-async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
+async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k):
     try:
         bt.logging.info(
-            f"calling claude for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}, top_k: {top_k}"
+            f"calling Anthropic for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}, top_k: {top_k}"
         )
         system_prompt = None
         filtered_messages = []
@@ -492,7 +517,31 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
             if message["role"] == "system":
                 system_prompt = message["content"]
             else:
-                filtered_messages.append(message)
+                message_to_append = {
+                        "role": message["role"],
+                        "content": [],
+                    }
+                if message.get("image"):
+                    image_url = message.get("image")
+                    image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
+                    message_to_append["content"].append(
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": image_data,
+                            },
+                        }
+                    )
+                if message.get("text"):
+                    message_to_append["content"].append(
+                        {
+                            "type": "text",
+                            "text": message["content"],
+                        }
+                    )
+            filtered_messages.append(message_to_append)
 
         kwargs = {
             "max_tokens": max_tokens,
@@ -503,11 +552,11 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
         if system_prompt:
             kwargs["system"] = system_prompt
 
-        message = await claude_client.messages.create(**kwargs)
+        message = await anthropic_client.messages.create(**kwargs)
         bt.logging.debug(f"validator response is {message.content[0].text}")
         return message.content[0].text
     except:
-        bt.logging.error(f"error in call_claude {traceback.format_exc()}")
+        bt.logging.error(f"error in call_anthropic {traceback.format_exc()}")
 
 
 async def call_groq(messages, temperature, model, max_tokens, top_p, seed):

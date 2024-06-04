@@ -8,7 +8,7 @@ import cortext.reward
 import torch
 from base_validator import BaseValidator
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_anthropic, call_claude, call_gemini, call_groq, call_openai, call_hugging_face, get_question
+from cortext.utils import call_anthropic_bedrock, call_anthropic, call_gemini, call_groq, call_openai, call_hugging_face, get_question
 
 
 class TextValidator(BaseValidator):
@@ -78,19 +78,22 @@ class TextValidator(BaseValidator):
         return uid, full_response
 
     async def get_question(self, qty):
-        return await get_question("text", qty)
+        question = await get_question("text", qty)
+        prompt = question.get("prompt")
+        image_url = question.get("image")
+        return prompt, image_url
 
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         try:
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 25 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
+            providers = ["OpenAI"] * 25 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
             self.provider = random.choice(providers)
 
-            if self.provider == "Anthropic":
+            if self.provider == "AnthropicBedrock":
                 # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-                # claude models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
+                # anthropic models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
@@ -101,7 +104,7 @@ class TextValidator(BaseValidator):
             elif self.provider == "Gemini":
                 self.model = "gemini-pro"
 
-            elif self.provider == "Claude":
+            elif self.provider == "Anthropic":
                 self.model = "claude-3-opus-20240229"
                 # self.model = "claude-3-sonnet-20240229"
                 # self.model = "claude-instant-1.2"
@@ -117,9 +120,15 @@ class TextValidator(BaseValidator):
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
-                prompt = await self.get_question(len(available_uids))
-                uid_to_question[uid] = prompt
+                prompt, image_url = await self.get_question(len(available_uids))
+                uid_to_question[uid] = {
+                    "prompt": prompt,
+                }
                 messages = [{"role": "user", "content": prompt}]
+                if image_url:
+                    uid_to_question[uid]["image"] = image_url
+                    messages = [{"role": "user", "content": prompt, "image": image_url}]
+
                 syn = StreamPrompting(
                     messages=messages,
                     model=self.model,
@@ -149,18 +158,18 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
-    async def call_api(self, prompt: str, provider: str) -> str:
+    async def call_api(self, prompt: str, image_url: str | None, provider: str) -> str:
         if provider == "OpenAI":
             return await call_openai(
-                [{"role": "user", "content": prompt}], self.temperature, self.model, self.seed, self.max_tokens
+                [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed, self.max_tokens
             )
-        elif provider == "Anthropic":
-            return await call_anthropic(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+        elif provider == "AnthropicBedrock":
+            return await call_anthropic_bedrock(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
-        elif provider == "Claude":
-            return await call_claude(
-                [{"role": "user", "content": prompt}],
+        elif provider == "Anthropic":
+            return await call_anthropic(
+                [{"role": "user", "content": prompt, "image": image_url}],
                 self.temperature,
                 self.model,
                 self.max_tokens,
@@ -204,8 +213,10 @@ class TextValidator(BaseValidator):
         for uid, response in query_responses:
             self.wandb_data["responses"][uid] = response
             if will_score_all and response:
-                prompt = uid_to_question[uid]
-                response_tasks.append((uid, self.call_api(prompt, self.provider)))
+                question = uid_to_question[uid]
+                prompt = question.get("prompt")
+                image_url = question.get("image")
+                response_tasks.append((uid, self.call_api(prompt, image_url, self.provider)))
 
         bt.logging.info("finished wandb logging and scoring")
         api_responses = await asyncio.gather(*[task for _, task in response_tasks])
