@@ -8,7 +8,7 @@ import cortext.reward
 import torch
 from base_validator import BaseValidator
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_anthropic, call_claude, call_gemini, call_groq, call_openai, call_hugging_face, get_question
+from cortext.utils import call_anthropic, call_bedrock, call_claude, call_gemini, call_groq, call_openai, call_hugging_face, get_question
 
 
 class TextValidator(BaseValidator):
@@ -85,7 +85,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 25 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25
+            providers = ["OpenAI"] * 25 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 25 + ["Groq"] * 25 + ["HuggingFace"] * 25 + ["Bedrock"] * 25
             self.provider = random.choice(providers)
 
             if self.provider == "Anthropic":
@@ -114,6 +114,10 @@ class TextValidator(BaseValidator):
 
             elif self.provider == "HuggingFace":
                 self.model = "HuggingFaceH4/zephyr-7b-beta"
+
+            elif self.provider == "Bedrock":
+                # self.model = "meta.llama3-8b-instruct-v1:0"
+                self.model = "cohere.command-r-v1:0"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
@@ -184,6 +188,15 @@ class TextValidator(BaseValidator):
                 self.seed,
                 self.max_tokens,
                 self.top_p,
+            )
+        elif provider == "Bedrock":
+            return await call_bedrock(
+                [{"role": "user", "content": prompt}],
+                self.temperature,
+                self.model,
+                self.max_tokens,
+                self.top_p,
+                self.seed,
             )
         else:
             bt.logging.error(f"provider {provider} not found")

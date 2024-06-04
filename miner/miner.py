@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import base64
+import aioboto3
 import copy
 import json
 import os
@@ -47,15 +48,11 @@ client = AsyncOpenAI(timeout=60.0)
 # stability_key = get_api_key("Stability", "STABILITY_API_KEY")
 # stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
 
+# Anthropic
+# Only if using the official claude for access instead of aws bedrock
 claude_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
-
-# Anthropic
-# Only if using the official claude for access instead of aws bedrock
-# api_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
-# anthropic_client = anthropic.Anthropic()
-# anthropic_client.api_key = api_key
 
 # For AWS bedrock (default)
 bedrock_client = AsyncAnthropicBedrock(
@@ -63,6 +60,14 @@ bedrock_client = AsyncAnthropicBedrock(
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
+
+# AWS Bedrock
+bedrock_client_parameters = {
+    "service_name": 'bedrock-runtime',
+    "aws_access_key_id": get_api_key("AWS Bedrock", "AWS_ACCESS_KEY"),
+    "aws_secret_access_key": get_api_key("AWS Bedrock", "AWS_SECRET_KEY"),
+    "region_name": "us-east-1"
+}
 
 # For google/gemini
 google_key=get_api_key("Google", "GOOGLE_API_KEY")
@@ -177,7 +182,7 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         thread.start()
-        
+
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
@@ -191,7 +196,7 @@ class StreamMiner():
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            # if hotkey in cortext.WHITELISTED_KEYS:  
+            # if hotkey in cortext.WHITELISTED_KEYS:
             #     return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -572,6 +577,107 @@ class StreamMiner():
                             }
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Bedrock":
+                    async def generate_request():
+                        if model.startswith("cohere"):
+                            native_request = {
+                                "message": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "p": top_p,
+                                "seed": seed,
+                            }
+                        elif model.startswith("meta"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_gen_len": max_tokens,
+                                "top_p": top_p,
+                            }
+                        elif model.startswith("anthropic"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_tokens_to_sample": max_tokens,
+                                "top_p": top_p,
+                            }
+                        elif model.startswith("mistral"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                            }
+                        elif model.startswith("amazon"):
+                            native_request = {
+                                "inputText": messages[0]["content"],
+                                "textGenerationConfig": {
+                                    "maxTokenCount": max_tokens,
+                                    "temperature": temperature,
+                                    "topP": top_p,
+                                },
+                            }
+                        elif model.startswith("ai21"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "maxTokens": max_tokens,
+                                "temperature": temperature,
+                                "topP": top_p,
+                            }
+                        request = json.dumps(native_request)
+                        return request
+
+                    async def extract_token(chunk):
+                        if model.startswith("cohere"):
+                            token = chunk["text"] or ""
+                        elif model.startswith("meta"):
+                            token = chunk["generation"] or ""
+                        elif model.startswith("anthropic"):
+                            token = chunk["completion"] or ""
+                        elif model.startswith("mistral"):
+                            token = chunk["outputs"][0]["text"] or ""
+                        elif model.startswith("amazon"):
+                            token = chunk["outputText"] or ""
+                        elif model.startswith("ai21"):
+                            token = chunk["completions"][0]["data"]["text"] or ""
+                        return token
+                    aws_session = aioboto3.Session()
+                    aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
+
+                    request = await generate_request()
+                    async with aws_bedrock_client as client:
+                        stream = await client.invoke_model_with_response_stream(
+                            modelId=model, body=request
+                        )
+
+                        buffer = []
+                        n = 1
+                        async for event in stream["body"]:
+                            chunk = json.loads(event["chunk"]["bytes"])
+                            token = await extract_token(chunk)
+                            buffer.append(token)
+                            if len(buffer) == n:
+                                joined_buffer = "".join(buffer)
+                                await send(
+                                    {
+                                        "type": "http.response.body",
+                                        "body": joined_buffer.encode("utf-8"),
+                                        "more_body": True,
+                                    }
+                                )
+                                bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                                buffer = []
+
+                        if buffer:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": False,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")

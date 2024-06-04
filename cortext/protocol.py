@@ -237,8 +237,8 @@ class StreamPrompting(bt.StreamingSynapse):
         title="model",
         description="""
         The model to use when calling provider for your response.
-        "For Provider OpenAI: 
-         text_models = [                   
+        "For Provider OpenAI:
+         text_models = [
             "davinci-002",
             "gpt-4-1106-preview",
             "gpt-4-turbo-preview",
@@ -384,7 +384,7 @@ class TextPrompting(bt.Synapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini, Groq, Hugging Face",
+                    "Options: OpenAI, Anthropic, Gemini, Groq, Hugging Face, AWS Bedrock",
     )
 
     model: str = pydantic.Field(

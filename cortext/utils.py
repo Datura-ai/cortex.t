@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import aioboto3
 import ast
 import asyncio
 import base64
@@ -66,6 +67,14 @@ groq_client.api_key = groq_key
 # Hugging Face
 hugging_face_key = get_api_key("Hugging Face", "HUGGING_FACE_API_KEY")
 hugging_face_client = AsyncInferenceClient(token=hugging_face_key)
+
+# AWS Bedrock
+bedrock_client_parameters = {
+    "service_name": 'bedrock-runtime',
+    "aws_access_key_id": os.environ.get("AWS_ACCESS_KEY"),
+    "aws_secret_access_key": os.environ.get("AWS_SECRET_KEY"),
+    "region_name": "us-east-1"
+}
 
 
 def load_state_from_file(filename: str):
@@ -552,6 +561,92 @@ async def call_hugging_face(messages, temperature, model, seed=1234, max_tokens=
     except Exception as e:
         bt.logging.error(f"Error when calling Hugging Face: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
+
+async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
+    try:
+        bt.logging.info(
+            f"calling AWS Bedrock for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}"
+        )
+
+        def generate_request():
+            if model.startswith("cohere"):
+                native_request = {
+                    "message": messages[0]["content"],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "p": top_p,
+                    "seed": seed,
+                }
+            elif model.startswith("meta"):
+                native_request = {
+                    "prompt": messages[0]["content"],
+                    "temperature": temperature,
+                    "max_gen_len": max_tokens,
+                    "top_p": top_p,
+                }
+            elif model.startswith("anthropic"):
+                native_request = {
+                    "prompt": messages[0]["content"],
+                    "temperature": temperature,
+                    "max_tokens_to_sample": max_tokens,
+                    "top_p": top_p,
+                }
+            elif model.startswith("mistral"):
+                native_request = {
+                    "prompt": messages[0]["content"],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+            elif model.startswith("amazon"):
+                native_request = {
+                    "inputText": messages[0]["content"],
+                    "textGenerationConfig": {
+                        "maxTokenCount": max_tokens,
+                        "temperature": temperature,
+                        "topP": top_p,
+                    },
+                }
+            elif model.startswith("ai21"):
+                native_request = {
+                    "prompt": messages[0]["content"],
+                    "maxTokens": max_tokens,
+                    "temperature": temperature,
+                    "topP": top_p,
+                }
+            request = json.dumps(native_request)
+            return request
+
+        def extract_message(message):
+            if model.startswith("cohere"):
+                message = json.loads(message)["text"]
+            elif model.startswith("meta"):
+                message = json.loads(message)["generation"]
+            elif model.startswith("anthropic"):
+                message = json.loads(message)["completion"]
+            elif model.startswith("mistral"):
+                message = json.loads(message)["outputs"][0]["text"]
+            elif model.startswith("amazon"):
+                message = json.loads(message)["results"][0]["outputText"]
+            elif model.startswith("ai21"):
+                message = json.loads(message)["completions"][0]["data"]["text"]
+            return message
+
+        aws_session = aioboto3.Session()
+        aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
+
+        async with aws_bedrock_client as client:
+            request = generate_request()
+            response = await client.invoke_model(
+                modelId=model, body=request
+            )
+
+            message = await response['body'].read()
+            message = extract_message(message)
+
+        bt.logging.debug(f"validator response is {message}")
+        return message
+    except:
+        bt.logging.error(f"error in call_bedrock {traceback.format_exc()}")
 
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
