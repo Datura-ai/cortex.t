@@ -1,4 +1,5 @@
 import asyncio
+import sentry_sdk
 import random
 import traceback
 from typing import AsyncIterator, Tuple
@@ -115,6 +116,7 @@ class TextValidator(BaseValidator):
             query_responses = await asyncio.gather(*query_tasks)
             return query_responses, uid_to_question
         except:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"error in start_query = {traceback.format_exc()}")
 
     def should_i_score(self):

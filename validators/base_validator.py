@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+import sentry_sdk
 import bittensor as bt
 
 
@@ -19,6 +20,7 @@ class BaseValidator(ABC):
             return await self.handle_response(uid, responses)
 
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 

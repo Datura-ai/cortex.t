@@ -1,4 +1,5 @@
 import os
+import sentry_sdk
 import google.generativeai as genai
 import traceback
 import asyncio
@@ -57,6 +58,7 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
         print(stream)
         return stream.text
     except:
+        sentry_sdk.capture_exception()
         print(f"error in call_gemini {traceback.format_exc()}")
 
 # Non streaming
@@ -81,6 +83,7 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
         print(f"validator response is {response.text}")
         return response.text
     except:
+        sentry_sdk.capture_exception()
         print(f"error in call_gemini {traceback.format_exc()}")
 
 async def main():

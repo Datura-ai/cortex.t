@@ -1,4 +1,5 @@
 import asyncio
+import sentry_sdk
 import concurrent
 import itertools
 import traceback
@@ -118,6 +119,7 @@ class WeightSetter:
             return True, f"rejecting {synapse_type} request from {hotkey}"
 
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
@@ -219,6 +221,7 @@ class WeightSetter:
                 else:
                     await asyncio.sleep(60)
             except Exception as e:
+                sentry_sdk.capture_exception()
                 bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
                 
@@ -270,6 +273,7 @@ class WeightSetter:
             return None
 
         except Exception as e:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
             return None
 

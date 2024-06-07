@@ -1,4 +1,5 @@
 import os
+import sentry_sdk
 import time
 import wandb
 import json
@@ -64,12 +65,14 @@ def get_valid_hotkeys(config):
                         if hotkey not in valid_hotkeys:
                             valid_hotkeys.append(hotkey)
                     except Exception as e:
+                        sentry_sdk.capture_exception()
                         print(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
             print(f"total valid hotkeys list = {valid_hotkeys}")
             time.sleep(180)
 
         except json.JSONDecodeError as e:
+            sentry_sdk.capture_exception()
             print(f"JSON decoding error: {e} {run.id}")
 
 config = get_config()

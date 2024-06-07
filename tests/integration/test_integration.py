@@ -1,4 +1,5 @@
 import requests
+import sentry_sdk
 import websocket
 
 from test_base import ActiveSubnetworkBaseTest
@@ -14,6 +15,7 @@ class Test(ActiveSubnetworkBaseTest):
         try:
             requests.get(f'http://localhost:{VALIDATOR_PORT}/', timeout=1)
         except requests.RequestException:
+            sentry_sdk.capture_exception()
             return False
         return True
 
@@ -22,6 +24,7 @@ class Test(ActiveSubnetworkBaseTest):
         try:
             websocket.create_connection(f'ws://localhost:{AXON_PORT}', timeout=1)
         except ConnectionRefusedError:
+            sentry_sdk.capture_exception()
             return False
         except websocket.WebSocketBadStatusException:
             return True

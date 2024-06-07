@@ -1,4 +1,5 @@
 import argparse
+import sentry_sdk
 import asyncio
 import base64
 import copy
@@ -15,6 +16,7 @@ from functools import partial
 from typing import Tuple
 
 import bittensor as bt
+from cortext.sentry import init_sentry
 import google.generativeai as genai
 import wandb
 from PIL import Image
@@ -101,6 +103,7 @@ class StreamMiner():
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
+        init_sentry(self.config, {"neuron-type": "miner"})
         bt.logging.info(self.config)
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
@@ -240,6 +243,7 @@ class StreamMiner():
             return False, f"accepting {synapse_type} request from {hotkey}"
 
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
 
@@ -328,11 +332,13 @@ class StreamMiner():
                 step += 1
 
         except KeyboardInterrupt:
+            sentry_sdk.capture_exception()
             self.axon.stop()
             bt.logging.success("Miner killed by keyboard interrupt.")
             sys.exit()
 
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(traceback.format_exc())
 
     def run_in_background_thread(self) -> None:
@@ -502,6 +508,7 @@ class StreamMiner():
                     bt.logging.error(f"Unknown provider: {provider}")
 
             except Exception as e:
+                sentry_sdk.capture_exception()
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
         token_streamer = partial(_prompt, synapse)
@@ -572,6 +579,7 @@ class StreamMiner():
             return synapse
 
         except Exception as exc:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
@@ -609,6 +617,7 @@ class StreamMiner():
             bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
             return synapse
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
     async def is_alive(self, synapse: IsAlive) -> IsAlive:
@@ -658,12 +667,14 @@ def get_valid_hotkeys(config):
                         if hotkey not in valid_hotkeys:
                             valid_hotkeys.append(hotkey)
                     except Exception:
+                        sentry_sdk.capture_exception()
                         bt.logging.debug(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
             bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
             time.sleep(180)
 
         except json.JSONDecodeError as e:
+            sentry_sdk.capture_exception()
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
 
 

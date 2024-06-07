@@ -1,4 +1,5 @@
 import argparse
+import sentry_sdk
 import time
 import subprocess
 import cortext
@@ -46,4 +47,5 @@ if __name__ == "__main__":
     try:
         update_and_restart(args.pm2_name, args.wallet_name, args.wallet_hotkey, args.address, args.autoupdate)
     except Exception as e:
+        sentry_sdk.capture_exception()
         parser.error(f"An error occurred: {e}")

@@ -1,5 +1,7 @@
 import base  # noqa
 
+from cortext.sentry import init_sentry
+import sentry_sdk
 import argparse
 import asyncio
 import copy
@@ -79,6 +81,7 @@ class StreamMiner(ABC):
         self.config = self.config()
         self.config.merge(base_config)
         check_config(StreamMiner, self.config)
+        init_sentry(self.config, {"neuron-type": "claude-miner"})
         bt.logging.info(self.config)  # TODO: duplicate print?
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
@@ -201,6 +204,7 @@ class StreamMiner(ABC):
             return False, f"accepting {synapse_type} request from {hotkey}"
 
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
 
@@ -320,11 +324,13 @@ class StreamMiner(ABC):
                 step += 1
 
         except KeyboardInterrupt:
+            sentry_sdk.capture_exception()
             self.axon.stop()
             bt.logging.success("Miner killed by keyboard interrupt.")
             sys.exit()
 
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(traceback.format_exc())
 
     def run_in_background_thread(self) -> None:
@@ -358,7 +364,7 @@ class StreamingcortextMiner(StreamMiner):
         return bt.config(parser)
 
     def add_args(cls, parser: argparse.ArgumentParser):
-        pass
+        parser.add_argument("--sentry-dsn",type=str,default=None,help="The url that sentry will use to send exception information to")
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
@@ -395,6 +401,7 @@ class StreamingcortextMiner(StreamMiner):
             bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
             return synapse
         except Exception:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"Exception in embeddings function: {traceback.format_exc()}")
 
 
@@ -463,6 +470,7 @@ class StreamingcortextMiner(StreamMiner):
             return synapse
 
         except Exception as exc:
+            sentry_sdk.capture_exception()
             bt.logging.error(f"error in images: {exc}\n{traceback.format_exc()}")
 
     def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
@@ -572,6 +580,7 @@ class StreamingcortextMiner(StreamMiner):
                     bt.logging.error(f"Unknown provider: {provider}")
 
             except Exception as e:
+                sentry_sdk.capture_exception()
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
         token_streamer = partial(_prompt, synapse)
@@ -618,12 +627,14 @@ def get_valid_hotkeys(config):
                         if hotkey not in valid_hotkeys:
                             valid_hotkeys.append(hotkey)
                     except Exception:
+                        sentry_sdk.capture_exception()
                         bt.logging.debug(f"exception in get_valid_hotkeys: {traceback.format_exc()}")
 
             bt.logging.info(f"total valid hotkeys list = {valid_hotkeys}")
             time.sleep(180)
 
         except json.JSONDecodeError as e:
+            sentry_sdk.capture_exception()
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
 
 
