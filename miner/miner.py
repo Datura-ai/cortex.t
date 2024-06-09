@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import base64
+import aioboto3
 import copy
 import json
 import os
@@ -59,6 +60,22 @@ anthropic_bedrock_client = AsyncAnthropicBedrock(
     # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
     timeout=60.0,
 )
+
+# AWS Bedrock
+bedrock_client_parameters = {
+    "service_name": 'bedrock-runtime',
+    "aws_access_key_id": get_api_key("AWS Bedrock", "AWS_ACCESS_KEY"),
+    "aws_secret_access_key": get_api_key("AWS Bedrock", "AWS_SECRET_KEY"),
+    "region_name": "us-east-1"
+}
+
+# AWS Bedrock
+bedrock_client_parameters = {
+    "service_name": 'bedrock-runtime',
+    "aws_access_key_id": get_api_key("AWS Bedrock", "AWS_ACCESS_KEY"),
+    "aws_secret_access_key": get_api_key("AWS Bedrock", "AWS_SECRET_KEY"),
+    "region_name": "us-east-1"
+}
 
 # Google/gemini
 google_key=get_api_key("Google", "GOOGLE_API_KEY")
@@ -616,6 +633,111 @@ class StreamMiner():
                             }
                         )
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Bedrock":
+                    async def generate_request():
+                        if model.startswith("cohere"):
+                            native_request = {
+                                "message": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "p": top_p,
+                                "seed": seed,
+                            }
+                        elif model.startswith("meta"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_gen_len": 2048 if max_tokens > 2048 else max_tokens,
+                                "top_p": top_p,
+                            }
+                        # elif model.startswith("anthropic"):
+                        #     native_request = {
+                        #         "anthropic_version": "bedrock-2023-05-31",
+                        #         "messages": messages,
+                        #         "temperature": temperature,
+                        #         "max_tokens": max_tokens,
+                        #         "top_p": top_p,
+                        #     }
+                        elif model.startswith("mistral"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                            }
+                        elif model.startswith("amazon"):
+                            native_request = {
+                                "inputText": messages[0]["content"],
+                                "textGenerationConfig": {
+                                    "maxTokenCount": max_tokens,
+                                    "temperature": temperature,
+                                    "topP": top_p,
+                                },
+                            }
+                        elif model.startswith("ai21"):
+                            native_request = {
+                                "prompt": messages[0]["content"],
+                                "maxTokens": max_tokens,
+                                "temperature": temperature,
+                                "topP": top_p,
+                            }
+                        request = json.dumps(native_request)
+                        return request
+
+                    async def extract_token(chunk):
+                        if model.startswith("cohere"):
+                            token = chunk.get("text") or ""
+                        elif model.startswith("meta"):
+                            token = chunk.get("generation") or ""
+                        # elif model.startswith("anthropic"):
+                        #     # token = chunk.get("completion") or ""
+                        #     if chunk['type'] == 'content_block_delta':
+                        #         if chunk['delta']['type'] == 'text_delta':
+                        #             token = chunk['delta']['text'] or ""
+                        elif model.startswith("mistral"):
+                            token = chunk.get("outputs")[0]["text"] or ""
+                        elif model.startswith("amazon"):
+                            token = chunk.get("outputText") or ""
+                        elif model.startswith("ai21"):
+                            token = chunk.get("completions")[0]["data"]["text"] or ""
+                        return token
+                    aws_session = aioboto3.Session()
+                    aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
+
+                    request = await generate_request()
+                    async with aws_bedrock_client as client:
+                        stream = await client.invoke_model_with_response_stream(
+                            modelId=model, body=request
+                        )
+
+                        buffer = []
+                        n = 1
+                        async for event in stream["body"]:
+                            chunk = json.loads(event["chunk"]["bytes"])
+                            token = await extract_token(chunk)
+                            buffer.append(token)
+                            if len(buffer) == n:
+                                joined_buffer = "".join(buffer)
+                                await send(
+                                    {
+                                        "type": "http.response.body",
+                                        "body": joined_buffer.encode("utf-8"),
+                                        "more_body": True,
+                                    }
+                                )
+                                bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                                buffer = []
+
+                        if buffer:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": False,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
