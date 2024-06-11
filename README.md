@@ -57,7 +57,6 @@ API requirements for this subnet are constantly evovling as we seek to meet the 
 - Google API key (Gemini)
 - Anthropic API key (Claude3)
 - Groq API key (Llama)
-- Hugging Face API key (Phi3)
 - AWS Acces key and Secret key (Bedrock models)
 
 
