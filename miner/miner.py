@@ -25,7 +25,6 @@ from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from groq import AsyncGroq
-from huggingface_hub import AsyncInferenceClient
 from stability_sdk import client as stability_client
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
@@ -85,11 +84,6 @@ genai.configure(api_key=google_key)
 groq_key = get_api_key("Groq", "GROQ_API_KEY")
 groq_client = AsyncGroq()
 groq_client.api_key = groq_key
-
-# Hugging Face
-hugging_face_key = get_api_key("Hugging Face", "HUGGING_FACE_API_KEY")
-hugging_face_client = AsyncInferenceClient(token=hugging_face_key)
-
 
 # Wandb
 netrc_path = pathlib.Path.home() / ".netrc"
@@ -566,46 +560,6 @@ class StreamMiner():
                     }
 
                     stream = await groq_client.chat.completions.create(**stream_kwargs)
-                    buffer = []
-                    n = 1
-                    async for chunk in stream:
-                        token = chunk.choices[0].delta.content or ""
-                        buffer.append(token)
-                        if len(buffer) == n:
-                            joined_buffer = "".join(buffer)
-                            await send(
-                                {
-                                    "type": "http.response.body",
-                                    "body": joined_buffer.encode("utf-8"),
-                                    "more_body": True,
-                                }
-                            )
-                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                            buffer = []
-
-                    if buffer:
-                        joined_buffer = "".join(buffer)
-                        await send(
-                            {
-                                "type": "http.response.body",
-                                "body": joined_buffer.encode("utf-8"),
-                                "more_body": False,
-                            }
-                        )
-                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
-
-                elif provider == "HuggingFace":
-                    stream_kwargs = {
-                        "messages": messages,
-                        "model": model,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "top_p": top_p,
-                        "seed": seed,
-                        "stream": True,
-                    }
-
-                    stream = await hugging_face_client.chat_completion(**stream_kwargs)
                     buffer = []
                     n = 1
                     async for chunk in stream:

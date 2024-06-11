@@ -26,7 +26,6 @@ import wandb
 from anthropic import AI_PROMPT, HUMAN_PROMPT, Anthropic, AsyncAnthropic
 from anthropic_bedrock import AsyncAnthropicBedrock
 from groq import AsyncGroq
-from huggingface_hub import AsyncInferenceClient
 from PIL import Image
 from stability_sdk import client as stability_client
 
@@ -64,10 +63,6 @@ anthropic_bedrock_client = AsyncAnthropicBedrock()
 groq_key = get_api_key("Groq", "GROQ_API_KEY")
 groq_client = AsyncGroq()
 groq_client.api_key = groq_key
-
-# Hugging Face
-hugging_face_key = get_api_key("Hugging Face", "HUGGING_FACE_API_KEY")
-hugging_face_client = AsyncInferenceClient(token=hugging_face_key)
 
 # AWS Bedrock
 bedrock_client_parameters = {
@@ -603,27 +598,6 @@ async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
     except:
         bt.logging.error(f"error in call_groq {traceback.format_exc()}")
 
-
-async def call_hugging_face(messages, temperature, model, seed=1234, max_tokens=2048, top_p=0.01):
-    bt.logging.debug(
-        f"Calling Hugging Face. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
-    )
-    try:
-        response = await hugging_face_client.chat_completion(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            seed=seed,
-            max_tokens=max_tokens,
-            top_p=top_p,
-        )
-        response = response.choices[0].message.content
-        bt.logging.trace(f"validator response is {response}")
-        return response
-
-    except Exception as e:
-        bt.logging.error(f"Error when calling Hugging Face: {traceback.format_exc()}")
-        await asyncio.sleep(0.5)
 
 async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
     try:

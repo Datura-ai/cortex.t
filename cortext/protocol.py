@@ -383,7 +383,7 @@ class TextPrompting(bt.Synapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini, Groq, Hugging Face, AWS Bedrock",
+                    "Options: OpenAI, Anthropic, Gemini, Groq, AWS Bedrock",
     )
 
     model: str = pydantic.Field(

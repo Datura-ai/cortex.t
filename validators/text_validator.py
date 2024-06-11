@@ -8,7 +8,7 @@ import cortext.reward
 import torch
 from base_validator import BaseValidator
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini, call_groq, call_openai, call_hugging_face, get_question
+from cortext.utils import call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini, call_groq, call_openai, get_question
 
 
 class TextValidator(BaseValidator):
@@ -115,9 +115,6 @@ class TextValidator(BaseValidator):
                 # self.model = "llama3-8b-8192"
                 # self.model = "mixtral-8x7b-32768"
 
-            elif self.provider == "HuggingFace":
-                self.model = "HuggingFaceH4/zephyr-7b-beta"
-
             elif self.provider == "Bedrock":
                 self.model = "cohere.command-r-v1:0"
                 # self.model = "meta.llama2-70b-chat-v1"
@@ -192,15 +189,6 @@ class TextValidator(BaseValidator):
                 self.max_tokens,
                 self.top_p,
                 self.seed,
-            )
-        elif provider == "HuggingFace":
-            return await call_hugging_face(
-                [{"role": "user", "content": prompt}],
-                self.temperature,
-                self.model,
-                self.seed,
-                self.max_tokens,
-                self.top_p,
             )
         elif provider == "Bedrock":
             return await call_bedrock(
