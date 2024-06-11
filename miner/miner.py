@@ -363,6 +363,40 @@ class StreamMiner():
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"started processing for synapse {synapse}")
 
+        async def generate_messages_to_claude(messages):
+            system_prompt = None
+            filtered_messages = []
+            for message in messages:
+                if message["role"] == "system":
+                    system_prompt = message["content"]
+                else:
+                    message_to_append = {
+                            "role": message["role"],
+                            "content": [],
+                        }
+                    if message.get("image"):
+                        image_url = message.get("image")
+                        image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
+                        message_to_append["content"].append(
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": image_data,
+                                },
+                            }
+                        )
+                    if message.get("content"):
+                        message_to_append["content"].append(
+                            {
+                                "type": "text",
+                                "text": message["content"],
+                            }
+                        )
+                filtered_messages.append(message_to_append)
+            return filtered_messages, system_prompt
+
         async def _prompt(synapse, send: Send):
             try:
                 provider = synapse.provider
@@ -463,37 +497,7 @@ class StreamMiner():
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
                 elif provider == "Anthropic":
-                    system_prompt = None
-                    filtered_messages = []
-                    for message in messages:
-                        if message["role"] == "system":
-                            system_prompt = message["content"]
-                        else:
-                            message_to_append = {
-                                    "role": message["role"],
-                                    "content": [],
-                                }
-                            if message.get("image"):
-                                image_url = message.get("image")
-                                image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
-                                message_to_append["content"].append(
-                                    {
-                                        "type": "image",
-                                        "source": {
-                                            "type": "base64",
-                                            "media_type": "image/jpeg",
-                                            "data": image_data,
-                                        },
-                                    }
-                                )
-                            if message.get("content"):
-                                message_to_append["content"].append(
-                                    {
-                                        "type": "text",
-                                        "text": message["content"],
-                                    }
-                                )
-                        filtered_messages.append(message_to_append)
+                    filtered_messages, system_prompt = await generate_messages_to_claude(messages)
 
                     stream_kwargs = {
                         "max_tokens": max_tokens,
@@ -605,14 +609,17 @@ class StreamMiner():
                                 "max_gen_len": 2048 if max_tokens > 2048 else max_tokens,
                                 "top_p": top_p,
                             }
-                        # elif model.startswith("anthropic"):
-                        #     native_request = {
-                        #         "anthropic_version": "bedrock-2023-05-31",
-                        #         "messages": messages,
-                        #         "temperature": temperature,
-                        #         "max_tokens": max_tokens,
-                        #         "top_p": top_p,
-                        #     }
+                        elif model.startswith("anthropic"):
+                            message, system_prompt = await generate_messages_to_claude(messages)
+                            native_request = {
+                                "anthropic_version": "bedrock-2023-05-31",
+                                "messages": message,
+                                "temperature": temperature,
+                                "max_tokens": max_tokens,
+                                "top_p": top_p,
+                            }
+                            if system_prompt:
+                                native_request["system"] = system_prompt
                         elif model.startswith("mistral"):
                             native_request = {
                                 "prompt": messages[0]["content"],
@@ -643,55 +650,70 @@ class StreamMiner():
                             token = chunk.get("text") or ""
                         elif model.startswith("meta"):
                             token = chunk.get("generation") or ""
-                        # elif model.startswith("anthropic"):
-                        #     # token = chunk.get("completion") or ""
-                        #     if chunk['type'] == 'content_block_delta':
-                        #         if chunk['delta']['type'] == 'text_delta':
-                        #             token = chunk['delta']['text'] or ""
+                        elif model.startswith("anthropic"):
+                            token = ""
+                            if chunk['type'] == 'content_block_delta':
+                                if chunk['delta']['type'] == 'text_delta':
+                                    token = chunk['delta']['text']
                         elif model.startswith("mistral"):
                             token = chunk.get("outputs")[0]["text"] or ""
                         elif model.startswith("amazon"):
                             token = chunk.get("outputText") or ""
                         elif model.startswith("ai21"):
-                            token = chunk.get("completions")[0]["data"]["text"] or ""
+                            token = json.loads(message)["completions"][0]["data"]["text"]
                         return token
                     aws_session = aioboto3.Session()
                     aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
 
                     request = await generate_request()
                     async with aws_bedrock_client as client:
-                        stream = await client.invoke_model_with_response_stream(
-                            modelId=model, body=request
-                        )
+                        if model.startswith("ai21"):
+                            response = await client.invoke_model(
+                                modelId=model, body=request
+                            )
+                            message = await response['body'].read()
+                            message = await extract_token(message)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": message.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {message}")
+                        else:
+                            stream = await client.invoke_model_with_response_stream(
+                                modelId=model, body=request
+                            )
 
-                        buffer = []
-                        n = 1
-                        async for event in stream["body"]:
-                            chunk = json.loads(event["chunk"]["bytes"])
-                            token = await extract_token(chunk)
-                            buffer.append(token)
-                            if len(buffer) == n:
+                            buffer = []
+                            n = 1
+                            async for event in stream["body"]:
+                                chunk = json.loads(event["chunk"]["bytes"])
+                                token = await extract_token(chunk)
+                                buffer.append(token)
+                                if len(buffer) == n:
+                                    joined_buffer = "".join(buffer)
+                                    await send(
+                                        {
+                                            "type": "http.response.body",
+                                            "body": joined_buffer.encode("utf-8"),
+                                            "more_body": True,
+                                        }
+                                    )
+                                    bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                                    buffer = []
+
+                            if buffer:
                                 joined_buffer = "".join(buffer)
                                 await send(
                                     {
                                         "type": "http.response.body",
                                         "body": joined_buffer.encode("utf-8"),
-                                        "more_body": True,
+                                        "more_body": False,
                                     }
                                 )
                                 bt.logging.info(f"Streamed tokens: {joined_buffer}")
-                                buffer = []
-
-                        if buffer:
-                            joined_buffer = "".join(buffer)
-                            await send(
-                                {
-                                    "type": "http.response.body",
-                                    "body": joined_buffer.encode("utf-8"),
-                                    "more_body": False,
-                                }
-                            )
-                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")

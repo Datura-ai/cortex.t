@@ -88,7 +88,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 95 + ["Anthropic"] * 0 + ["Gemini"] * 0 + ["Claude"] * 5
+            providers = ["OpenAI"] * 85 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 5 + ["Groq"] * 5 + ["Bedrock"] * 5
             self.provider = random.choice(providers)
 
             if self.provider == "AnthropicBedrock":
@@ -116,12 +116,12 @@ class TextValidator(BaseValidator):
                 # self.model = "mixtral-8x7b-32768"
 
             elif self.provider == "Bedrock":
-                self.model = "cohere.command-r-v1:0"
+                self.model = "anthropic.claude-3-sonnet-20240229-v1:0"
+                # self.model = "cohere.command-r-v1:0"
                 # self.model = "meta.llama2-70b-chat-v1"
                 # self.model = "amazon.titan-text-express-v1"
                 # self.model = "mistral.mistral-7b-instruct-v0:2"
-                # self.model = "ai21.j2-ultra-v1" #unsupported for streaming
-                # self.model = "anthropic.claude-3-sonnet-20240229-v1:0"
+                # self.model = "ai21.j2-mid-v1"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid in available_uids:
@@ -192,7 +192,7 @@ class TextValidator(BaseValidator):
             )
         elif provider == "Bedrock":
             return await call_bedrock(
-                [{"role": "user", "content": prompt}],
+                [{"role": "user", "content": prompt, "image": image_url}],
                 self.temperature,
                 self.model,
                 self.max_tokens,

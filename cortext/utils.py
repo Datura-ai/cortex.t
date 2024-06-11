@@ -523,43 +523,46 @@ async def call_anthropic_bedrock(prompt, temperature, model, max_tokens=2048, to
         bt.logging.error(f"Error when calling Bedrock via Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
 
+async def generate_messages_to_claude(messages):
+    system_prompt = None
+    filtered_messages = []
+    for message in messages:
+        if message["role"] == "system":
+            system_prompt = message["content"]
+        else:
+            message_to_append = {
+                    "role": message["role"],
+                    "content": [],
+                }
+            if message.get("image"):
+                image_url = message.get("image")
+                image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
+                message_to_append["content"].append(
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": image_data,
+                        },
+                    }
+                )
+            if message.get("content"):
+                message_to_append["content"].append(
+                    {
+                        "type": "text",
+                        "text": message["content"],
+                    }
+                )
+        filtered_messages.append(message_to_append)
+    return filtered_messages, system_prompt
 
 async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k):
     try:
         bt.logging.info(
             f"calling Anthropic for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}, top_k: {top_k}"
         )
-        system_prompt = None
-        filtered_messages = []
-        for message in messages:
-            if message["role"] == "system":
-                system_prompt = message["content"]
-            else:
-                message_to_append = {
-                        "role": message["role"],
-                        "content": [],
-                    }
-                if message.get("image"):
-                    image_url = message.get("image")
-                    image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
-                    message_to_append["content"].append(
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
-                                "data": image_data,
-                            },
-                        }
-                    )
-                if message.get("content"):
-                    message_to_append["content"].append(
-                        {
-                            "type": "text",
-                            "text": message["content"],
-                        }
-                    )
-            filtered_messages.append(message_to_append)
+        filtered_messages, system_prompt = await generate_messages_to_claude(messages)
 
         kwargs = {
             "max_tokens": max_tokens,
@@ -605,7 +608,7 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
             f"calling AWS Bedrock for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}"
         )
 
-        def generate_request():
+        async def generate_request():
             if model.startswith("cohere"):
                 native_request = {
                     "message": messages[0]["content"],
@@ -621,14 +624,17 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
                     "max_gen_len": 2048 if max_tokens > 2048 else max_tokens,
                     "top_p": top_p,
                 }
-            # elif model.startswith("anthropic"):
-            #     native_request = {
-            #         "anthropic_version": "bedrock-2023-05-31",
-            #         "messages": messages,
-            #         "temperature": temperature,
-            #         "max_tokens": max_tokens,
-            #         "top_p": top_p,
-            #     }
+            elif model.startswith("anthropic"):
+                message, system_prompt = await generate_messages_to_claude(messages)
+                native_request = {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "messages": message,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "top_p": top_p,
+                }
+                if system_prompt:
+                    native_request["system"] = system_prompt
             elif model.startswith("mistral"):
                 native_request = {
                     "prompt": messages[0]["content"],
@@ -654,13 +660,13 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
             request = json.dumps(native_request)
             return request
 
-        def extract_message(message):
+        async def extract_message(message):
             if model.startswith("cohere"):
                 message = json.loads(message)["text"]
             elif model.startswith("meta"):
                 message = json.loads(message)["generation"]
-            # elif model.startswith("anthropic"):
-            #     message = json.loads(message)["completion"]
+            elif model.startswith("anthropic"):
+                message = json.loads(message)["content"][0]["text"]
             elif model.startswith("mistral"):
                 message = json.loads(message)["outputs"][0]["text"]
             elif model.startswith("amazon"):
@@ -673,13 +679,13 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
         aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
 
         async with aws_bedrock_client as client:
-            request = generate_request()
+            request = await generate_request()
             response = await client.invoke_model(
                 modelId=model, body=request
             )
 
             message = await response['body'].read()
-            message = extract_message(message)
+            message = await extract_message(message)
 
         bt.logging.debug(f"validator response is {message}")
         return message
