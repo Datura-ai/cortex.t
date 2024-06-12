@@ -68,14 +68,6 @@ bedrock_client_parameters = {
     "region_name": "us-east-1"
 }
 
-# AWS Bedrock
-bedrock_client_parameters = {
-    "service_name": 'bedrock-runtime',
-    "aws_access_key_id": get_api_key("AWS Bedrock", "AWS_ACCESS_KEY"),
-    "aws_secret_access_key": get_api_key("AWS Bedrock", "AWS_SECRET_KEY"),
-    "region_name": "us-east-1"
-}
-
 # Google/gemini
 google_key=get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
@@ -394,7 +386,7 @@ class StreamMiner():
                                 "text": message["content"],
                             }
                         )
-                filtered_messages.append(message_to_append)
+                    filtered_messages.append(message_to_append)
             return filtered_messages, system_prompt
 
         async def _prompt(synapse, send: Send):
