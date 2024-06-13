@@ -42,7 +42,7 @@ from starlette.types import Send
 
 # OpenAI
 OpenAI.api_key = get_api_key("OpenAI", "OPENAI_API_KEY")
-client = AsyncOpenAI(timeout=60.0)
+openai_client = AsyncOpenAI(timeout=60.0)
 
 # Stability API
 # stability_key = get_api_key("Stability", "STABILITY_API_KEY")
@@ -427,7 +427,7 @@ class StreamMiner():
                                 },
                             }
                         )
-                    response = await client.chat.completions.create(
+                    response = await openai_client.chat.completions.create(
                         model=model,
                         messages=filtered_messages,
                         temperature=temperature,
@@ -572,17 +572,6 @@ class StreamMiner():
                             )
                             bt.logging.info(f"Streamed tokens: {joined_buffer}")
                             buffer = []
-
-                    if buffer:
-                        joined_buffer = "".join(buffer)
-                        await send(
-                            {
-                                "type": "http.response.body",
-                                "body": joined_buffer.encode("utf-8"),
-                                "more_body": False,
-                            }
-                        )
-                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 elif provider == "Bedrock":
                     async def generate_request():
@@ -739,7 +728,7 @@ class StreamMiner():
             bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
-                meta = await client.images.generate(
+                meta = await openai_client.images.generate(
                     model=model,
                     prompt=messages,
                     size=size,
@@ -792,7 +781,7 @@ class StreamMiner():
             for batch in batches:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(
+                    task = asyncio.create_task(openai_client.embeddings.create(
                         input=filtered_batch, model=model, encoding_format='float'
                     ))
                     tasks.append(task)

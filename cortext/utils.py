@@ -43,6 +43,8 @@ def get_api_key(service_name, env_var):
         )
     return key
 
+pixabay_key = get_api_key("Pixabay", "PIXABAY_API_KEY")
+
 # Stability API
 # stability_key = get_api_key("Stability", "STABILITY_API_KEY")
 # stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
@@ -131,6 +133,18 @@ def get_validators_with_runs_in_all_projects():
     return common_validators
 
 
+def fetch_random_image_urls(num_images):
+    try:
+        url = f"https://pixabay.com/api/?key={pixabay_key}&per_page={num_images}&order=popular"
+        response = requests.get(url)
+        response.raise_for_status()
+        images = response.json().get('hits', [])
+        return [image['webformatURL'] for image in images]
+    except Exception as e:
+        print(f"Error fetching random images: {e}")
+        return []
+
+
 async def get_list(list_type, num_questions_needed, theme=None):
     prompts_in_question = {"text_questions": 10, "images_questions": 20}
     list_type_mapping = {
@@ -152,29 +166,14 @@ async def get_list(list_type, num_questions_needed, theme=None):
                 else:
                     task_type = random.sample(cortext.INSTRUCT_TASK_OPTIONS, 1)
 
-                # prompt = (
-                #     f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
-                #     f"or instruct tasks related to the theme '{theme}', each with a complexity level "
-                #     f"of {complexity_level} out of 20 and a relevance level to the theme "
-                #     f"of {relevance_level} out of 20. These tasks should varyingly explore "
-                #     f"{theme} in a manner that is consistent with their assigned complexity and relevance "
-                #     f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
-                #     f"Format the questions as comma-separated, quote-encapsulated strings "
-                #     f"in a single Python list."
-                # )
-                prompt = (
-                    {
-                        "prompt": f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
-                                f"or instruct tasks related to the theme '{theme}', each with a complexity level "
-                                f"of {complexity_level} out of 20 and a relevance level to the theme "
-                                f"of {relevance_level} out of 20. These tasks should varyingly explore "
-                                f"{theme} in a manner that is consistent with their assigned complexity and relevance "
-                                f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
-                                f"Format the questions as comma-separated, quote-encapsulated strings "
-                                f"in a single Python list."
-                    }
-
-                )
+                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
+                          f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                          f"of {complexity_level} out of 20 and a relevance level to the theme "
+                          f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                          f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                          f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                          f"Format the questions as comma-separated, quote-encapsulated strings "
+                          f"in a single Python list.")
                 question_pool.append(prompt)
 
         random.shuffle(question_pool)
@@ -193,8 +192,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
     )
 
     tasks = [
-        # call_openai([{"role": "user", "content": prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
-        call_openai([{"role": "user", "content": prompt.get("text"), "image": prompt.get("image")}], 0.65, "gpt-4o", random.randint(1, 10000))
+        call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-4o", random.randint(1, 10000))
         for prompt in selected_prompts
     ]
 
@@ -206,7 +204,10 @@ async def get_list(list_type, num_questions_needed, theme=None):
             answer = answer.replace("\n", " ") if answer else ""
             extracted_list = extract_python_list(answer)
             if extracted_list:
-                extracted_lists += extracted_list
+                if list_type == "text_questions":
+                    extracted_lists +=  [{"prompt": s} for s in extracted_list]
+                else:
+                    extracted_lists += extracted_list
             else:
                 # Retry logic for each prompt if needed
                 for retry in range(max_retries):
@@ -217,7 +218,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
                         new_answer = new_answer.replace("\n", " ") if new_answer else ""
                         new_extracted_list = extract_python_list(new_answer)
                         if new_extracted_list:
-                            extracted_lists += new_extracted_list
+                            extracted_lists += {"prompt": new_extracted_list}
                             break
                         bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
@@ -234,11 +235,21 @@ async def get_list(list_type, num_questions_needed, theme=None):
     if not extracted_lists:
         bt.logging.error("No valid lists found after processing and retries, returning None")
         return None
+    bt.logging.trace(f"extracted_lists: {extracted_lists}")
+
+    images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+    for image_url in images_from_pixabay:
+        extracted_lists.append(
+            {
+                "prompt": "what do you see here?",
+                "image": image_url,
+            }
+        )
 
     return extracted_lists
 
 
-async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
+async def update_counters_and_get_new_list(category, item_type, num_questions_needed, vision, theme=None):
 
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
@@ -261,6 +272,13 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
 
     list_type = f"{category}_{item_type}"
 
+    async def split_items(items, vision):
+        if vision:
+            result = [d for d in items if "image" in d]
+        else:
+            result = [d for d in items if "image" not in d]
+        return result
+
     async with list_update_lock:
         items = state[category][item_type]
 
@@ -273,6 +291,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             state[category][item_type] = items
             bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
 
+        items = await split_items(items, vision)
         item = items.pop() if items else None
         if not items:
             state[category][item_type] = None
@@ -280,11 +299,11 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     return item
 
 
-async def get_question(category, num_questions_needed):
+async def get_question(category, num_questions_needed, vision):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
-    question = await update_counters_and_get_new_list(category, "questions", num_questions_needed)
+    question = await update_counters_and_get_new_list(category, "questions", num_questions_needed, vision)
     return question
 
 

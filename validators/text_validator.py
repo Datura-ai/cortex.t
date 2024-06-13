@@ -77,8 +77,8 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def get_question(self, qty):
-        question = await get_question("text", qty)
+    async def get_question(self, qty, vision=False):
+        question = await get_question("text", qty, vision)
         prompt = question.get("prompt")
         image_url = question.get("image")
         return prompt, image_url
@@ -124,15 +124,25 @@ class TextValidator(BaseValidator):
                 # self.model = "ai21.j2-mid-v1"
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
+
+            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0"]
+
             for uid in available_uids:
-                prompt, image_url = await self.get_question(len(available_uids))
-                uid_to_question[uid] = {
-                    "prompt": prompt,
-                }
-                messages = [{"role": "user", "content": prompt}]
-                if image_url:
-                    uid_to_question[uid]["image"] = image_url
-                    messages = [{"role": "user", "content": prompt, "image": image_url}]
+                messages = [{"role": "user"}]
+                if self.model in vision_models:
+                    prompt, image_url = await self.get_question(len(available_uids), vision=True)
+                    uid_to_question[uid] = {
+                        "prompt": prompt,
+                        "image": image_url,
+                    }
+                    messages[0]["content"] = prompt
+                    messages[0]["image"] = image_url
+                else:
+                    prompt, _ = await self.get_question(len(available_uids))
+                    uid_to_question[uid] = {
+                        "prompt": prompt,
+                    }
+                    messages[0]["content"] = prompt
 
                 syn = StreamPrompting(
                     messages=messages,
