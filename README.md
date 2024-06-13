@@ -56,8 +56,9 @@ API requirements for this subnet are constantly evovling as we seek to meet the 
 - OpenAI key (GPT)
 - Google API key (Gemini)
 - Anthropic API key (Claude3)
-- Groq API key (Llama)
+- Groq API key (Llama, Gemini, Mistral)
 - AWS Acces key and Secret key (Bedrock models)
+- Pixabay API key
 
 
 The higher rate limit your key has the better, and it can be advisable if mining to build up your rate limit slowly (even starting on testnet) to maximise your chances of achieving optimum performance.
