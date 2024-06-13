@@ -79,6 +79,8 @@ BLACKLISTED_KEYS = ["5G1NjW9YhXLadMWajvTkfcJy6up3yH2q1YzMXDTi6ijanChe"]
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
 
+IMAGE_PROMPTS=[]
+
 # Instruct themes used in https://arxiv.org/pdf/2304.12244.pdf to train WizardLM
 initial_instruct_themes = [
     'Philosopy', 'Technology', 'Physics', 'Ethics', 'Academic Writing', 'Economy', 'History',

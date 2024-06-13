@@ -28,6 +28,7 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 from groq import AsyncGroq
 from PIL import Image
 from stability_sdk import client as stability_client
+from cortext import IMAGE_PROMPTS
 
 from . import client
 
@@ -241,7 +242,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
     for image_url in images_from_pixabay:
         extracted_lists.append(
             {
-                "prompt": "what do you see here?",
+                "prompt": random.choice(IMAGE_PROMPTS),
                 "image": image_url,
             }
         )
