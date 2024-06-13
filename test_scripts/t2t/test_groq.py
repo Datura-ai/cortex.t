@@ -18,7 +18,7 @@ async def send_groq_request(prompt, model="gemma-7b-it"):
             model=model,
             seed=1234,
             temperature=0.0001,
-            max_tokens=1,
+            max_tokens=4096,
         )
         collected_messages = []
 

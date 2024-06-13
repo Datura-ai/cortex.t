@@ -2,6 +2,8 @@ import asyncio
 import os
 import json
 import aioboto3
+import traceback
+import time
 
 bedrock_client_parameters = {
     "service_name": 'bedrock-runtime',
@@ -115,11 +117,14 @@ async def send_bedrock_request(message, model, max_tokens=100):
             buffer = []
             n = 1
             async for event in stream["body"]:
-                chunk = json.loads(event["chunk"]["bytes"])
-                token = await extract_token(chunk)
-                buffer.append(token)
-                if len(buffer) == n:
-                    joined_buffer = "".join(buffer)
+                try:
+                    chunk = json.loads(event["chunk"]["bytes"])
+                    token = await extract_token(chunk)
+                    buffer.append(token)
+                    if len(buffer) == n:
+                        joined_buffer = "".join(buffer)
+                except:
+                    print(traceback.format_exc())
 
             if buffer:
                 joined_buffer = "".join(buffer)
@@ -133,8 +138,11 @@ async def main():
     tasks = []
     for message in messages:
         for model in models:
-            tasks.append(send_bedrock_request(message, model))
+            print("model:", model)
+            await send_bedrock_request(message, model)
+            # tasks.append(send_bedrock_request(message, model))
+            await asyncio.sleep(1)
 
-    await asyncio.gather(*tasks)
+    # await asyncio.gather(*tasks)
 
 asyncio.run(main())
