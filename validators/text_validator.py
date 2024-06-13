@@ -77,7 +77,7 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def get_question(self, qty, vision=False):
+    async def get_new_question(self, qty, vision=False):
         question = await get_question("text", qty, vision)
         prompt = question.get("prompt")
         image_url = question.get("image")
@@ -88,7 +88,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 85 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 5 + ["Groq"] * 5 + ["Bedrock"] * 5
+            providers = ["OpenAI"] * 100 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 0 + ["Groq"] * 0 + ["Bedrock"] * 0
             self.provider = random.choice(providers)
 
             if self.provider == "AnthropicBedrock":
@@ -130,7 +130,7 @@ class TextValidator(BaseValidator):
             for uid in available_uids:
                 messages = [{"role": "user"}]
                 if self.model in vision_models:
-                    prompt, image_url = await self.get_question(len(available_uids), vision=True)
+                    prompt, image_url = await self.get_new_question(len(available_uids), vision=True)
                     uid_to_question[uid] = {
                         "prompt": prompt,
                         "image": image_url,
@@ -138,7 +138,7 @@ class TextValidator(BaseValidator):
                     messages[0]["content"] = prompt
                     messages[0]["image"] = image_url
                 else:
-                    prompt, _ = await self.get_question(len(available_uids))
+                    prompt, _ = await self.get_new_question(len(available_uids))
                     uid_to_question[uid] = {
                         "prompt": prompt,
                     }
