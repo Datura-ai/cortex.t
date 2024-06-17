@@ -228,7 +228,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic"
+                    "Options: OpenAI, Anthropic, Groq, Bedrock"
     )
 
     model: str = pydantic.Field(
@@ -236,7 +236,7 @@ class StreamPrompting(bt.StreamingSynapse):
         title="model",
         description="""
         The model to use when calling provider for your response.
-        "For Provider OpenAI:
+        For Provider OpenAI:
          text_models = [
             "davinci-002",
             "gpt-4-1106-preview",
@@ -259,7 +259,10 @@ class StreamPrompting(bt.StreamingSynapse):
             "gpt-4o-2024-05-13"
         ]
         For Provider Anthropic: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
-        last_updated = 27 may 2024
+        For Provider Groq: gemma-7b-it, llama3-70b-8192, llama3-8b-8192, mixtral-8x7b-32768
+        For Provider Bedrock: anthropic.claude-3-sonnet-20240229-v1:0, cohere.command-r-v1:0, meta.llama2-70b-chat-v1,
+         amazon.titan-text-express-v1, mistral.mistral-7b-instruct-v0:2
+        last_updated = 17 June 2024
         """
     )
 

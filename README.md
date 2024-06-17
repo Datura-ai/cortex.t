@@ -49,6 +49,31 @@ Note that this subnet requires very little compute. The main functionality is AP
 
 A high tier key is required for both mining and validations so it is important if you do not have one to work your way up slowly by running a single miner or small numbers of miners whilst paying attention to your usage and limits.
 
+### Requesting Access for AWS Bedrock Models
+
+#### 1. AWS Account
+Ensure you have an active AWS account. If you don't have one, you can create it at [AWS Account Creation](https://aws.amazon.com/).
+
+#### 2. Sign In to AWS Management Console
+Go to the [AWS Management Console](https://aws.amazon.com/console/) and sign in with your AWS credentials.
+
+#### 3. Navigate to AWS Bedrock
+- In the AWS Management Console, use the search bar at the top to search for "Bedrock".
+- Select AWS Bedrock from the search results.
+
+#### 4. Request Access
+- If AWS Bedrock is not directly available, you might see a page to request access.
+- Follow the prompts to fill out any required information. This might include your use case for the models, your AWS account ID, and other relevant details.
+
+#### 5. Submit a Request
+- Complete any forms or questionnaires provided to describe your intended use of AWS Bedrock models.
+- Submit the request for review.
+
+#### 6. Wait for Approval
+- AWS will review your request. This can take some time depending on the specifics of your request and the current availability of AWS Bedrock.
+- You will receive an email notification once your request is approved or if further information is needed.
+
+
 ### API Key Requirements
 
 API requirements for this subnet are constantly evovling as we seek to meet the demands of the users and stay up to date with the latest developements. The current key requirements are as follows:
