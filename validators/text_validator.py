@@ -7,6 +7,7 @@ import bittensor as bt
 import cortext.reward
 import torch
 from base_validator import BaseValidator
+from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini, call_groq, call_openai, get_question
 
@@ -168,7 +169,7 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
-    async def call_api(self, prompt: str, image_url: str | None, provider: str) -> str:
+    async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:
         if provider == "OpenAI":
             return await call_openai(
                 [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed, self.max_tokens
