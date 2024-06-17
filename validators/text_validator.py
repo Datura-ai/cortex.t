@@ -77,7 +77,7 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def get_new_question(self, qty, vision=False):
+    async def get_new_question(self, qty, vision):
         question = await get_question("text", qty, vision)
         prompt = question.get("prompt")
         image_url = question.get("image")
@@ -129,20 +129,15 @@ class TextValidator(BaseValidator):
 
             for uid in available_uids:
                 messages = [{"role": "user"}]
-                if self.model in vision_models:
-                    prompt, image_url = await self.get_new_question(len(available_uids), vision=True)
-                    uid_to_question[uid] = {
-                        "prompt": prompt,
-                        "image": image_url,
-                    }
-                    messages[0]["content"] = prompt
+                is_vision_model = self.model in vision_models
+                prompt, image_url = await self.get_new_question(len(available_uids), is_vision_model)
+
+                uid_to_question[uid] = {"prompt": prompt}
+                if image_url:
+                    uid_to_question[uid]["image"] = image_url
                     messages[0]["image"] = image_url
-                else:
-                    prompt, _ = await self.get_new_question(len(available_uids))
-                    uid_to_question[uid] = {
-                        "prompt": prompt,
-                    }
-                    messages[0]["content"] = prompt
+
+                messages[0]["content"] = prompt
 
                 syn = StreamPrompting(
                     messages=messages,

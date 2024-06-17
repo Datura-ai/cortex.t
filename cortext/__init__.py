@@ -79,7 +79,18 @@ BLACKLISTED_KEYS = ["5G1NjW9YhXLadMWajvTkfcJy6up3yH2q1YzMXDTi6ijanChe"]
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
 
-IMAGE_PROMPTS=[]
+IMAGE_PROMPTS=[
+    "What is depicted in this image? Describe the main objects.",
+    "What colors dominate in this image?",
+    "What mood does the image convey?",
+    "What actions or events are happening in the image?",
+    "Can you determine where this image was taken (e.g., indoors or outdoors)?",
+    "What design elements or composition techniques are used in this image?",
+    "What noticeable details or features can be highlighted in the image?",
+    "Can you determine the time of day or season from the image?",
+    "Is there any text in the image? If so, what does it say?",
+    "What emotions might the people or creatures depicted in this image be experiencing?",
+]
 
 # Instruct themes used in https://arxiv.org/pdf/2304.12244.pdf to train WizardLM
 initial_instruct_themes = [

@@ -273,13 +273,6 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
 
     list_type = f"{category}_{item_type}"
 
-    async def split_items(items, vision):
-        if vision:
-            result = [d for d in items if "image" in d]
-        else:
-            result = [d for d in items if "image" not in d]
-        return result
-
     async with list_update_lock:
         items = state[category][item_type]
 
@@ -292,8 +285,13 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             state[category][item_type] = items
             bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
 
-        items = await split_items(items, vision)
-        item = items.pop() if items else None
+        condition = (lambda itm: 'image' in itm) if vision else (lambda itm: 'image' not in itm)
+
+        for i, itm in enumerate(items):
+            if condition(itm):
+                item = items.pop(i)
+                break
+
         if not items:
             state[category][item_type] = None
 
