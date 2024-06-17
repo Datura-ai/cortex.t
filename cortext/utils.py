@@ -271,26 +271,30 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             state[category]["themes"] = themes
         return random.choice(themes)
 
+    async def get_item_from_list(items, vision):
+        if vision:
+            return items.pop(0) if items else None
+        else:
+            for i, itm in enumerate(items):
+                if 'image' not in itm:
+                    return items.pop(i)
+            return None
+
     list_type = f"{category}_{item_type}"
 
     async with list_update_lock:
         items = state[category][item_type]
 
-        # Logging the current state before fetching new items
         bt.logging.debug(f"Queue for {list_type}: {len(items) if items else 0} items")
 
-        # Fetch new items if the list is empty
-        if not items:
+        item = await get_item_from_list(items, vision)
+
+        if not item:
             items = await get_items(category, item_type, theme)
             state[category][item_type] = items
             bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
 
-        condition = (lambda itm: 'image' in itm) if vision else (lambda itm: 'image' not in itm)
-
-        for i, itm in enumerate(items):
-            if condition(itm):
-                item = items.pop(i)
-                break
+            item = await get_item_from_list(items, vision)
 
         if not items:
             state[category][item_type] = None
