@@ -110,10 +110,8 @@ class TextValidator(BaseValidator):
                 # self.model = "claude-3-sonnet-20240229"
 
             elif self.provider == "Groq":
-                self.model = "gemma-7b-it"
-                # self.model = "llama3-70b-8192"
-                # self.model = "llama3-8b-8192"
-                # self.model = "mixtral-8x7b-32768"
+                models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
+                self.model = random.choice(models)
 
             elif self.provider == "Bedrock":
                 self.model = "anthropic.claude-3-sonnet-20240229-v1:0"
