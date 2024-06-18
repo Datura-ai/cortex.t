@@ -89,7 +89,7 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 100 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 0 + ["Anthropic"] * 0 + ["Groq"] * 0 + ["Bedrock"] * 0
+            providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + ["Groq"] * 20 + ["Bedrock"] * 15
             self.provider = random.choice(providers)
 
             if self.provider == "AnthropicBedrock":
@@ -108,7 +108,6 @@ class TextValidator(BaseValidator):
             elif self.provider == "Anthropic":
                 self.model = "claude-3-opus-20240229"
                 # self.model = "claude-3-sonnet-20240229"
-                # self.model = "claude-instant-1.2"
 
             elif self.provider == "Groq":
                 self.model = "gemma-7b-it"
