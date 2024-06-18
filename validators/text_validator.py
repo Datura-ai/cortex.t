@@ -150,9 +150,10 @@ class TextValidator(BaseValidator):
                     top_p=self.top_p,
                     top_k=self.top_k,
                 )
+                image_info = f" Image: {syn.messages[0]['image']}" if image_url else ""
                 bt.logging.info(
                     f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                    f"timeout {self.timeout}: {syn.messages[0]['content']}"
+                    f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
                 )
                 task = self.query_miner(metagraph, uid, syn)
                 query_tasks.append(task)

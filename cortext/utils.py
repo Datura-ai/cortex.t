@@ -97,8 +97,8 @@ def load_state_from_file(filename: str):
         bt.logging.debug("initialized new global state")
         # Return the default state structure
         return {
-            "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
-            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
+            "text": {"themes": [], "questions": [], "theme_counter": 0, "question_counter": 0},
+            "images": {"themes": [], "questions": [], "theme_counter": 0, "question_counter": 0},
         }
 
 
@@ -238,14 +238,15 @@ async def get_list(list_type, num_questions_needed, theme=None):
         return None
     bt.logging.trace(f"extracted_lists: {extracted_lists}")
 
-    images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
-    for image_url in images_from_pixabay:
-        extracted_lists.append(
-            {
-                "prompt": random.choice(IMAGE_PROMPTS),
-                "image": image_url,
-            }
-        )
+    if list_type == "text_questions":
+        images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+        for image_url in images_from_pixabay:
+            extracted_lists.append(
+                {
+                    "prompt": random.choice(IMAGE_PROMPTS),
+                    "image": image_url,
+                }
+            )
 
     return extracted_lists
 
@@ -302,7 +303,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     return item
 
 
-async def get_question(category, num_questions_needed, vision):
+async def get_question(category, num_questions_needed, vision=False):
     if category not in ["text", "images"]:
         raise ValueError("Invalid category. Must be 'text' or 'images'.")
 
