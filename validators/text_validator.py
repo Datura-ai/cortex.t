@@ -112,14 +112,15 @@ class TextValidator(BaseValidator):
             elif self.provider == "Groq":
                 models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
                 self.model = random.choice(models)
+                available_uids = random.sample(available_uids, 30)
 
             elif self.provider == "Bedrock":
-                self.model = "anthropic.claude-3-sonnet-20240229-v1:0"
-                # self.model = "cohere.command-r-v1:0"
-                # self.model = "meta.llama2-70b-chat-v1"
-                # self.model = "amazon.titan-text-express-v1"
-                # self.model = "mistral.mistral-7b-instruct-v0:2"
-                # self.model = "ai21.j2-mid-v1"
+                models = [
+                    "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
+                    "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
+                    "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1",
+                ]
+                self.model = random.choice(models)
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
 

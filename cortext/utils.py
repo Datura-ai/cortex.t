@@ -273,7 +273,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
     if not extracted_lists:
         bt.logging.error("No valid lists found after processing and retries, returning None")
         return None
-    bt.logging.trace(f"extracted_lists: {extracted_lists}")
 
     if list_type == "text_questions":
         images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
