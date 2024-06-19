@@ -29,12 +29,6 @@ By leveraging synthetic data, Cortex.t circumvents the traditional challenges of
 Join us at Cortex.t, your bridge to AI excellence, and democratise access to top-level AI capabilities. Be part of the AI revolution and stay at the forefront of innovation with SynthPairPro – Synthesizing Intelligence, Empowering the Future!
 
 
-## Development
-
-### Testing
-
-install `nox` (`pip install nox`) and run `nox -s test`.
-
 ## Setup
 
 ### Before you proceed
@@ -72,6 +66,86 @@ Go to the [AWS Management Console](https://aws.amazon.com/console/) and sign in 
 #### 6. Wait for Approval
 - AWS will review your request. This can take some time depending on the specifics of your request and the current availability of AWS Bedrock.
 - You will receive an email notification once your request is approved or if further information is needed.
+
+### Obtaining AWS Access Key and Secret Key
+
+#### 1. Sign In to AWS Management Console
+Go to the [AWS Management Console](https://aws.amazon.com/console/) and sign in with your AWS credentials.
+
+#### 2. Navigate to My Security Credentials
+- Click on your account name at the top right corner of the AWS Management Console.
+- Select "Security Credentials" from the dropdown menu.
+
+#### 3. Create New Access Key
+- In the "My Security Credentials" page, go to the "Access keys" section.
+- Click on "Create Access Key".
+- A pop-up will appear showing your new Access Key ID and Secret Access Key.
+
+#### 4. Download Credentials
+- Download the `.csv` file containing these credentials or copy them to a secure location.
+  - **Important**: This is the only time you will be able to view the secret access key. If you lose it, you will need to create new credentials.
+
+
+### Obtaining API Key from OpenAI
+
+#### 1. OpenAI Account
+Ensure you have an active OpenAI account. If you don't have one, you can create it at [OpenAI Account Creation](https://platform.openai.com/signup).
+
+#### 2. Sign In to OpenAI
+Go to the [OpenAI Platform](https://platform.openai.com/api-keys) and sign in with your OpenAI credentials.
+
+#### 3. Create New API Key
+- Click on the "Create new secret key" button.
+- Follow the instructions provided to create your API key.
+
+
+### Obtaining API Key from Google AI Platform
+
+#### 1. Sign In to Google AI Platform
+Go to the [Google AI Platform](https://aistudio.google.com/) and sign in with your Google credentials.
+
+#### 2. Get API Key
+- In the Google AI Platform, click on the "Get API key" button at the top left corner.
+- Follow the instructions provided to create and retrieve your API key.
+
+
+### Obtaining API Key from Anthropic
+
+#### 1. Anthropic Account
+Ensure you have an active Anthropic account. If you don't have one, you can create it at [Anthropic Account Creation](https://www.anthropic.com/signup).
+
+#### 2. Sign In to Anthropic
+Go to the [Anthropic Platform](https://console.anthropic.com/settings/keys) and sign in with your Anthropic credentials.
+
+#### 3. Get API Key
+- In the Settings, go to the "API keys" tab and click on the "Create key" button at the top right corner.
+- Follow the instructions provided to create and retrieve your API key.
+
+
+### Obtaining API Key from Groq
+
+#### 1. Groq Account
+Ensure you have an active Groq account. If you don't have one, you can create it at [Groq Account Creation](https://groq.com/signup).
+
+#### 2. Sign In to Groq
+Go to the [Groq Platform](https://console.groq.com/) and sign in with your Groq credentials.
+
+#### 3. Get API Key
+- In the Groq Platform, click on the "API keys" button at the left side.
+- Click "Create API key"
+- Follow the instructions provided to create and retrieve your API key.
+
+
+### Obtaining API Key from Pixabay
+
+#### 1. Pixabay Account
+Ensure you have an active Pixabay account. If you don't have one, you can create it at [Pixabay Account Creation](https://pixabay.com/ru/accounts/register/).
+
+#### 2. Sign In to Pixabay
+Go to the [Pixabay API docs](https://pixabay.com/api/docs/) and sign in with your Pixabay credentials.
+
+#### 3. Get API Key
+- Scroll down this page a little. Your key will be highlighted in green in the parameters for one of the requests.
 
 
 ### API Key Requirements

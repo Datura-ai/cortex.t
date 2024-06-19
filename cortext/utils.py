@@ -76,8 +76,42 @@ bedrock_client_parameters = {
 }
 
 
+def validate_state(data):
+    expected_structure = {
+        "text": {"themes": list, "questions": list, "theme_counter": int, "question_counter": int},
+        "images": {"themes": list, "questions": list, "theme_counter": int, "question_counter": int},
+    }
+
+    def check_subdict(subdict, expected):
+        if not isinstance(subdict, dict):
+            return False
+        for key, expected_type in expected.items():
+            if key not in subdict or not isinstance(subdict[key], expected_type):
+                return False
+        return True
+
+    def check_list_of_dicts(lst):
+        if not isinstance(lst, list):
+            return False
+        for item in lst:
+            if not isinstance(item, dict):
+                return False
+        return True
+
+    if not isinstance(data, dict):
+        return False
+    for key, expected_subdict in expected_structure.items():
+        if key not in data or not check_subdict(data[key], expected_subdict):
+            return False
+        if key == "text" and not check_list_of_dicts(data[key]["questions"]):
+            return False
+
+    return True
+
+
 def load_state_from_file(filename: str):
     load_success = False
+    state_is_valid = False
 
     # Check if the file exists
     if os.path.exists(filename):
@@ -86,6 +120,9 @@ def load_state_from_file(filename: str):
                 # Attempt to load JSON from the file
                 bt.logging.debug("loaded previous state")
                 state = json.load(file)
+                state_is_valid = validate_state(state)
+                if not state_is_valid:
+                    raise Exception("State is invalid")
                 load_success = True  # Set flag to true as the operation was successful
                 return state
             except Exception as e:  # Catch specific exceptions for better error handling
@@ -93,7 +130,7 @@ def load_state_from_file(filename: str):
                 os.remove(filename)  # Delete if error
 
     # If the file does not exist or there was an error
-    if not load_success:
+    if not load_success or not state_is_valid:
         bt.logging.debug("initialized new global state")
         # Return the default state structure
         return {
@@ -298,7 +335,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             item = await get_item_from_list(items, vision)
 
         if not items:
-            state[category][item_type] = None
+            state[category][item_type] = []
 
     return item
 
