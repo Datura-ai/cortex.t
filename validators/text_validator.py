@@ -86,6 +86,7 @@ class TextValidator(BaseValidator):
 
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         try:
+            uids_to_query = available_uids
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
@@ -112,7 +113,7 @@ class TextValidator(BaseValidator):
             elif self.provider == "Groq":
                 models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
                 self.model = random.choice(models)
-                available_uids = random.sample(available_uids, 30)
+                uids_to_query = random.sample(available_uids, 30)
 
             elif self.provider == "Bedrock":
                 models = [
@@ -126,10 +127,10 @@ class TextValidator(BaseValidator):
 
             vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0"]
 
-            for uid in available_uids:
+            for uid in uids_to_query:
                 messages = [{"role": "user"}]
                 is_vision_model = self.model in vision_models
-                prompt, image_url = await self.get_new_question(len(available_uids), is_vision_model)
+                prompt, image_url = await self.get_new_question(len(uids_to_query), is_vision_model)
 
                 uid_to_question[uid] = {"prompt": prompt}
                 if image_url:
@@ -209,6 +210,7 @@ class TextValidator(BaseValidator):
 
     async def score_responses(
         self,
+        available_uids: list[int],
         query_responses: list[tuple[int, str]],  # [(uid, response)]
         uid_to_question: dict[int, str],  # uid -> prompt
         metagraph: bt.metagraph,
@@ -240,8 +242,9 @@ class TextValidator(BaseValidator):
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
+        average_score = sum(scored_responses) / len(scored_responses)
 
-        bt.logging.debug(f"scored responses = {scored_responses}")
+        bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
                 scores[uid] = scored_response
@@ -250,6 +253,13 @@ class TextValidator(BaseValidator):
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
+
+        query_response_uids = [item[0] for item in query_responses]
+        for uid in available_uids:
+            if uid not in query_response_uids:
+                scores[uid] = average_score
+                uid_scores_dict[uid] = average_score
+                self.wandb_data["scores"][uid] = average_score
 
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
