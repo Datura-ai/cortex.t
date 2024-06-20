@@ -113,7 +113,9 @@ class TextValidator(BaseValidator):
             elif self.provider == "Groq":
                 models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
                 self.model = random.choice(models)
-                uids_to_query = random.sample(available_uids, 30)
+                num_of_uids_to_pick = 30
+                if num_of_uids_to_pick < len(available_uids):
+                    uids_to_query = random.sample(available_uids, 1)
 
             elif self.provider == "Bedrock":
                 models = [
@@ -242,7 +244,7 @@ class TextValidator(BaseValidator):
                 scoring_tasks.append((uid, task))
 
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
-        average_score = sum(scored_responses) / len(scored_responses)
+        average_score = sum(scored_responses) / len(scored_responses) if scored_responses else 0
 
         bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
@@ -255,11 +257,12 @@ class TextValidator(BaseValidator):
                 uid_scores_dict[uid] = 0
 
         query_response_uids = [item[0] for item in query_responses]
-        for uid in available_uids:
-            if uid not in query_response_uids:
-                scores[uid] = average_score
-                uid_scores_dict[uid] = average_score
-                self.wandb_data["scores"][uid] = average_score
+        if query_response_uids:
+            for uid in available_uids:
+                if uid not in query_response_uids:
+                    scores[uid] = average_score
+                    uid_scores_dict[uid] = average_score
+                    self.wandb_data["scores"][uid] = average_score
 
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
