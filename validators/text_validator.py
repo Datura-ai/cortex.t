@@ -80,6 +80,8 @@ class TextValidator(BaseValidator):
 
     async def get_new_question(self, qty, vision):
         question = await get_question("text", qty, vision)
+        if isinstance(question, str):
+            bt.logging.info(f"Question is str, dict expected: {question}")
         prompt = question.get("prompt")
         image_url = question.get("image")
         return prompt, image_url

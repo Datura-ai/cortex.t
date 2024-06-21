@@ -310,7 +310,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
 
     async def get_item_from_list(items, vision):
         if vision:
-            return items.pop(0) if items else None
+            return items.pop() if items else None
         else:
             for i, itm in enumerate(items):
                 if 'image' not in itm:
@@ -327,7 +327,9 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         item = await get_item_from_list(items, vision)
 
         if not item:
+            bt.logging.info(f"Item not founded in items: {items}. Calling get_items!")
             items = await get_items(category, item_type, theme)
+            bt.logging.info(f"Items generated: {items}")
             state[category][item_type] = items
             bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
 
