@@ -185,7 +185,7 @@ class StreamMiner():
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
         return bt.config(parser)
 
-    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt = 5000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
@@ -193,8 +193,8 @@ class StreamMiner():
             # if hotkey in cortext.WHITELISTED_KEYS:
             #     return False,  f"accepting {synapse_type} request from {hotkey}"
 
-            if hotkey not in valid_hotkeys:
-                return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
+            # if hotkey not in valid_hotkeys:
+            #     return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
             for uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
