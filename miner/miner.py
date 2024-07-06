@@ -174,8 +174,8 @@ class StreamMiner():
         self.thread: threading.Thread = None
         self.lock = asyncio.Lock()
         self.request_timestamps: dict = {}
-        thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        thread.start()
+        # thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
+        # thread.start()
 
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
@@ -205,10 +205,9 @@ class StreamMiner():
                 return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
 
             # check the stake
-            tao = self.metagraph.neurons[uid].S
-            # metagraph.neurons[uid].S
-            if tao < blacklist_amt:
-                return True, f"Blacklisted a low stake {synapse_type} request: {tao} < {blacklist_amt} from {hotkey}"
+            stake = self.metagraph.S[self.metagraph.hotkeys.index(hotkey)]
+            if stake < blacklist_amt:
+                return True, f"Blacklisted a low stake {synapse_type} request: {stake} < {blacklist_amt} from {hotkey}"
 
             time_window = cortext.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
