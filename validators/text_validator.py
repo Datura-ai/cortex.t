@@ -101,35 +101,38 @@ class TextValidator(BaseValidator):
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
             elif self.provider == "OpenAI":
-                self.model = "gpt-4o"
-                # self.model = "gpt-4-1106-preview"
-                # self.model = "gpt-3.5-turbo"
+                models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
+                self.model = random.choice(models)
 
             elif self.provider == "Gemini":
-                self.model = "gemini-pro"
+                models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
+                self.model = random.choice(models)
 
             elif self.provider == "Anthropic":
-                self.model = "claude-3-opus-20240229"
-                # self.model = "claude-3-sonnet-20240229"
+                num_uids_to_pick = 30
+                models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+                self.model = random.choice(models)
 
             elif self.provider == "Groq":
+                num_uids_to_pick = 30
                 models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
                 self.model = random.choice(models)
-                num_of_uids_to_pick = 30
-                if num_of_uids_to_pick < len(available_uids):
-                    uids_to_query = random.sample(available_uids, 1)
 
             elif self.provider == "Bedrock":
                 models = [
                     "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
                     "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
-                    "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1",
+                    "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
+                    "anthropic.claude-3-opus-20240229-v1:0", "anthropic.claude-3-haiku-20240307-v1:0"
                 ]
                 self.model = random.choice(models)
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
 
-            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0"]
+            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0", "claude-3-5-sonnet-20240620"]
+
+            if num_uids_to_pick < len(available_uids):
+                uids_to_query = random.sample(available_uids, num_uids_to_pick)
 
             for uid in uids_to_query:
                 messages = [{"role": "user"}]
@@ -163,6 +166,7 @@ class TextValidator(BaseValidator):
                 self.wandb_data["prompts"][uid] = prompt
 
             query_responses = await asyncio.gather(*query_tasks)
+
             return query_responses, uid_to_question
         except:
             bt.logging.error(f"error in start_query = {traceback.format_exc()}")
