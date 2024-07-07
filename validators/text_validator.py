@@ -89,6 +89,7 @@ class TextValidator(BaseValidator):
     async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
         try:
             uids_to_query = available_uids
+            num_uids_to_pick = len(uids_to_query)
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
@@ -96,15 +97,19 @@ class TextValidator(BaseValidator):
             self.provider = random.choice(providers)
 
             if self.provider == "AnthropicBedrock":
+                num_uids_to_pick = 1
                 # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
                 # anthropic models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
                 # gemini models = ["gemini-pro"]
                 self.model = "anthropic.claude-v2:1"
+
             elif self.provider == "OpenAI":
+                num_uids_to_pick = 30
                 models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
                 self.model = random.choice(models)
 
             elif self.provider == "Gemini":
+                num_uids_to_pick = 30
                 models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
                 self.model = random.choice(models)
 
@@ -119,6 +124,7 @@ class TextValidator(BaseValidator):
                 self.model = random.choice(models)
 
             elif self.provider == "Bedrock":
+                num_uids_to_pick = 30
                 models = [
                     "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
                     "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
@@ -128,12 +134,12 @@ class TextValidator(BaseValidator):
                 self.model = random.choice(models)
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
-
             vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0", "claude-3-5-sonnet-20240620"]
 
             if num_uids_to_pick < len(available_uids):
                 uids_to_query = random.sample(available_uids, num_uids_to_pick)
 
+            bt.logging.debug(f"querying {num_uids_to_pick} uids: {uids_to_query}")
             for uid in uids_to_query:
                 messages = [{"role": "user"}]
                 is_vision_model = self.model in vision_models
@@ -173,7 +179,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 12
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
