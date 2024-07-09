@@ -9,3 +9,6 @@ wandb/
 .vscode
 .envrc
 .idea/
+*.log
+**/logs/**
+venv/
