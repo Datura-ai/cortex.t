@@ -5,7 +5,6 @@ import copy
 import json
 import os
 import pathlib
-import requests
 import threading
 import time
 import traceback
@@ -17,16 +16,12 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from PIL import Image
 from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
-from stability_sdk import client as stability_client
 from stability_sdk import stability_api
-from PIL import Image
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+from anthropic_bedrock import AsyncAnthropicBedrock
 
 import cortext
 from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
@@ -192,8 +187,8 @@ class StreamMiner:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in cortext.WHITELISTED_KEYS and cortext.ENABLE_WHITELISTS:  
-                return False,  f"accepting {synapse_type} request from {hotkey} (whitelisted)"
+            if hotkey in cortext.WHITELISTED_KEYS and cortext.ENABLE_WHITELISTS:
+                return False, f"accepting {synapse_type} request from {hotkey} (whitelisted)"
 
             if not cortext.ENABLE_BLACKLISTS:
                 return False, f"accepting {synapse_type} request from {hotkey} (blacklists bypassed)"
