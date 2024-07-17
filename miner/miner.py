@@ -18,6 +18,7 @@ import google.generativeai as genai
 import wandb
 from stability_sdk import client
 from config import check_config, get_config
+from config import get_endpoint_overrides, override_endpoint_keys, check_endpoint_overrides
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from stability_sdk import stability_api
@@ -29,6 +30,16 @@ from cortext.utils import get_version
 import sys
 
 from starlette.types import Send
+
+
+OVERRIDE_ENDPOINTS = False
+
+
+if check_endpoint_overrides():
+    OVERRIDE_ENDPOINTS = True
+    print("Overriding endpoints with environment variables")
+    override_endpoint_keys()
+
 
 # test to see if there is an overrides yaml file for alternate api keys
 # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
@@ -493,9 +504,150 @@ class StreamMiner:
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
-        # generate overrides loading and use override if it exists as true to provide different token_streamer object
-        # create _prompt_with_provider_overrides
-        token_streamer = partial(_prompt, synapse)
+        async def _prompt_provider_overrides(synapse, send: Send):
+            try:
+                provider = synapse.provider
+                model = synapse.model
+                messages = synapse.messages
+                seed = synapse.seed
+                temperature = synapse.temperature
+                max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
+
+                if provider == "OpenAI":
+                    # Test seeds + higher temperature
+                    response = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        seed=seed,
+                        max_tokens=max_tokens,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Anthropic":
+                    stream = await bedrock_client.completions.create(
+                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
+                        max_tokens_to_sample=max_tokens,
+                        temperature=temperature,  # must be <= 1.0
+                        top_k=top_k,
+                        top_p=top_p,
+                        model=model,
+                        stream=True,
+                    )
+
+                    async for completion in stream:
+                        if completion.completion:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": completion.completion.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {completion.completion}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+                elif provider == "Claude":
+                    system_prompt = None
+                    filtered_messages = []
+                    for message in messages:
+                        if message["role"] == "system":
+                            system_prompt = message["content"]
+                        else:
+                            filtered_messages.append(message)
+
+                    stream_kwargs = {
+                        "max_tokens": max_tokens,
+                        "messages": filtered_messages,
+                        "model": model,
+                    }
+
+                    if system_prompt:
+                        stream_kwargs["system"] = system_prompt
+
+                    completion = claude_client.messages.stream(**stream_kwargs)
+                    async with completion as stream:
+                        async for text in stream.text_stream:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+                elif provider == "Gemini":
+                    model = genai.GenerativeModel(model)
+                    stream = model.generate_content(
+                        str(messages),
+                        stream=True,
+                        generation_config=genai.types.GenerationConfig(
+                            # candidate_count=1,
+                            # stop_sequences=['x'],
+                            temperature=temperature,
+                            # max_output_tokens=max_tokens,
+                            top_p=top_p,
+                            top_k=top_k,
+                            # seed=seed,
+                        ),
+                    )
+                    for chunk in stream:
+                        for part in chunk.candidates[0].content.parts:
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": chunk.text.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed text: {chunk.text}")
+
+                    # Send final message to close the stream
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+
+                else:
+                    bt.logging.error(f"Unknown provider: {provider}")
+
+            except Exception as e:
+                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
+
+        token_streamer = partial(_prompt, synapse) if not OVERRIDE_ENDPOINTS else partial(_prompt_provider_overrides, synapse)
+
         return synapse.create_streaming_response(token_streamer)
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
