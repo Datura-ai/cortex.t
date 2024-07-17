@@ -192,8 +192,11 @@ class StreamMiner:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            # if hotkey in cortext.WHITELISTED_KEYS:
-            #     return False,  f"accepting {synapse_type} request from {hotkey}"
+            if hotkey in cortext.WHITELISTED_KEYS and cortext.ENABLE_WHITELISTS:  
+                return False,  f"accepting {synapse_type} request from {hotkey} (whitelisted)"
+
+            if not cortext.ENABLE_BLACKLISTS:
+                return False, f"accepting {synapse_type} request from {hotkey} (blacklists bypassed)"
 
             if hotkey not in valid_hotkeys:
                 return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
