@@ -23,6 +23,7 @@ from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from stability_sdk import client as stability_client
+from stability_sdk import stability_api
 from PIL import Image
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
@@ -34,6 +35,8 @@ import sys
 
 from starlette.types import Send
 
+# test to see if there is an overrides yaml file for alternate api keys
+# if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
 # Set up api keys from .env file and initialze clients
 
@@ -51,7 +54,9 @@ client = AsyncOpenAI(timeout=60.0)
 
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:
-    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
+    raise ValueError(
+        "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+    )
 
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
@@ -76,7 +81,7 @@ bedrock_client = AsyncAnthropicBedrock(
 anthropic_client = anthropic.Anthropic()
 
 # For google/gemini
-google_key=os.environ.get('GOOGLE_API_KEY')
+google_key = os.environ.get("GOOGLE_API_KEY")
 if not google_key:
     raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
@@ -94,7 +99,8 @@ if not wandb_api_key and not netrc_path.exists():
 
 valid_hotkeys = []
 
-class StreamMiner():
+
+class StreamMiner:
     def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
         bt.logging.info("starting stream miner")
         base_config = copy.deepcopy(config or get_config())
@@ -116,35 +122,25 @@ class StreamMiner():
         # subtensor manages the blockchain connection, facilitating interaction with the Bittensor blockchain.
         self.subtensor = subtensor or bt.subtensor(config=self.config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
-        bt.logging.info(
-            f"Running miner for subnet: {self.config.netuid} "
-            f"on network: {self.subtensor.chain_endpoint} with config:"
-        )
+        bt.logging.info(f"Running miner for subnet: {self.config.netuid} " f"on network: {self.subtensor.chain_endpoint} with config:")
 
         # metagraph provides the network's current state, holding state about other participants in a subnet.
         self.metagraph = self.subtensor.metagraph(self.config.netuid)
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
-            bt.logging.error(
-                f"\nYour miner: {self.wallet} is not registered to this subnet"
-                f"\nRun btcli recycle_register --netuid 18 and try again. "
-            )
+            bt.logging.error(f"\nYour miner: {self.wallet} is not registered to this subnet" f"\nRun btcli recycle_register --netuid 18 and try again. ")
             sys.exit()
         else:
             # Each miner gets a unique identity (UID) in the network for differentiation.
-            self.my_subnet_uid = self.metagraph.hotkeys.index(
-                self.wallet.hotkey.ss58_address
-            )
+            self.my_subnet_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
             bt.logging.info(f"Running miner on uid: {self.my_subnet_uid}")
 
         # The axon handles request processing, allowing validators to send this process requests.
         if axon is not None:
             self.axon = axon
         elif self.config.axon.external_ip is not None:
-            bt.logging.debug(
-                f"Starting axon on port {self.config.axon.port} and external ip {self.config.axon.external_ip}"
-            )
+            bt.logging.debug(f"Starting axon on port {self.config.axon.port} and external ip {self.config.axon.external_ip}")
             self.axon = bt.axon(
                 wallet=self.wallet,
                 port=self.config.axon.port,
@@ -153,7 +149,7 @@ class StreamMiner():
         else:
             bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
             self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-        
+
         # Attach determiners which functions are called when servicing a request.
         bt.logging.info("Attaching forward function to axon.")
         print(f"Attaching forward function to axon. {self.prompt}")
@@ -182,7 +178,7 @@ class StreamMiner():
         self.request_timestamps: dict = {}
         thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
         thread.start()
-    
+
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
@@ -191,12 +187,12 @@ class StreamMiner():
         parser = argparse.ArgumentParser(description="Streaming Miner Configs")
         return bt.config(parser)
 
-    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt=20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            # if hotkey in cortext.WHITELISTED_KEYS:  
+            # if hotkey in cortext.WHITELISTED_KEYS:
             #     return False,  f"accepting {synapse_type} request from {hotkey}"
 
             if hotkey not in valid_hotkeys:
@@ -232,7 +228,7 @@ class StreamMiner():
                     True,
                     f"Request frequency for {hotkey} exceeded: "
                     f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
-                    f"Limit is {cortext.MAX_REQUESTS} requests."
+                    f"Limit is {cortext.MAX_REQUESTS} requests.",
                 )
 
             self.request_timestamps[hotkey].append(current_time)
@@ -242,23 +238,22 @@ class StreamMiner():
         except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
-
-    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+    def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
-    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+    def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+    def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
@@ -274,9 +269,9 @@ class StreamMiner():
             )
             sys.exit()
         bt.logging.info(
-            f"Serving axon {StreamPrompting} "
-            f"on network: {self.config.subtensor.chain_endpoint} "
-            f"with netuid: {self.config.netuid}"
+            f"Serving axon {StreamPrompting} ",
+            f"on network: {self.config.subtensor.chain_endpoint} ",
+            f"with netuid: {self.config.netuid}",
         )
         self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
@@ -291,10 +286,7 @@ class StreamMiner():
 
                 # --- Wait until next epoch.
                 current_block = self.subtensor.get_current_block()
-                while (
-                    current_block - self.last_epoch_block
-                    < self.config.miner.blocks_per_epoch
-                ):
+                while current_block - self.last_epoch_block < self.config.miner.blocks_per_epoch:
                     # --- Wait for next block.
                     time.sleep(1)
                     current_block = self.subtensor.get_current_block()
@@ -372,7 +364,6 @@ class StreamMiner():
                 top_p = synapse.top_p
                 top_k = synapse.top_k
 
-
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
                     response = await client.chat.completions.create(
@@ -381,7 +372,7 @@ class StreamMiner():
                         temperature=temperature,
                         stream=True,
                         seed=seed,
-                        max_tokens=max_tokens
+                        max_tokens=max_tokens,
                     )
                     buffer = []
                     n = 1
@@ -434,7 +425,7 @@ class StreamMiner():
                             bt.logging.info(f"Streamed text: {completion.completion}")
 
                     # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
 
                 elif provider == "Claude":
                     system_prompt = None
@@ -444,7 +435,7 @@ class StreamMiner():
                             system_prompt = message["content"]
                         else:
                             filtered_messages.append(message)
-                    
+
                     stream_kwargs = {
                         "max_tokens": max_tokens,
                         "messages": filtered_messages,
@@ -467,8 +458,8 @@ class StreamMiner():
                             bt.logging.info(f"Streamed text: {text}")
 
                     # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
-                    
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
                     stream = model.generate_content(
@@ -482,7 +473,7 @@ class StreamMiner():
                             top_p=top_p,
                             top_k=top_k,
                             # seed=seed,
-                        )
+                        ),
                     )
                     for chunk in stream:
                         for part in chunk.candidates[0].content.parts:
@@ -496,7 +487,7 @@ class StreamMiner():
                             bt.logging.info(f"Streamed text: {chunk.text}")
 
                     # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
@@ -504,6 +495,8 @@ class StreamMiner():
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
+        # generate overrides loading and use override if it exists as true to provide different token_streamer object
+        # create _prompt_with_provider_overrides
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
@@ -536,7 +529,7 @@ class StreamMiner():
                     size=size,
                     quality=quality,
                     style=style,
-                    )
+                )
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
                 image_data["url"] = image_url
@@ -578,14 +571,18 @@ class StreamMiner():
         bt.logging.info(f"entered embeddings processing for embeddings of len {len(synapse.texts)}")
 
         async def get_embeddings_in_batch(texts, model, batch_size=10):
-            batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+            batches = [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
             tasks = []
             for batch in batches:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
-                    task = asyncio.create_task(client.embeddings.create(
-                        input=filtered_batch, model=model, encoding_format='float'
-                    ))
+                    task = asyncio.create_task(
+                        client.embeddings.create(
+                            input=filtered_batch,
+                            model=model,
+                            encoding_format="float",
+                        )
+                    )
                     tasks.append(task)
                 else:
                     bt.logging.info("Skipped an empty batch.")
@@ -630,9 +627,9 @@ def get_valid_hotkeys(config):
                 if run.state == "running":
                     try:
                         # Extract hotkey and signature from the run's configuration
-                        hotkey = run.config['hotkey']
-                        signature = run.config['signature']
-                        version = run.config['version']
+                        hotkey = run.config["hotkey"]
+                        signature = run.config["signature"]
+                        version = run.config["version"]
                         bt.logging.debug(f"found running run of hotkey {hotkey}, {version} ")
 
                         if latest_version is None:
@@ -640,9 +637,7 @@ def get_valid_hotkeys(config):
                             continue
 
                         if latest_version not in (version, None):
-                            bt.logging.debug(
-                                f"Version Mismatch: Run version {version} does not match GitHub version {latest_version}"
-                            )
+                            bt.logging.debug(f"Version Mismatch: Run version {version} does not match GitHub version {latest_version}")
                             continue
 
                         # Check if the hotkey is registered in the metagraph
@@ -671,5 +666,3 @@ if __name__ == "__main__":
     with StreamMiner():
         while True:
             time.sleep(1)
-
-
