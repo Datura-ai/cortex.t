@@ -625,7 +625,7 @@ class StreamMiner:
 
                 elif provider == "Anthropic":
                     # Test seeds + higher temperature
-                    response = await client.chat.completions.create(
+                    response = await anthropic_client.chat.completions.create(
                         model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-2.1"),
                         messages=f"\n\nHuman: {messages}\n\nAssistant:",
                         # messages=messages,
@@ -677,7 +677,7 @@ class StreamMiner:
                     if system_prompt:
                         filtered_messages = [{"role": "system", "content": system_prompt}] + filtered_messages
 
-                    response = await client.chat.completions.create(
+                    response = await claude_client.chat.completions.create(
                         model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-3-opus"),
                         messages=filtered_messages,
                         # temperature=temperature,
