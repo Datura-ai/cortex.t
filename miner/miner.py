@@ -588,7 +588,7 @@ class StreamMiner:
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
                     response = await client.chat.completions.create(
-                        model=model,
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "openai/gpt-4o"),
                         messages=messages,
                         temperature=temperature,
                         stream=True,
@@ -624,29 +624,45 @@ class StreamMiner:
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 elif provider == "Anthropic":
-                    stream = await bedrock_client.completions.create(
-                        prompt=f"\n\nHuman: {messages}\n\nAssistant:",
-                        max_tokens_to_sample=max_tokens,
-                        temperature=temperature,  # must be <= 1.0
+                    # Test seeds + higher temperature
+                    response = await client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-2.1"),
+                        messages=f"\n\nHuman: {messages}\n\nAssistant:",
+                        # messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        # seed=seed,
+                        max_tokens=max_tokens,
                         top_k=top_k,
                         top_p=top_p,
-                        model=model,
-                        stream=True,
                     )
-
-                    async for completion in stream:
-                        if completion.completion:
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
                             await send(
                                 {
                                     "type": "http.response.body",
-                                    "body": completion.completion.encode("utf-8"),
+                                    "body": joined_buffer.encode("utf-8"),
                                     "more_body": True,
                                 }
                             )
-                            bt.logging.info(f"Streamed text: {completion.completion}")
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
 
-                    # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 elif provider == "Claude":
                     system_prompt = None
