@@ -33,65 +33,65 @@ from starlette.types import Send
 
 
 OVERRIDE_ENDPOINTS = False
-
+valid_hotkeys = []
+override_endpoint_map = {}
 
 if check_endpoint_overrides():
     OVERRIDE_ENDPOINTS = True
     print("Overriding endpoints with environment variables")
     override_endpoint_keys()
+else:
+    # test to see if there is an overrides yaml file for alternate api keys
+    # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
+    # Set up api keys from .env file and initialze clients
 
-# test to see if there is an overrides yaml file for alternate api keys
-# if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
+    # OpenAI
+    OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
+    if not OpenAI.api_key:
+        raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-# Set up api keys from .env file and initialze clients
+    client = AsyncOpenAI(timeout=60.0)
 
-# OpenAI
-OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
-if not OpenAI.api_key:
-    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+    # Stability
+    # stability_key = os.environ.get("STABILITY_API_KEY")
+    # if not stability_key:
+    #     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
-client = AsyncOpenAI(timeout=60.0)
+    claude_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not claude_key:
+        raise ValueError(
+            "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+        )
 
-# Stability
-# stability_key = os.environ.get("STABILITY_API_KEY")
-# if not stability_key:
-#     raise ValueError("Please set the STABILITY_KEY environment variable.")
+    claude_client = AsyncAnthropic()
+    claude_client.api_key = claude_key
 
-claude_key = os.environ.get("ANTHROPIC_API_KEY")
-if not claude_key:
-    raise ValueError(
-        "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+    # stability_api = stability_client.StabilityInference(
+    #     key=stability_key,
+    #     verbose=True,
+    # )
+
+    # Anthropic
+    # Only if using the official claude for access instead of aws bedrock
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    anthropic_client = anthropic.Anthropic()
+    anthropic_client.api_key = api_key
+
+    # For AWS bedrock (default)
+    bedrock_client = AsyncAnthropicBedrock(
+        # default is 10 minutes
+        # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+        timeout=60.0,
     )
+    anthropic_client = anthropic.Anthropic()
 
-claude_client = AsyncAnthropic()
-claude_client.api_key = claude_key
+    # For google/gemini
+    google_key = os.environ.get("GOOGLE_API_KEY")
+    if not google_key:
+        raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
 
-# stability_api = stability_client.StabilityInference(
-#     key=stability_key,
-#     verbose=True,
-# )
-
-# Anthropic
-# Only if using the official claude for access instead of aws bedrock
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-anthropic_client = anthropic.Anthropic()
-anthropic_client.api_key = api_key
-
-# For AWS bedrock (default)
-bedrock_client = AsyncAnthropicBedrock(
-    # default is 10 minutes
-    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
-    timeout=60.0,
-)
-anthropic_client = anthropic.Anthropic()
-
-# For google/gemini
-google_key = os.environ.get("GOOGLE_API_KEY")
-if not google_key:
-    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
-
-genai.configure(api_key=google_key)
+    genai.configure(api_key=google_key)
 
 
 # Wandb
@@ -102,8 +102,6 @@ bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
-
-valid_hotkeys = []
 
 
 class StreamMiner:
@@ -646,7 +644,7 @@ class StreamMiner:
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
-        token_streamer = partial(_prompt, synapse) if not OVERRIDE_ENDPOINTS else partial(_prompt_provider_overrides, synapse)
+        token_streamer = partial(_prompt_provider_overrides, synapse) if OVERRIDE_ENDPOINTS else partial(_prompt, synapse)
 
         return synapse.create_streaming_response(token_streamer)
 
