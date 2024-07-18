@@ -673,29 +673,45 @@ class StreamMiner:
                         else:
                             filtered_messages.append(message)
 
-                    stream_kwargs = {
-                        "max_tokens": max_tokens,
-                        "messages": filtered_messages,
-                        "model": model,
-                    }
-
+                    #  Make sure system prompt is at the beginning for OpenAI API
                     if system_prompt:
-                        stream_kwargs["system"] = system_prompt
+                        filtered_messages = [{"role": "system", "content": system_prompt}] + filtered_messages
 
-                    completion = claude_client.messages.stream(**stream_kwargs)
-                    async with completion as stream:
-                        async for text in stream.text_stream:
+                    response = await client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-3-opus"),
+                        messages=filtered_messages,
+                        # temperature=temperature,
+                        stream=True,
+                        # seed=seed,
+                        max_tokens=max_tokens,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
                             await send(
                                 {
                                     "type": "http.response.body",
-                                    "body": text.encode("utf-8"),
+                                    "body": joined_buffer.encode("utf-8"),
                                     "more_body": True,
                                 }
                             )
-                            bt.logging.info(f"Streamed text: {text}")
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
 
-                    # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 elif provider == "Gemini":
                     model = genai.GenerativeModel(model)
