@@ -1,5 +1,8 @@
 import argparse
 from pathlib import Path
+from os import environ, path
+from sys import argv
+from msgspec import yaml
 
 import bittensor as bt
 
@@ -7,21 +10,19 @@ import bittensor as bt
 def check_config(cls, config: bt.config):
     bt.axon.check_config(config)
     bt.logging.check_config(config)
-    full_path = Path(f'{config.logging.logging_dir}/{config.wallet.get("name", bt.defaults.wallet.name)}/'
-                     f'{config.wallet.get("hotkey", bt.defaults.wallet.hotkey)}/{config.miner.name}').expanduser()
+    full_path = Path(
+        f'{config.logging.logging_dir}/{config.wallet.get("name", bt.defaults.wallet.name)}/'
+        f'{config.wallet.get("hotkey", bt.defaults.wallet.hotkey)}/{config.miner.name}'
+    ).expanduser()
     config.miner.full_path = str(full_path)
     full_path.mkdir(parents=True, exist_ok=True)
 
 
 def get_config() -> bt.config:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--axon.port", type=int, default=8098, help="Port to run the axon on."
-    )
-    # External IP 
-    parser.add_argument(
-        "--axon.external_ip", type=str, default=bt.utils.networking.get_external_ip(), help="IP for the metagraph"
-    )
+    parser.add_argument("--axon.port", type=int, default=8098, help="Port to run the axon on.")
+    # External IP
+    parser.add_argument("--axon.external_ip", type=str, default=bt.utils.networking.get_external_ip(), help="IP for the metagraph")
     # Subtensor network to connect to
     parser.add_argument(
         "--subtensor.network",
@@ -103,9 +104,54 @@ def get_config() -> bt.config:
     config = bt.config(parser)
 
     # Logging captures events for diagnosis or understanding miner's behavior.
-    full_path = Path(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}"
-                     f"/netuid{config.netuid}/miner").expanduser()
+    full_path = Path(f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}" f"/netuid{config.netuid}/miner").expanduser()
     config.full_path = str(full_path)
     # Ensure the directory for logging exists, else create one.
     full_path.mkdir(parents=True, exist_ok=True)
     return config
+
+
+def check_endpoint_overrides() -> bool:
+    """Check if the endpoint_overrides.yaml file exists in the current directory or script directory.
+
+    Returns:
+        bool: True if the file exists in either location, False otherwise."""
+
+    file_path = path.join(path.dirname(__file__), "endpoint_overrides.yaml")
+    script_dir_file_path = path.join(path.dirname(path.abspath(argv[0])), "endpoint_overrides.yaml")
+    return path.exists(file_path) or path.exists(script_dir_file_path)
+
+
+def get_endpoint_overrides() -> dict:
+    """Get endpoint overrides from the endpoint_overrides.yaml file.
+
+    Returns:
+        dict: A dictionary containing the endpoint overrides.
+
+    Raises:
+        FileNotFoundError: If the endpoint_overrides.yaml file is not found.
+        Exception: If an error occurs while reading the file.
+    """
+
+    if not check_endpoint_overrides():
+        return {}
+    try:
+        with open(path.join(path.dirname(__file__), "endpoint_overrides.yaml"), "r") as f:
+            return yaml.decode(f.read())
+    except FileNotFoundError:
+        with open(path.join(path.dirname(path.abspath(argv[0])), "endpoint_overrides.yaml"), "r") as f:
+            return yaml.decode(f.read())
+    except Exception:
+        raise
+
+
+def override_endpoint_keys() -> None:
+    """Override endpoint keys based on the values provided in the endpoint_overrides.yaml file.
+
+    Args:
+        None
+
+    Returns:
+        None"""
+
+    environ.update(get_endpoint_overrides().get("OVERRIDE_ENVIRONMENT_KEYS", {}))

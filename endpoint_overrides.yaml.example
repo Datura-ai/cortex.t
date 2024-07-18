@@ -1,17 +1,56 @@
-ModelMaps:
-  davinci-002: openai/gpt-3.5-turbo-instruct
-  gpt-4-1106-preview: openai/gpt-3.5-turbo-instruct
-  gpt-4-turbo-preview: openai/gpt-3.5-turbo-instruct
-  gpt-4-0125-preview: openai/gpt-3.5-turbo-instruct
-  babbage-002: openai/gpt-3.5-turbo-instruct
-  gpt-4: openai/gpt-3.5-turbo-instruct
-  gpt-4-0613: openai/gpt-3.5-turbo-instruct
-  gpt-3.5-turbo-16k: openai/gpt-3.5-turbo-16k
-  gpt-4o: openai/gpt-4o
-  gpt-4o-2024-05-13: openai/gpt-3.5-turbo-instruct
-OVERRIDE_ENVIRONMENT_KEYS:
+ENVIRONMENT_KEY:
   OPENAI_API_KEY: some_default_key
   WANDB_API_KEY: some_default_key
   ANTHROPIC_API_KEY: some_default_key
   GOOGLE_API_KEY: some_default_key
   OPENROUTER_API_KEY: some_default_key
+ModelMap:
+  davinci-002:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-4-1106-preview:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-4-turbo-preview:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-3.5-turbo-instruct:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-3.5-turbo-0301:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-3.5-turbo-0125:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-3.5-turbo:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-4-turbo-2024-04-09:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-4-turbo:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-3.5-turbo-0613:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  gpt-4o:
+    ModelName: gpt-4o
+    ServiceEndpoint: OpenRouter
+  gpt-4o-2024-05-13:
+    ModelName: openai/gpt-3.5-turbo-instruct
+    ServiceEndpoint: OpenRouter
+  claude-3-opus-20240229:
+    ModelName: anthropic/claude-3-haiku
+    ServiceEndpoint: OpenRouter
+  gemini-pro:
+    ModelName: google/gemini-pro
+    ServiceEndpoint: OpenRouter
+ServiceEndpoint:
+  OpenRouter:
+    api: https://openrouter.ai/api/v1
+    ENVIRONMENT_KEY: OPENROUTER_API_KEY
+  OpenAI:
+    api: https://api.openai.com/v1
+    ENVIRONMENT_KEY: OPENAI_API_KEY

@@ -5,7 +5,6 @@ import copy
 import json
 import os
 import pathlib
-import requests
 import threading
 import time
 import traceback
@@ -17,16 +16,13 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from PIL import Image
 from stability_sdk import client
 from config import check_config, get_config
+from config import get_endpoint_overrides, override_endpoint_keys, check_endpoint_overrides
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
-from stability_sdk import client as stability_client
 from stability_sdk import stability_api
-from PIL import Image
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+from anthropic_bedrock import AsyncAnthropicBedrock
 
 import cortext
 from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
@@ -35,57 +31,139 @@ import sys
 
 from starlette.types import Send
 
-# test to see if there is an overrides yaml file for alternate api keys
-# if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
-# Set up api keys from .env file and initialze clients
+OVERRIDE_ENDPOINTS = False
+valid_hotkeys = []
+ENDPOINT_OVERRIDE_MAP = {}
 
-# OpenAI
-OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
-if not OpenAI.api_key:
-    raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+if check_endpoint_overrides():
+    # test to see if there is an overrides yaml file for alternate api keys
+    # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
-client = AsyncOpenAI(timeout=60.0)
+    OVERRIDE_ENDPOINTS = True
+    print("Overriding endpoints with yaml environment variables")
+    override_endpoint_keys()
+    ENDPOINT_OVERRIDE_MAP = get_endpoint_overrides()
 
-# Stability
-# stability_key = os.environ.get("STABILITY_API_KEY")
-# if not stability_key:
-#     raise ValueError("Please set the STABILITY_KEY environment variable.")
+    # Set up api keys from .env file and initialze clients
 
-claude_key = os.environ.get("ANTHROPIC_API_KEY")
-if not claude_key:
-    raise ValueError(
-        "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+    # OpenRouter uses OpenAI's API spec
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
+
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=60.0,
     )
 
-claude_client = AsyncAnthropic()
-claude_client.api_key = claude_key
+    # Stability
+    # stability_key = os.environ.get("STABILITY_API_KEY")
+    # if not stability_key:
+    #     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
-# stability_api = stability_client.StabilityInference(
-#     key=stability_key,
-#     verbose=True,
-# )
+    claude_key = os.environ.get("OPENROUTER_API_KEY")
+    if not claude_key:
+        raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
-# Anthropic
-# Only if using the official claude for access instead of aws bedrock
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-anthropic_client = anthropic.Anthropic()
-anthropic_client.api_key = api_key
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
 
-# For AWS bedrock (default)
-bedrock_client = AsyncAnthropicBedrock(
-    # default is 10 minutes
-    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
-    timeout=60.0,
-)
-anthropic_client = anthropic.Anthropic()
+    claude_client = AsyncOpenAI(
+        api_key=claude_key,
+        base_url=base_url,
+        timeout=60.0,
+    )
+    # claude_client.api_key = claude_key
 
-# For google/gemini
-google_key = os.environ.get("GOOGLE_API_KEY")
-if not google_key:
-    raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+    # stability_api = stability_client.StabilityInference(
+    #     key=stability_key,
+    #     verbose=True,
+    # )
 
-genai.configure(api_key=google_key)
+    # Anthropic
+    # Only if using the official claude for access instead of aws bedrock
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
+    anthropic_client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=60.0,
+    )
+
+    # For AWS bedrock (default)
+    bedrock_client = AsyncOpenAI(
+        api_key=api_key,
+        base_url=base_url,
+        timeout=60.0,
+    )
+    # anthropic_client = anthropic.Anthropic() # Remove - Redundant, but kept for clarity
+
+    # For google/gemini
+    google_key = os.environ.get("OPENROUTER_API_KEY")
+    if not google_key:
+        raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
+
+    # genai.configure(api_key=google_key)
+    google_genai_client = AsyncOpenAI(
+        api_key=google_key,
+        base_url=base_url,
+        timeout=60.0,
+    )
+
+
+else:
+    # Set up api keys from .env file and initialze clients
+
+    # OpenAI
+    OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
+    if not OpenAI.api_key:
+        raise ValueError("Please set the OPENAI_API_KEY environment variable.")
+
+    client = AsyncOpenAI(timeout=60.0)
+
+    # Stability
+    # stability_key = os.environ.get("STABILITY_API_KEY")
+    # if not stability_key:
+    #     raise ValueError("Please set the STABILITY_KEY environment variable.")
+
+    claude_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not claude_key:
+        raise ValueError(
+            "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+        )
+
+    claude_client = AsyncAnthropic()
+    claude_client.api_key = claude_key
+
+    # stability_api = stability_client.StabilityInference(
+    #     key=stability_key,
+    #     verbose=True,
+    # )
+
+    # Anthropic
+    # Only if using the official claude for access instead of aws bedrock
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    anthropic_client = anthropic.Anthropic()
+    anthropic_client.api_key = api_key
+
+    # For AWS bedrock (default)
+    bedrock_client = AsyncAnthropicBedrock(
+        # default is 10 minutes
+        # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+        timeout=60.0,
+    )
+    anthropic_client = anthropic.Anthropic()
+
+    # For google/gemini
+    google_key = os.environ.get("GOOGLE_API_KEY")
+    if not google_key:
+        raise ValueError("Please set the GOOGLE_API_KEY environment variable.")
+
+    genai.configure(api_key=google_key)
 
 
 # Wandb
@@ -96,8 +174,6 @@ bt.logging.info("~/.netrc exists:", netrc_path.exists())
 
 if not wandb_api_key and not netrc_path.exists():
     raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
-
-valid_hotkeys = []
 
 
 class StreamMiner:
@@ -192,8 +268,8 @@ class StreamMiner:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 
-            if hotkey in cortext.WHITELISTED_KEYS and cortext.ENABLE_WHITELISTS:  
-                return False,  f"accepting {synapse_type} request from {hotkey} (whitelisted)"
+            if hotkey in cortext.WHITELISTED_KEYS and cortext.ENABLE_WHITELISTS:
+                return False, f"accepting {synapse_type} request from {hotkey} (whitelisted)"
 
             if not cortext.ENABLE_BLACKLISTS:
                 return False, f"accepting {synapse_type} request from {hotkey} (blacklists bypassed)"
@@ -319,7 +395,7 @@ class StreamMiner:
 
                 # --- Set weights.
                 if not self.config.miner.no_set_weights:
-                    pass
+                    ...  # do nothing about it for now i guess
                 step += 1
 
         except KeyboardInterrupt:
@@ -498,9 +574,192 @@ class StreamMiner:
             except Exception as e:
                 bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
 
-        # generate overrides loading and use override if it exists as true to provide different token_streamer object
-        # create _prompt_with_provider_overrides
-        token_streamer = partial(_prompt, synapse)
+        async def _prompt_provider_overrides(synapse, send: Send):
+            try:
+                provider = synapse.provider
+                model = synapse.model
+                messages = synapse.messages
+                seed = synapse.seed
+                temperature = synapse.temperature
+                max_tokens = synapse.max_tokens
+                top_p = synapse.top_p
+                top_k = synapse.top_k
+
+                if provider == "OpenAI":
+                    # Test seeds + higher temperature
+                    response = await client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "openai/gpt-4o"),
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        seed=seed,
+                        max_tokens=max_tokens,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Anthropic":
+                    # Test seeds + higher temperature
+                    response = await anthropic_client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-2.1"),
+                        messages=f"\n\nHuman: {messages}\n\nAssistant:",
+                        # messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        # seed=seed,
+                        max_tokens=max_tokens,
+                        top_k=top_k,
+                        top_p=top_p,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Claude":
+                    system_prompt = None
+                    filtered_messages = []
+                    for message in messages:
+                        if message["role"] == "system":
+                            system_prompt = message["content"]
+                        else:
+                            filtered_messages.append(message)
+
+                    #  Make sure system prompt is at the beginning for OpenAI API
+                    if system_prompt:
+                        filtered_messages = [{"role": "system", "content": system_prompt}] + filtered_messages
+
+                    response = await claude_client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-3-opus"),
+                        messages=filtered_messages,
+                        # temperature=temperature,
+                        stream=True,
+                        # seed=seed,
+                        max_tokens=max_tokens,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                elif provider == "Gemini":
+                    response = await google_genai_client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "google/gemini-pro"),
+                        messages=messages,
+                        temperature=temperature,
+                        stream=True,
+                        # seed=seed,
+                        # max_tokens=max_tokens,
+                        top_p=top_p,
+                        top_k=top_k,
+                    )
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": joined_buffer.encode("utf-8"),
+                                    "more_body": True,
+                                }
+                            )
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
+
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
+
+                else:
+                    bt.logging.error(f"Unknown provider: {provider}")
+
+            except Exception as e:
+                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
+
+        token_streamer = partial(_prompt_provider_overrides, synapse) if OVERRIDE_ENDPOINTS else partial(_prompt, synapse)
+
         return synapse.create_streaming_response(token_streamer)
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
