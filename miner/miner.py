@@ -714,33 +714,43 @@ class StreamMiner:
                         bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 elif provider == "Gemini":
-                    model = genai.GenerativeModel(model)
-                    stream = model.generate_content(
-                        str(messages),
+                    response = await google_genai_client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "google/gemini-pro"),
+                        messages=messages,
+                        temperature=temperature,
                         stream=True,
-                        generation_config=genai.types.GenerationConfig(
-                            # candidate_count=1,
-                            # stop_sequences=['x'],
-                            temperature=temperature,
-                            # max_output_tokens=max_tokens,
-                            top_p=top_p,
-                            top_k=top_k,
-                            # seed=seed,
-                        ),
+                        # seed=seed,
+                        # max_tokens=max_tokens,
+                        top_p=top_p,
+                        top_k=top_k,
                     )
-                    for chunk in stream:
-                        for part in chunk.candidates[0].content.parts:
+                    buffer = []
+                    n = 1
+                    async for chunk in response:
+                        token = chunk.choices[0].delta.content or ""
+                        buffer.append(token)
+                        if len(buffer) == n:
+                            joined_buffer = "".join(buffer)
                             await send(
                                 {
                                     "type": "http.response.body",
-                                    "body": chunk.text.encode("utf-8"),
+                                    "body": joined_buffer.encode("utf-8"),
                                     "more_body": True,
                                 }
                             )
-                            bt.logging.info(f"Streamed text: {chunk.text}")
+                            bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                            buffer = []
 
-                    # Send final message to close the stream
-                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                    if buffer:
+                        joined_buffer = "".join(buffer)
+                        await send(
+                            {
+                                "type": "http.response.body",
+                                "body": joined_buffer.encode("utf-8"),
+                                "more_body": False,
+                            }
+                        )
+                        bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
                 else:
                     bt.logging.error(f"Unknown provider: {provider}")
