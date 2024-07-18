@@ -395,7 +395,7 @@ class StreamMiner:
 
                 # --- Set weights.
                 if not self.config.miner.no_set_weights:
-                    pass
+                    ...  # do nothing about it for now i guess
                 step += 1
 
         except KeyboardInterrupt:
