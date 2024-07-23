@@ -11,6 +11,7 @@ import traceback
 import anthropic
 from collections import deque
 from functools import partial
+from random import choice as random_choice
 from typing import Tuple
 
 import bittensor as bt
@@ -35,6 +36,7 @@ from starlette.types import Send
 OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
+image_multi_clients = None
 
 if check_endpoint_overrides():
     alt_llm_service = "OpenRouter"
@@ -806,13 +808,23 @@ class StreamMiner:
             bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
-                meta = await openAI_image_client.images.generate(
-                    model=model,
-                    prompt=messages,
-                    size=size,
-                    quality=quality,
-                    style=style,
-                )
+                if OVERRIDE_ENDPOINTS:
+                    randomized_image_client = image_client_lfu_with_random_tie_breaking()
+                    meta = await randomized_image_client.images.generate(
+                        model=model,
+                        prompt=messages,
+                        size=size,
+                        quality=quality,
+                        style=style,
+                    )
+                else:
+                    meta = await openAI_image_client.images.generate(
+                        model=model,
+                        prompt=messages,
+                        size=size,
+                        quality=quality,
+                        style=style,
+                    )
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
                 image_data["url"] = image_url
@@ -895,6 +907,21 @@ class StreamMiner:
         bt.logging.debug("answered to be active")
         synapse.completion = "True"
         return synapse
+
+
+def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
+    #  returns Least Frequently Used AsyncOpenAIclient object with random tie breaking
+    global image_multi_clients
+
+    min_frequency = min(item[1] for item in image_multi_clients)
+
+    least_used_clients = [x for x in image_multi_clients if x[1] == min_frequency]
+
+    image_client = random_choice(least_used_clients)
+
+    image_client[1] += 1
+
+    return image_client[0]
 
 
 def get_valid_hotkeys(config):
