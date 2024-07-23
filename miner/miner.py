@@ -37,6 +37,8 @@ valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
 
 if check_endpoint_overrides():
+    alt_llm_service = "OpenRouter"
+    alt_image_service = "OpenAI"
     # test to see if there is an overrides yaml file for alternate api keys
     # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
@@ -48,13 +50,13 @@ if check_endpoint_overrides():
     # Set up api keys from .env file and initialze clients
 
     # OpenRouter uses OpenAI's API spec
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not api_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("api", "")
 
-    client = AsyncOpenAI(
+    openAI_client = AsyncOpenAI(
         api_key=api_key,
         base_url=base_url,
         timeout=60.0,
@@ -65,11 +67,11 @@ if check_endpoint_overrides():
     # if not stability_key:
     #     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
-    claude_key = os.environ.get("OPENROUTER_API_KEY")
+    claude_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not claude_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("api", "")
 
     claude_client = AsyncOpenAI(
         api_key=claude_key,
@@ -85,7 +87,7 @@ if check_endpoint_overrides():
 
     # Anthropic
     # Only if using the official claude for access instead of aws bedrock
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not api_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
     anthropic_client = AsyncOpenAI(
@@ -103,7 +105,7 @@ if check_endpoint_overrides():
     # anthropic_client = anthropic.Anthropic() # Remove - Redundant, but kept for clarity
 
     # For google/gemini
-    google_key = os.environ.get("OPENROUTER_API_KEY")
+    google_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not google_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
@@ -123,7 +125,9 @@ else:
     if not OpenAI.api_key:
         raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-    client = AsyncOpenAI(timeout=60.0)
+    openAI_client = AsyncOpenAI(timeout=60.0)
+
+    openAI_image_client = AsyncOpenAI(timeout=60.0)
 
     # Stability
     # stability_key = os.environ.get("STABILITY_API_KEY")
@@ -445,7 +449,7 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
-                    response = await client.chat.completions.create(
+                    response = await openAI_client.chat.completions.create(
                         model=model,
                         messages=messages,
                         temperature=temperature,
@@ -587,7 +591,7 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
-                    response = await client.chat.completions.create(
+                    response = await openAI_client.chat.completions.create(
                         model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "openai/gpt-4o"),
                         messages=messages,
                         temperature=temperature,
@@ -785,7 +789,7 @@ class StreamMiner:
             bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
-                meta = await client.images.generate(
+                meta = await openAI_image_client.images.generate(
                     model=model,
                     prompt=messages,
                     size=size,
@@ -839,7 +843,7 @@ class StreamMiner:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
                     task = asyncio.create_task(
-                        client.embeddings.create(
+                        openAI_client.embeddings.create(
                             input=filtered_batch,
                             model=model,
                             encoding_format="float",
