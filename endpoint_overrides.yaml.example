@@ -4,7 +4,7 @@ ENVIRONMENT_KEY:
   ANTHROPIC_API_KEY: some_default_key
   GOOGLE_API_KEY: some_default_key
   OPENROUTER_API_KEY: some_default_key
-ModelMap:
+LlmModelMap:
   davinci-002:
     ModelName: openai/gpt-3.5-turbo-instruct
     ServiceEndpoint: OpenRouter
