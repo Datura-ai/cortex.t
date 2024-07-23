@@ -11,6 +11,7 @@ import traceback
 import anthropic
 from collections import deque
 from functools import partial
+from random import choice as random_choice
 from typing import Tuple
 
 import bittensor as bt
@@ -35,8 +36,11 @@ from starlette.types import Send
 OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
+image_multi_clients = None
 
 if check_endpoint_overrides():
+    alt_llm_service = "OpenRouter"
+    alt_image_service = "OpenAI"
     # test to see if there is an overrides yaml file for alternate api keys
     # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
@@ -48,28 +52,45 @@ if check_endpoint_overrides():
     # Set up api keys from .env file and initialze clients
 
     # OpenRouter uses OpenAI's API spec
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not api_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("api", "")
 
-    client = AsyncOpenAI(
+    openAI_client = AsyncOpenAI(
         api_key=api_key,
         base_url=base_url,
         timeout=60.0,
     )
+
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", "")
+
+    image_multi_clients = [
+        [
+            AsyncOpenAI(
+                api_key=ModelKey,
+                base_url=base_url,
+                timeout=60.0,
+            ),
+            0,
+        ]
+        for ModelKey in ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"]
+    ]
+
+    # for api_key in ENDPOINT_OVERRIDE_MAP['MuliImageModelKeys']:
+    #     image_multi_clients
 
     # Stability
     # stability_key = os.environ.get("STABILITY_API_KEY")
     # if not stability_key:
     #     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
-    claude_key = os.environ.get("OPENROUTER_API_KEY")
+    claude_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not claude_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("api", "")
 
     claude_client = AsyncOpenAI(
         api_key=claude_key,
@@ -85,7 +106,7 @@ if check_endpoint_overrides():
 
     # Anthropic
     # Only if using the official claude for access instead of aws bedrock
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not api_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
     anthropic_client = AsyncOpenAI(
@@ -103,7 +124,7 @@ if check_endpoint_overrides():
     # anthropic_client = anthropic.Anthropic() # Remove - Redundant, but kept for clarity
 
     # For google/gemini
-    google_key = os.environ.get("OPENROUTER_API_KEY")
+    google_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
     if not google_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
@@ -123,7 +144,9 @@ else:
     if not OpenAI.api_key:
         raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-    client = AsyncOpenAI(timeout=60.0)
+    openAI_client = AsyncOpenAI(timeout=60.0)
+
+    openAI_image_client = AsyncOpenAI(timeout=60.0)
 
     # Stability
     # stability_key = os.environ.get("STABILITY_API_KEY")
@@ -445,7 +468,7 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
-                    response = await client.chat.completions.create(
+                    response = await openAI_client.chat.completions.create(
                         model=model,
                         messages=messages,
                         temperature=temperature,
@@ -587,8 +610,8 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
-                    response = await client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "openai/gpt-4o"),
+                    response = await openAI_client.chat.completions.create(
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "openai/gpt-4o"),
                         messages=messages,
                         temperature=temperature,
                         stream=True,
@@ -626,7 +649,7 @@ class StreamMiner:
                 elif provider == "Anthropic":
                     # Test seeds + higher temperature
                     response = await anthropic_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-2.1"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "anthropic/claude-2.1"),
                         messages=f"\n\nHuman: {messages}\n\nAssistant:",
                         # messages=messages,
                         temperature=temperature,
@@ -678,7 +701,7 @@ class StreamMiner:
                         filtered_messages = [{"role": "system", "content": system_prompt}] + filtered_messages
 
                     response = await claude_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "anthropic/claude-3-opus"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "anthropic/claude-3-opus"),
                         messages=filtered_messages,
                         # temperature=temperature,
                         stream=True,
@@ -715,7 +738,7 @@ class StreamMiner:
 
                 elif provider == "Gemini":
                     response = await google_genai_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["ModelMap"].get(model, "google/gemini-pro"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "google/gemini-pro"),
                         messages=messages,
                         temperature=temperature,
                         stream=True,
@@ -785,13 +808,23 @@ class StreamMiner:
             bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
-                meta = await client.images.generate(
-                    model=model,
-                    prompt=messages,
-                    size=size,
-                    quality=quality,
-                    style=style,
-                )
+                if OVERRIDE_ENDPOINTS:
+                    randomized_image_client = image_client_lfu_with_random_tie_breaking()
+                    meta = await randomized_image_client.images.generate(
+                        model=model,
+                        prompt=messages,
+                        size=size,
+                        quality=quality,
+                        style=style,
+                    )
+                else:
+                    meta = await openAI_image_client.images.generate(
+                        model=model,
+                        prompt=messages,
+                        size=size,
+                        quality=quality,
+                        style=style,
+                    )
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
                 image_data["url"] = image_url
@@ -839,7 +872,7 @@ class StreamMiner:
                 filtered_batch = [text for text in batch if text.strip()]
                 if filtered_batch:
                     task = asyncio.create_task(
-                        client.embeddings.create(
+                        openAI_client.embeddings.create(
                             input=filtered_batch,
                             model=model,
                             encoding_format="float",
@@ -874,6 +907,21 @@ class StreamMiner:
         bt.logging.debug("answered to be active")
         synapse.completion = "True"
         return synapse
+
+
+def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
+    #  returns Least Frequently Used AsyncOpenAIclient object with random tie breaking
+    global image_multi_clients
+
+    min_frequency = min(item[1] for item in image_multi_clients)
+
+    least_used_clients = [x for x in image_multi_clients if x[1] == min_frequency]
+
+    image_client = random_choice(least_used_clients)
+
+    image_client[1] += 1
+
+    return image_client[0]
 
 
 def get_valid_hotkeys(config):
