@@ -39,12 +39,13 @@ ENDPOINT_OVERRIDE_MAP = {}
 image_multi_clients = None
 
 if check_endpoint_overrides():
-    alt_llm_service = "OpenRouter"
-    alt_image_service = "OpenAI"
     # test to see if there is an overrides yaml file for alternate api keys
     # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
     OVERRIDE_ENDPOINTS = True
+    alt_llm_service = "OpenRouter"
+    alt_image_service = "OpenAI"
+
     print("Overriding endpoints with yaml environment variables")
     override_endpoint_keys()
     ENDPOINT_OVERRIDE_MAP = get_endpoint_overrides()
@@ -910,7 +911,16 @@ class StreamMiner:
 
 
 def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
-    #  returns Least Frequently Used AsyncOpenAIclient object with random tie breaking
+    """
+    Returns the least frequently used AsyncOpenAI client object with random tie breaking.
+
+    This function uses the global variable `image_multi_clients` to calculate the least frequently used client.
+    It finds the minimum frequency of usage among all the clients and selects the clients with that frequency.
+    Then, it randomly selects one of the least used clients and increments its usage frequency by 1.
+
+    Returns:
+        AsyncOpenAI: The least frequently used AsyncOpenAI client object.
+    """
     global image_multi_clients
 
     min_frequency = min(item[1] for item in image_multi_clients)
