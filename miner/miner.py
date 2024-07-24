@@ -11,15 +11,14 @@ import traceback
 import anthropic
 from collections import deque
 from functools import partial
-from random import choice as random_choice
 from typing import Tuple
 
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from stability_sdk import client
+from stability_sdk import client  # noqa: F401
 from config import check_config, get_config
-from config import get_endpoint_overrides, override_endpoint_keys, check_endpoint_overrides
+
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from stability_sdk import stability_api
@@ -32,19 +31,27 @@ import sys
 
 from starlette.types import Send
 
+import nsfw_tools
+from alt_key_handler import (
+    check_endpoint_overrides,
+    get_endpoint_overrides,
+    override_endpoint_keys,
+    image_client_lfu_closure,
+)
 
 OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
-image_multi_clients = None
+
 
 if check_endpoint_overrides():
-    alt_llm_service = "OpenRouter"
-    alt_image_service = "OpenAI"
     # test to see if there is an overrides yaml file for alternate api keys
     # if there is overrides set the enviro variables for all other keys to default placeholders provided in yaml
 
     OVERRIDE_ENDPOINTS = True
+    alt_llm_service = "OpenRouter"
+    alt_image_service = "OpenAI"
+
     print("Overriding endpoints with yaml environment variables")
     override_endpoint_keys()
     ENDPOINT_OVERRIDE_MAP = get_endpoint_overrides()
@@ -64,22 +71,13 @@ if check_endpoint_overrides():
         timeout=60.0,
     )
 
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", "")
-
-    image_multi_clients = [
-        [
-            AsyncOpenAI(
-                api_key=ModelKey,
-                base_url=base_url,
-                timeout=60.0,
-            ),
-            0,
-        ]
-        for ModelKey in ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"]
-    ]
-
     # for api_key in ENDPOINT_OVERRIDE_MAP['MuliImageModelKeys']:
     #     image_multi_clients
+
+    random_image_client = image_client_lfu_closure(
+        image_client_keys=ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"],
+        base_url=ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", ""),
+    )
 
     # Stability
     # stability_key = os.environ.get("STABILITY_API_KEY")
@@ -809,10 +807,10 @@ class StreamMiner:
 
             if provider == "OpenAI":
                 if OVERRIDE_ENDPOINTS:
-                    randomized_image_client = image_client_lfu_with_random_tie_breaking()
+                    randomized_image_client = random_image_client()
                     meta = await randomized_image_client.images.generate(
                         model=model,
-                        prompt=messages,
+                        prompt=nsfw_tools.remove_nsfw(messages),
                         size=size,
                         quality=quality,
                         style=style,
@@ -907,21 +905,6 @@ class StreamMiner:
         bt.logging.debug("answered to be active")
         synapse.completion = "True"
         return synapse
-
-
-def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
-    #  returns Least Frequently Used AsyncOpenAIclient object with random tie breaking
-    global image_multi_clients
-
-    min_frequency = min(item[1] for item in image_multi_clients)
-
-    least_used_clients = [x for x in image_multi_clients if x[1] == min_frequency]
-
-    image_client = random_choice(least_used_clients)
-
-    image_client[1] += 1
-
-    return image_client[0]
 
 
 def get_valid_hotkeys(config):
