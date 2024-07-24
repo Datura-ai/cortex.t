@@ -16,7 +16,7 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from stability_sdk import client
+from stability_sdk import client  # noqa: F401
 from config import check_config, get_config
 
 from openai import AsyncOpenAI, OpenAI

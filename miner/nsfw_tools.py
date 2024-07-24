@@ -303,7 +303,7 @@ def remove_nsfw(prompt: str) -> str:
     return " ".join(cleaned_words)
 
 
-def run_speed_tests():
+def run_speed_tests():  # sourcery skip: simplify-generator
     #  Nested like this to avoid compiling during import
 
     def speed_test():
@@ -317,7 +317,7 @@ def run_speed_tests():
             end = start + window_size
             return slice(start, end)
 
-        less_prompts = [
+        less_prompts = [  # noqa: F841
             "A beautiful nude painting",
             "A provocative image of a naked person",
             "An erotic scene in a movie",
