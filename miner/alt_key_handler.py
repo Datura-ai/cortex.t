@@ -59,7 +59,7 @@ def image_client_lfu_closure(image_client_keys: list[str] = None, base_url: str 
     """
     Returns a closure that creates an LFU (Least Frequently Used) client object with random tie breaking.
 
-    The function creates a list of tuples, where each tuple contains an AsyncOpenAI client object and its usage frequency.
+    The function creates a list of lists, containing a unique AsyncOpenAI client object and its usage frequency.
     The usage frequency is initially set to 0 for all clients.
 
     The closure function `image_client_lfu_with_random_tie_breaking` calculates the least frequently used client
