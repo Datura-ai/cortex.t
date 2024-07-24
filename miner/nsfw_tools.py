@@ -303,14 +303,13 @@ def remove_nsfw(prompt: str) -> str:
     return " ".join(cleaned_words)
 
 
-def run_speed_tests():  # sourcery skip: simplify-generator
+def run_speed_tests(number_of_iterations=10000):  # sourcery skip: simplify-generator
     #  Nested like this to avoid compiling during import
 
     def speed_test():
         import timeit
 
-        # from random import choice
-        from random import randint
+        from random import randint, choice
 
         def random_slice(length: int, window_size: int) -> slice:
             start = randint(0, length - window_size)
@@ -529,13 +528,12 @@ def run_speed_tests():  # sourcery skip: simplify-generator
         # print(cleaned_prompt)  # Output: "A provocative image of a person using a"
         # print(cleaned_prompts)
 
-        number_of_iterations = 100000
         long_string = " ".join(more_prompts)
         long_string_length = len(long_string)
         avg_prompt_length = ((long_string_length - len(more_prompts)) // len(more_prompts)) + 1
         # print(avg_prompt_length)
 
-        print(f"Building a list of {number_of_iterations} prompts...")
+        print(f"Building a list of {number_of_iterations} random prompts...")
         random_prompts = [long_string[random_slice(long_string_length, avg_prompt_length)] for _ in range(number_of_iterations)]
 
         # random_prompts = [choice(more_prompts) for _ in range(number_of_iterations)]
@@ -543,8 +541,18 @@ def run_speed_tests():  # sourcery skip: simplify-generator
         print(f"Measuring Execution time {number_of_iterations} times...")
         # Measure the execution time
         # execution_time = timeit.timeit(lambda: remove_nsfw(choice(less_prompts)), number=number_of_iterations)
-        # execution_time = timeit.timeit(lambda: remove_nsfw(choice(more_prompts)), number=number_of_iterations)
+
         execution_time = timeit.timeit(lambda: remove_nsfw(next(prompt_gen)), number=number_of_iterations)
+
+        # Print the results
+        print(f"Execution time: {execution_time} seconds")
+        average_time_per_run = execution_time / number_of_iterations
+        print(f"Average execution time per run: {average_time_per_run} seconds ( {round(average_time_per_run * 1000,5)} ms )")
+
+        print(f"Measuring Execution time another {number_of_iterations} times...")
+        # Measure the execution time
+
+        execution_time = timeit.timeit(lambda: remove_nsfw(choice(more_prompts)), number=number_of_iterations)
 
         # Print the results
         print(f"Execution time: {execution_time} seconds")
@@ -555,4 +563,4 @@ def run_speed_tests():  # sourcery skip: simplify-generator
 
 
 if __name__ == "__main__":
-    run_speed_tests()
+    run_speed_tests(number_of_iterations=100000)
