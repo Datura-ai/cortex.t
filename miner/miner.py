@@ -19,7 +19,7 @@ import google.generativeai as genai
 import wandb
 from stability_sdk import client
 from config import check_config, get_config
-from config import get_endpoint_overrides, override_endpoint_keys, check_endpoint_overrides
+from alt_key_handler import check_endpoint_overrides, get_endpoint_overrides, override_endpoint_keys
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from stability_sdk import stability_api
