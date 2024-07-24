@@ -259,7 +259,7 @@ def remove_nsfw(prompt: str) -> str:
     Returns:
         str: The prompt with NSFW keywords removed.
 
-    This function tokenizes the given prompt and checks for multi-word phrases.
+    This function utilizes the `nltk` library to tokenize the given prompt and check for multi-word phrases.
     It iterates over the words in the prompt and checks if any phrase of length
     2 to 4 is an NSFW keyword. If a phrase is found, the function skips the
     matched words. If a word is not a match, it is added to the `cleaned_words`

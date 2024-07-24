@@ -31,6 +31,7 @@ import sys
 
 from starlette.types import Send
 
+import nsfw_tools
 from alt_key_handler import (
     check_endpoint_overrides,
     get_endpoint_overrides,
@@ -809,7 +810,7 @@ class StreamMiner:
                     randomized_image_client = random_image_client()
                     meta = await randomized_image_client.images.generate(
                         model=model,
-                        prompt=messages,
+                        prompt=nsfw_tools.remove_nsfw(messages),
                         size=size,
                         quality=quality,
                         style=style,
