@@ -12,7 +12,7 @@ import anthropic
 from collections import deque
 from functools import partial
 from random import choice as random_choice
-from typing import Tuple
+from typing import Tuple, Callable
 
 import bittensor as bt
 import google.generativeai as genai
@@ -36,7 +36,7 @@ from starlette.types import Send
 OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
-image_multi_clients = None
+random_image_client = None
 
 if check_endpoint_overrides():
     # test to see if there is an overrides yaml file for alternate api keys
@@ -64,20 +64,6 @@ if check_endpoint_overrides():
         base_url=base_url,
         timeout=60.0,
     )
-
-    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", "")
-
-    image_multi_clients = [
-        [
-            AsyncOpenAI(
-                api_key=ModelKey,
-                base_url=base_url,
-                timeout=60.0,
-            ),
-            0,
-        ]
-        for ModelKey in ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"]
-    ]
 
     # for api_key in ENDPOINT_OVERRIDE_MAP['MuliImageModelKeys']:
     #     image_multi_clients
@@ -810,7 +796,7 @@ class StreamMiner:
 
             if provider == "OpenAI":
                 if OVERRIDE_ENDPOINTS:
-                    randomized_image_client = image_client_lfu_with_random_tie_breaking()
+                    randomized_image_client = random_image_client()
                     meta = await randomized_image_client.images.generate(
                         model=model,
                         prompt=messages,
@@ -910,28 +896,47 @@ class StreamMiner:
         return synapse
 
 
-def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
+def client_lfu_closure_create() -> Callable[[], AsyncOpenAI]:
     """
-    Returns the least frequently used AsyncOpenAI client object with random tie breaking.
+    Returns a closure that creates an LFU (Least Frequently Used) client object with random tie breaking.
 
-    This function uses the global variable `image_multi_clients` to calculate the least frequently used client.
-    It finds the minimum frequency of usage among all the clients and selects the clients with that frequency.
-    Then, it randomly selects one of the least used clients and increments its usage frequency by 1.
+    The function creates a list of tuples, where each tuple contains an AsyncOpenAI client object and its usage frequency.
+    The usage frequency is initially set to 0 for all clients.
+
+    The closure function `image_client_lfu_with_random_tie_breaking` calculates the least frequently used client
+    by finding the minimum usage frequency among all the clients. It selects the clients with the minimum frequency
+    and randomly selects one of them. It increments the usage frequency of the selected client by 1.
 
     Returns:
-        AsyncOpenAI: The least frequently used AsyncOpenAI client object.
+        Callable[[], AsyncOpenAI]: A closure function that returns the least frequently used AsyncOpenAI client object.
     """
-    global image_multi_clients
+    base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", "")
+    image_multi_clients = [
+        [
+            AsyncOpenAI(
+                api_key=ModelKey,
+                base_url=base_url,
+                timeout=60.0,
+            ),
+            0,
+        ]
+        for ModelKey in ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"]
+    ]
 
-    min_frequency = min(item[1] for item in image_multi_clients)
+    def image_client_lfu_with_random_tie_breaking() -> AsyncOpenAI:
+        nonlocal image_multi_clients
 
-    least_used_clients = [x for x in image_multi_clients if x[1] == min_frequency]
+        min_frequency = min(item[1] for item in image_multi_clients)
 
-    image_client = random_choice(least_used_clients)
+        least_used_clients = [x for x in image_multi_clients if x[1] == min_frequency]
 
-    image_client[1] += 1
+        image_client = random_choice(least_used_clients)
 
-    return image_client[0]
+        image_client[1] += 1
+
+        return image_client[0]
+
+    return image_client_lfu_with_random_tie_breaking
 
 
 def get_valid_hotkeys(config):
@@ -981,6 +986,8 @@ def get_valid_hotkeys(config):
         except json.JSONDecodeError as e:
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
 
+
+random_image_client = client_lfu_closure_create() if OVERRIDE_ENDPOINTS else None
 
 if __name__ == "__main__":
     with StreamMiner():
