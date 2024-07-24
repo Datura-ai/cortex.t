@@ -55,7 +55,7 @@ def override_endpoint_keys() -> None:
     environ.update(get_endpoint_overrides().get("OVERRIDE_ENVIRONMENT_KEYS", {}))
 
 
-def client_lfu_closure_create(image_client_keys: list[str] = None, base_url: str = "") -> Callable[[], AsyncOpenAI]:
+def image_client_lfu_closure(image_client_keys: list[str] = None, base_url: str = "") -> Callable[[], AsyncOpenAI]:
     """
     Returns a closure that creates an LFU (Least Frequently Used) client object with random tie breaking.
 

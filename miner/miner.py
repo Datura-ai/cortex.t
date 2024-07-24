@@ -18,7 +18,7 @@ import google.generativeai as genai
 import wandb
 from stability_sdk import client
 from config import check_config, get_config
-from alt_key_handler import check_endpoint_overrides, get_endpoint_overrides, override_endpoint_keys
+
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from stability_sdk import stability_api
@@ -31,8 +31,12 @@ import sys
 
 from starlette.types import Send
 
-from miner.alt_key_handler import client_lfu_closure_create
-
+from alt_key_handler import (
+    check_endpoint_overrides,
+    get_endpoint_overrides,
+    override_endpoint_keys,
+    image_client_lfu_closure,
+)
 
 OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
@@ -69,7 +73,7 @@ if check_endpoint_overrides():
     # for api_key in ENDPOINT_OVERRIDE_MAP['MuliImageModelKeys']:
     #     image_multi_clients
 
-    random_image_client = client_lfu_closure_create(
+    random_image_client = image_client_lfu_closure(
         image_client_keys=ENDPOINT_OVERRIDE_MAP["MuliImageModelKeys"],
         base_url=ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_image_service, {}).get("api", ""),
     )
