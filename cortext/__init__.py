@@ -41,6 +41,8 @@ except KeyError as exc:
 client = AsyncOpenAI(timeout=90.0)
 
 # Blacklist variables
+ENABLE_WHITELISTS = True # trumps all blacklists
+ENABLE_BLACKLISTS = False
 ALLOW_NON_REGISTERED = False
 PROMPT_BLACKLIST_STAKE = 20000
 IMAGE_BLACKLIST_STAKE = 20000

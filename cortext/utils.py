@@ -17,8 +17,9 @@ import traceback
 import anthropic
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT, AsyncAnthropic
 from typing import Optional
-from stability_sdk import client as stability_client
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+
+# from stability_sdk import client as stability_client
+# import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import google.generativeai as genai
 
 
@@ -41,9 +42,13 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 #     engine="stable-diffusion-xl-1024-v1-0"
 # )
 
+# stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
+
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:
-    raise ValueError("claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env")
+    raise ValueError(
+        "claude api key not found in environment variables. Go to https://console.anthropic.com/settings/keys to get one. Then set it as ANTHROPIC_API_KEY in your .env"
+    )
 
 claude_client = AsyncAnthropic()
 claude_client.api_key = claude_key
@@ -55,6 +60,7 @@ claude_client.api_key = claude_key
 # genai.configure(api_key=google_key)
 
 bedrock_client = AsyncAnthropicBedrock()
+
 
 def load_state_from_file(filename: str):
     load_success = False
@@ -70,7 +76,7 @@ def load_state_from_file(filename: str):
                 return state
             except Exception as e:  # Catch specific exceptions for better error handling
                 bt.logging.error(f"error loading state, deleting and resetting it. Error: {e}")
-                os.remove(filename) # Delete if error
+                os.remove(filename)  # Delete if error
 
     # If the file does not exist or there was an error
     if not load_success:
@@ -78,10 +84,12 @@ def load_state_from_file(filename: str):
         # Return the default state structure
         return {
             "text": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
-            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0}
+            "images": {"themes": None, "questions": None, "theme_counter": 0, "question_counter": 0},
         }
 
+
 state = None
+
 
 def get_state(path):
     global state
@@ -96,33 +104,31 @@ def save_state_to_file(state, filename="state.json"):
         json.dump(state, file)
 
 
+# this function does not compile and is unused
+# def get_validators_with_runs_in_all_projects():
+#     api = wandb.Api()
+#     validators_runs = {project: set() for project in projects}
 
-def get_validators_with_runs_in_all_projects():
-    api = wandb.Api()
-    validators_runs = {project: set() for project in projects}
+#     # Retrieve runs for each project and store validator UIDs
+#     for project in cortext.PROJECT_NAMES:
+#         runs = api.runs(f"cortex-t/{project}")
+#         for run in runs:
+#             if run.config["type"] == "validator":
+#                 validators_runs[project].add(run.config["uid"])
 
-    # Retrieve runs for each project and store validator UIDs
-    for project in cortext.PROJECT_NAMES:
-        runs = api.runs(f"cortex-t/{project}")
-        for run in runs:
-            if run.config['type'] == 'validator':
-                validators_runs[project].add(run.config['uid'])
+#     # Find common validators across all projects
+#     common_validators = set.intersection(*validators_runs.values())
+#     return common_validators
 
-    # Find common validators across all projects
-    common_validators = set.intersection(*validators_runs.values())
-    return common_validators
 
 async def get_list(list_type, num_questions_needed, theme=None):
-    prompts_in_question = {'text_questions': 10, 'images_questions': 20}
+    prompts_in_question = {"text_questions": 10, "images_questions": 20}
     list_type_mapping = {
-        "text_questions": {
-            "default": cortext.INSTRUCT_DEFAULT_QUESTIONS,
-            "prompt": "placeholder"
-        },
+        "text_questions": {"default": cortext.INSTRUCT_DEFAULT_QUESTIONS, "prompt": "placeholder"},
         "images_questions": {
             "default": cortext.IMAGE_DEFAULT_QUESTIONS,
-            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list."
-        }
+            "prompt": f"Provide a python-formatted list of {prompts_in_question[list_type]} creative and detailed scenarios for image generation, each inspired by the theme '{theme}'. The scenarios should be diverse, thoughtful, and possibly out-of-the-box interpretations related to '{theme}'. Each element in the list should be a concise, but a vividly descriptive situation designed to inspire visually rich stories. Format these elements as comma-separated, quote-encapsulated strings in a single Python list.",
+        },
     }
 
     selected_prompts = []
@@ -135,15 +141,17 @@ async def get_list(list_type, num_questions_needed, theme=None):
                     task_type = "questions"
                 else:
                     task_type = random.sample(cortext.INSTRUCT_TASK_OPTIONS, 1)
-                
-                prompt = (f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
-                          f"or instruct tasks related to the theme '{theme}', each with a complexity level "
-                          f"of {complexity_level} out of 20 and a relevance level to the theme "
-                          f"of {relevance_level} out of 20. These tasks should varyingly explore "
-                          f"{theme} in a manner that is consistent with their assigned complexity and relevance "
-                          f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
-                          f"Format the questions as comma-separated, quote-encapsulated strings "
-                          f"in a single Python list.")
+
+                prompt = (
+                    f"Generate a python-formatted list of {prompts_in_question[list_type]} {task_type} "
+                    f"or instruct tasks related to the theme '{theme}', each with a complexity level "
+                    f"of {complexity_level} out of 20 and a relevance level to the theme "
+                    f"of {relevance_level} out of 20. These tasks should varyingly explore "
+                    f"{theme} in a manner that is consistent with their assigned complexity and relevance "
+                    f"levels to the theme, allowing for a diverse and insightful engagement about {theme}. "
+                    f"Format the questions as comma-separated, quote-encapsulated strings "
+                    f"in a single Python list."
+                )
                 question_pool.append(prompt)
 
         random.shuffle(question_pool)
@@ -156,13 +164,9 @@ async def get_list(list_type, num_questions_needed, theme=None):
         num_questions_to_select = math.ceil(num_questions_needed / prompts_in_question[list_type])
         selected_prompts = [list_type_mapping[list_type]["prompt"]] * num_questions_to_select
 
-    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, "
-                     f"list_type: {list_type}, selected_prompts: {selected_prompts}")
+    bt.logging.debug(f"num_questions_needed: {num_questions_needed}, " f"list_type: {list_type}, selected_prompts: {selected_prompts}")
 
-    tasks = [
-        call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000))
-        for prompt in selected_prompts
-    ]
+    tasks = [call_openai([{"role": "user", "content": prompt}], 0.65, "gpt-3.5-turbo", random.randint(1, 10000)) for prompt in selected_prompts]
 
     responses = await asyncio.gather(*tasks)
     extracted_lists = []
@@ -178,7 +182,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
                 for retry in range(max_retries):
                     try:
                         random_seed = random.randint(1, 10000)
-                        messages = [{'role': "user", 'content': selected_prompts[i]}]
+                        messages = [{"role": "user", "content": selected_prompts[i]}]
                         new_answer = await call_openai(messages, 0.85, "gpt-4-0125-preview", random_seed)
                         new_answer = new_answer.replace("\n", " ") if new_answer else ""
                         new_extracted_list = extract_python_list(new_answer)
@@ -187,11 +191,9 @@ async def get_list(list_type, num_questions_needed, theme=None):
                             break
                         bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
-                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': "
-                                         f"{e}\n{traceback.format_exc()}")
+                        bt.logging.error(f"Exception on retry {retry + 1} for prompt '{selected_prompts[i]}': " f"{e}\n{traceback.format_exc()}")
         except Exception as e:
-            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': "
-                             f"{e}\n{traceback.format_exc()}")
+            bt.logging.error(f"Exception in processing initial response for prompt '{selected_prompts[i]}': " f"{e}\n{traceback.format_exc()}")
 
     if not extracted_lists:
         bt.logging.error("No valid lists found after processing and retries, returning None")
@@ -201,7 +203,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
 
 
 async def update_counters_and_get_new_list(category, item_type, num_questions_needed, theme=None):
-
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
             if category == "images":
@@ -261,7 +262,7 @@ def preprocess_string(text: str) -> str:
     i = 0
     in_comment = False
     while i < len(processed_text):
-        if processed_text[i] == '#':
+        if processed_text[i] == "#":
             in_comment = True
         elif processed_text[i] == '"' and in_comment:
             in_comment = False
@@ -282,7 +283,7 @@ def preprocess_string(text: str) -> str:
         char = no_comments_text[i]
 
         if not found_first_bracket:
-            if char == '[':
+            if char == "[":
                 found_first_bracket = True
             cleaned_text.append(char)
             i += 1
@@ -294,19 +295,18 @@ def preprocess_string(text: str) -> str:
             found_comma_or_bracket = False
 
             while preceding_char_index >= 0:
-                if no_comments_text[preceding_char_index] in '[,':  # Check for comma or opening bracket
+                if no_comments_text[preceding_char_index] in "[,":  # Check for comma or opening bracket
                     found_comma_or_bracket = True
                     break
-                if no_comments_text[preceding_char_index] not in ' \n':  # Ignore spaces and new lines
+                if no_comments_text[preceding_char_index] not in " \n":  # Ignore spaces and new lines
                     break
                 preceding_char_index -= 1
 
             following_char_index = i + 1
-            while following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in ' \n':
+            while following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in " \n":
                 following_char_index += 1
 
-            if found_comma_or_bracket or \
-               (following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in '],'):
+            if found_comma_or_bracket or (following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in "],"):
                 inside_quotes = not inside_quotes
             else:
                 i += 1
@@ -316,36 +316,36 @@ def preprocess_string(text: str) -> str:
             i += 1
             continue
 
-        if char == ' ':
+        if char == " ":
             # Skip spaces if not inside quotes and if the space is not between words
-            if not inside_quotes and (i == 0 or no_comments_text[i - 1] in ' ,[' or no_comments_text[i + 1] in ' ,]'):
+            if not inside_quotes and (i == 0 or no_comments_text[i - 1] in " ,[" or no_comments_text[i + 1] in " ,]"):
                 i += 1
                 continue
 
         cleaned_text.append(char)
         i += 1
 
-    cleaned_str = ''.join(cleaned_text)
+    cleaned_str = "".join(cleaned_text)
     cleaned_str = re.sub(r"\[\s+", "[", cleaned_str)
     cleaned_str = re.sub(r"\s+\]", "]", cleaned_str)
     cleaned_str = re.sub(r"\s*,\s*", ", ", cleaned_str)  # Ensure single space after commas
 
-    start, end = cleaned_str.find('['), cleaned_str.rfind(']')
+    start, end = cleaned_str.find("["), cleaned_str.rfind("]")
     if start != -1 and end != -1 and end > start:
-        cleaned_str = cleaned_str[start:end + 1]
+        cleaned_str = cleaned_str[start : end + 1]
 
     return cleaned_str
 
 
 def convert_to_list(text: str) -> list[str]:
-    pattern = r'\d+\.\s'
+    pattern = r"\d+\.\s"
     items = [item.strip() for item in re.split(pattern, text) if item]
     return items
 
 
 def extract_python_list(text: str):
     try:
-        if re.match(r'\d+\.\s', text):
+        if re.match(r"\d+\.\s", text):
             return convert_to_list(text)
 
         text = preprocess_string(text)
@@ -357,7 +357,7 @@ def extract_python_list(text: str):
             list_str = match.group(1)
 
             # Using ast.literal_eval to safely evaluate the string as a list
-            evaluated = ast.literal_eval('[' + list_str + ']')
+            evaluated = ast.literal_eval("[" + list_str + "]")
             if isinstance(evaluated, list):
                 return evaluated
 
@@ -389,6 +389,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
 
     return None
 
+
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
     print(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
     try:
@@ -404,14 +405,14 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
                 top_p=top_p,
                 top_k=top_k,
                 # seed=seed,
-            )
+            ),
         )
 
         print(f"validator response is {response.text}")
         return response.text
     except:
         print(f"error in call_gemini {traceback.format_exc()}")
-        
+
 
 # anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -438,6 +439,7 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
 
 #     return None
 
+
 async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
     try:
         bt.logging.debug(f"Calling Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}")
@@ -455,6 +457,7 @@ async def call_anthropic(prompt, temperature, model, max_tokens=2048, top_p=1, t
     except Exception as e:
         bt.logging.error(f"Error when calling Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
+
 
 async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
     try:
@@ -475,34 +478,37 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
 
         if system_prompt:
             kwargs["system"] = system_prompt
-        
+
         message = await claude_client.messages.create(**kwargs)
         bt.logging.debug(f"validator response is {message.content[0].text}")
         return message.content[0].text
     except:
         bt.logging.error(f"error in call_claude {traceback.format_exc()}")
 
+
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
+    ...
+    # we dont talk about stability here
+    return
     # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
-    bt.logging.info(f"calling stability for {prompt[:50]}...")
+    # bt.logging.info(f"calling stability for {prompt[:50]}...")
 
-    # Run the synchronous stability_api.generate function in a separate thread
-    meta = await asyncio.to_thread(
-        stability_api.generate,
-        prompt=prompt,
-        seed=seed,
-        steps=steps,
-        cfg_scale=cfg_scale,
-        width=width,
-        height=height,
-        samples=samples,
-        # sampler=sampler,
-    )
+    # # Run the synchronous stability_api.generate function in a separate thread
+    # meta = await asyncio.to_thread(
+    #     stability_api.generate,
+    #     prompt=prompt,
+    #     seed=seed,
+    #     steps=steps,
+    #     cfg_scale=cfg_scale,
+    #     width=width,
+    #     height=height,
+    #     samples=samples,
+    #     # sampler=sampler,
+    # )
 
-    # Convert image binary data to base64
-    b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
-    return b64s
-
+    # # Convert image binary data to base64
+    # b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
+    # return b64s
 
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
@@ -513,9 +519,9 @@ def get_version(line_number: int = 22) -> Optional[str]:
         bt.logging.error("github api call failed")
         return None
 
-    content = response.json()['content']
-    decoded_content = base64.b64decode(content).decode('utf-8')
-    lines = decoded_content.split('\n')
+    content = response.json()["content"]
+    decoded_content = base64.b64decode(content).decode("utf-8")
+    lines = decoded_content.split("\n")
     if line_number > len(lines):
         raise Exception("Line number exceeds file length")
 
@@ -528,10 +534,7 @@ def get_version(line_number: int = 22) -> Optional[str]:
 
 
 def send_discord_alert(message, webhook_url):
-    data = {
-        "content": f"@everyone {message}",
-        "username": "Subnet18 Updates"
-    }
+    data = {"content": f"@everyone {message}", "username": "Subnet18 Updates"}
     try:
         response = requests.post(webhook_url, json=data, timeout=10)
         if response.status_code == 204:

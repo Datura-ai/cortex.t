@@ -8,10 +8,12 @@ requests==2.*
 scikit-learn==1.*
 torch==2.*
 transformers==4.*
-wandb
+wandb==0.17.5
 anthropic==0.19.2
-stability-sdk
-boto3
-anthropic_bedrock
+stability-sdk==0.8.5
+boto3==1.34.148
+anthropic_bedrock==0.8.0
 pyOpenSSL==24.*
-google-generativeai
+google-generativeai==0.7.2
+msgspec[yaml]
+nltk==3.8.1

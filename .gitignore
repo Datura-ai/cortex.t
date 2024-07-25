@@ -9,3 +9,7 @@ wandb/
 .vscode
 .envrc
 .idea/
+*.log
+**/logs/**
+venv/
+endpoint_overrides.yaml
