@@ -16,4 +16,4 @@ anthropic_bedrock==0.8.0
 pyOpenSSL==24.*
 google-generativeai==0.7.2
 msgspec[yaml]
-nltk
+nltk==3.8.1

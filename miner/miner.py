@@ -372,11 +372,7 @@ class StreamMiner:
                 f"Please register the hotkey using `btcli s register --netuid 18` before trying again"
             )
             sys.exit()
-        bt.logging.info(
-            f"Serving axon {StreamPrompting} ",
-            f"on network: {self.config.subtensor.chain_endpoint} ",
-            f"with netuid: {self.config.netuid}",
-        )
+        bt.logging.info(f"Serving axon {StreamPrompting} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}")
         self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
         self.axon.start()
