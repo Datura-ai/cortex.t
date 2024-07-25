@@ -103,20 +103,21 @@ def save_state_to_file(state, filename="state.json"):
         json.dump(state, file)
 
 
-def get_validators_with_runs_in_all_projects():
-    api = wandb.Api()
-    validators_runs = {project: set() for project in projects}
+# this function does not compile and is unused
+# def get_validators_with_runs_in_all_projects():
+#     api = wandb.Api()
+#     validators_runs = {project: set() for project in projects}
 
-    # Retrieve runs for each project and store validator UIDs
-    for project in cortext.PROJECT_NAMES:
-        runs = api.runs(f"cortex-t/{project}")
-        for run in runs:
-            if run.config["type"] == "validator":
-                validators_runs[project].add(run.config["uid"])
+#     # Retrieve runs for each project and store validator UIDs
+#     for project in cortext.PROJECT_NAMES:
+#         runs = api.runs(f"cortex-t/{project}")
+#         for run in runs:
+#             if run.config["type"] == "validator":
+#                 validators_runs[project].add(run.config["uid"])
 
-    # Find common validators across all projects
-    common_validators = set.intersection(*validators_runs.values())
-    return common_validators
+#     # Find common validators across all projects
+#     common_validators = set.intersection(*validators_runs.values())
+#     return common_validators
 
 
 async def get_list(list_type, num_questions_needed, theme=None):
