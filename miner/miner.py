@@ -608,21 +608,22 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
-                    print("><" * 60)
-                    print("Messages: ")
-                    print(messages)
-                    print("Model requested: ")
-                    print(ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o"))
-                    print("so this this every paramater passed: ")
-                    print(
-                        messages,
-                        True,
-                        ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o"),
-                        temperature,
-                        seed,
-                        max_tokens,
-                    )
-                    print("- " * 60)
+                    log_error = []
+                    log_error.append(str("><" * 60))
+                    log_error.append(str("Messages: "))
+                    log_error.append(str(messages))
+                    log_error.append(str("Model requested: "))
+                    log_error.append(str(ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o")))
+                    log_error.append(str("so this this every paramater passed: "))
+
+                    log_error.append(str(messages))
+                    log_error.append(str(True))
+                    log_error.append(str(ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o")))
+                    log_error.append(str(temperature))
+                    log_error.append(str(seed))
+                    log_error.append(str(max_tokens))
+
+                    log_error.append(str("- " * 60))
                     response = await openAI_client.chat.completions.create(
                         messages=messages,
                         stream=True,
@@ -793,6 +794,7 @@ class StreamMiner:
 
             except Exception as e:
                 bt.logging.error(f"error in _prompt_provider_overrides {e}\n{traceback.format_exc()}")
+                bt.logging.error("\n".join(log_error))
 
         token_streamer = partial(_prompt_provider_overrides, synapse) if OVERRIDE_ENDPOINTS else partial(_prompt, synapse)
 
