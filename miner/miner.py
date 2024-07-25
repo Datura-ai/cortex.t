@@ -742,8 +742,8 @@ class StreamMiner:
                         stream=True,
                         # seed=seed,
                         # max_tokens=max_tokens,
-                        top_p=top_p,
-                        top_k=top_k,
+                        # top_p=top_p,
+                        # top_k=top_k,
                     )
                     buffer = []
                     n = 1
@@ -777,7 +777,7 @@ class StreamMiner:
                     bt.logging.error(f"Unknown provider: {provider}")
 
             except Exception as e:
-                bt.logging.error(f"error in _prompt {e}\n{traceback.format_exc()}")
+                bt.logging.error(f"error in _prompt_provider_overrides {e}\n{traceback.format_exc()}")
 
         token_streamer = partial(_prompt_provider_overrides, synapse) if OVERRIDE_ENDPOINTS else partial(_prompt, synapse)
 
