@@ -41,7 +41,7 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 #     engine="stable-diffusion-xl-1024-v1-0"
 # )
 
-stability_api = client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
+stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
 
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:

@@ -16,7 +16,7 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from stability_sdk import client  # noqa: F401
+from stability_sdk import client as stability_client
 from config import check_config, get_config
 
 from openai import AsyncOpenAI, OpenAI
@@ -44,7 +44,7 @@ OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
 
-stability_api = client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
+stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
 
 
 if check_endpoint_overrides():
