@@ -60,7 +60,7 @@ def override_endpoint_keys() -> None:
         None
     """
 
-    environ.update(get_endpoint_overrides().get("OVERRIDE_ENVIRONMENT_KEYS", {}))
+    environ.update(get_endpoint_overrides().get("ENVIRONMENT_KEY", {}))
 
 
 def image_client_lfu_closure(image_client_keys: list[str], base_url: str = "https://api.openai.com/v1") -> Callable[[], AsyncOpenAI]:
