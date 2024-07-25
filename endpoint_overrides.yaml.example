@@ -54,3 +54,10 @@ ServiceEndpoint:
   OpenAI:
     api: https://api.openai.com/v1
     ENVIRONMENT_KEY: OPENAI_API_KEY
+MuliImageModelKeys:
+- asdfasdfafasfasdfsfsafsdfsfsfaasdfasdfsadfsdaf
+- asdfasdfafwerwerwerwedfgdfasdfgdfgdfgasdfsfsafsdfsfsfaasdfasdfsadfsdaf
+FORMATVERSION:
+- 0
+- 1
+- 9

@@ -21,13 +21,14 @@ def check_endpoint_overrides() -> bool:
 
 
 def get_endpoint_overrides() -> dict:
-    """Get endpoint overrides from the endpoint_overrides.yaml file.
+    """
+    Retrieves the endpoint overrides from the `endpoint_overrides.yaml` file.
 
     Returns:
         dict: A dictionary containing the endpoint overrides.
 
     Raises:
-        FileNotFoundError: If the endpoint_overrides.yaml file is not found.
+        FileNotFoundError: If the `endpoint_overrides.yaml` file is not found.
         Exception: If an error occurs while reading the file.
     """
 
@@ -44,18 +45,25 @@ def get_endpoint_overrides() -> dict:
 
 
 def override_endpoint_keys() -> None:
-    """Override endpoint keys based on the values provided in the endpoint_overrides.yaml file.
+    """
+    Updates the environment variables with the endpoint overrides.
 
-    Args:
+    This function retrieves the endpoint overrides from the `get_endpoint_overrides()` function
+    and updates the environment variables using the `update()` method of the `environ` dictionary.
+    The endpoint overrides are obtained from the "OVERRIDE_ENVIRONMENT_KEYS" key in the returned
+    dictionary.
+
+    Parameters:
         None
 
     Returns:
-        None"""
+        None
+    """
 
     environ.update(get_endpoint_overrides().get("OVERRIDE_ENVIRONMENT_KEYS", {}))
 
 
-def image_client_lfu_closure(image_client_keys: list[str] = None, base_url: str = "") -> Callable[[], AsyncOpenAI]:
+def image_client_lfu_closure(image_client_keys: list[str], base_url: str = "https://api.openai.com/v1") -> Callable[[], AsyncOpenAI]:
     """
     Returns a closure that creates an LFU (Least Frequently Used) client object with random tie breaking.
 
