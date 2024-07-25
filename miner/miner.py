@@ -608,6 +608,21 @@ class StreamMiner:
 
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
+                    print("><" * 60)
+                    print("Messages: ")
+                    print(messages)
+                    print("Model requested: ")
+                    print(ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o"))
+                    print("so this this every paramater passed: ")
+                    print(
+                        messages,
+                        True,
+                        ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o"),
+                        temperature,
+                        seed,
+                        max_tokens,
+                    )
+                    print("- " * 60)
                     response = await openAI_client.chat.completions.create(
                         messages=messages,
                         stream=True,
