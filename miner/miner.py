@@ -16,7 +16,8 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from stability_sdk import client as stability_client
+
+# from stability_sdk import client as stability_client
 from config import check_config, get_config
 
 from openai import AsyncOpenAI, OpenAI
@@ -44,7 +45,7 @@ OVERRIDE_ENDPOINTS = False
 valid_hotkeys = []
 ENDPOINT_OVERRIDE_MAP = {}
 
-stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
+# stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
 
 
 if check_endpoint_overrides():
@@ -832,27 +833,27 @@ class StreamMiner:
                 image_data["image_revised_prompt"] = image_revised_prompt
                 bt.logging.info(f"returning image response of {image_url}")
 
-            elif provider == "Stability":
-                bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
+            # elif provider == "Stability":
+            #     bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
 
-                meta = stability_api.generate(
-                    prompt=messages,
-                    seed=seed,
-                    steps=steps,
-                    cfg_scale=cfg_scale,
-                    width=width,
-                    height=height,
-                    samples=samples,
-                    # sampler=sampler
-                )
-                # Process and upload the image
-                b64s = []
-                for image in meta:
-                    for artifact in image.artifacts:
-                        b64s.append(base64.b64encode(artifact.binary).decode())
+            #     meta = stability_api.generate(
+            #         prompt=messages,
+            #         seed=seed,
+            #         steps=steps,
+            #         cfg_scale=cfg_scale,
+            #         width=width,
+            #         height=height,
+            #         samples=samples,
+            #         # sampler=sampler
+            #     )
+            #     # Process and upload the image
+            #     b64s = []
+            #     for image in meta:
+            #         for artifact in image.artifacts:
+            #             b64s.append(base64.b64encode(artifact.binary).decode())
 
-                image_data["b64s"] = b64s
-                bt.logging.info(f"returning image response to {messages}")
+            #     image_data["b64s"] = b64s
+            #     bt.logging.info(f"returning image response to {messages}")
 
             else:
                 bt.logging.error(f"Unknown provider: {provider}")

@@ -30,11 +30,14 @@ import bittensor as bt
 import google.generativeai as genai
 import wandb
 from PIL import Image
-from stability_sdk import client
+
+# from stability_sdk import client
 from openai import AsyncOpenAI, OpenAI
-from stability_sdk import client as stability_client
+
+# from stability_sdk import client as stability_client
 from PIL import Image
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+
+# import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import anthropic
 from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
@@ -73,7 +76,7 @@ class WeightSetter:
         self.metagraph = self.subtensor.metagraph(config.netuid)
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
-        self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
+        self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix="asyncio")
         self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
@@ -84,27 +87,27 @@ class WeightSetter:
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
-    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+    def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
-    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+    def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+    def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt=20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
@@ -140,9 +143,8 @@ class WeightSetter:
         bt.logging.info(f"received {synapse}")
 
         async def _prompt(synapse, send: Send):
-            bt.logging.info(
-                f"Sending {synapse} request to uid: {synapse.uid}, "
-            )
+            bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}, ")
+
             async def handle_response(responses):
                 for resp in responses:
                     async for chunk in resp:
@@ -155,23 +157,23 @@ class WeightSetter:
                                 }
                             )
                             bt.logging.info(f"Streamed text: {chunk}")
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
 
             axon = self.metagraph.axons[synapse.uid]
             responses = self.dendrite.query(
-                axons=[axon], 
-                synapse=synapse, 
+                axons=[axon],
+                synapse=synapse,
                 deserialize=False,
                 timeout=synapse.timeout,
                 streaming=True,
             )
             return await handle_response(responses)
-        
+
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
     def text(self, synapse: TextPrompting) -> TextPrompting:
-        synapse.completion =  "completed"
+        synapse.completion = "completed"
         bt.logging.info("completed")
 
         synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
@@ -193,22 +195,18 @@ class WeightSetter:
         ).attach(
             forward_fn=self.text,
         )
-        self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
+        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         self.axon.start()
-        self.my_subnet_uid = self.metagraph.hotkeys.index(
-            self.wallet.hotkey.ss58_address
-            )
+        self.my_subnet_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         bt.logging.info(f"Running validator on uid: {self.my_subnet_uid}")
         while True:
             try:
                 if self.organic_scoring_tasks:
-                    completed, _ = await asyncio.wait(self.organic_scoring_tasks, timeout=1,
-                                                      return_when=asyncio.FIRST_COMPLETED)
+                    completed, _ = await asyncio.wait(self.organic_scoring_tasks, timeout=1, return_when=asyncio.FIRST_COMPLETED)
                     for task in completed:
                         if task.exception():
                             bt.logging.error(
-                                f'Encountered in {TextValidator.score_responses.__name__} task:\n'
-                                f'{"".join(traceback.format_exception(task.exception()))}'
+                                f"Encountered in {TextValidator.score_responses.__name__} task:\n" f'{"".join(traceback.format_exception(task.exception()))}'
                             )
                         else:
                             success, data = task.result()
@@ -219,9 +217,8 @@ class WeightSetter:
                 else:
                     await asyncio.sleep(60)
             except Exception as e:
-                bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
+                bt.logging.error(f"Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}")
                 await asyncio.sleep(10)
-                
 
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
@@ -238,9 +235,7 @@ class WeightSetter:
                 if steps_since_last_update == iterations_per_set_weights - 1:
                     await self.update_weights(steps_passed)
                 else:
-                    bt.logging.info(
-                        f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                    )
+                    bt.logging.info(f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations.")
 
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(300)
@@ -288,7 +283,7 @@ class WeightSetter:
         return scores, uid_scores_dict
 
     async def update_weights(self, steps_passed):
-        """ Update weights based on total scores, using min-max normalization for display. """
+        """Update weights based on total scores, using min-max normalization for display."""
         bt.logging.info("updated weights")
         avg_scores = self.total_scores / (steps_passed + 1)
 
@@ -308,7 +303,7 @@ class WeightSetter:
 
     async def set_weights(self, scores):
         # alpha of .3 means that each new score replaces 30% of the weight of the previous weights
-        alpha = .3
+        alpha = 0.3
         if self.moving_average_scores is None:
             self.moving_average_scores = scores.clone()
 

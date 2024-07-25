@@ -17,8 +17,9 @@ import traceback
 import anthropic
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT, AsyncAnthropic
 from typing import Optional
-from stability_sdk import client as stability_client
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
+
+# from stability_sdk import client as stability_client
+# import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import google.generativeai as genai
 
 
@@ -41,7 +42,7 @@ from anthropic_bedrock import AsyncAnthropicBedrock
 #     engine="stable-diffusion-xl-1024-v1-0"
 # )
 
-stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
+# stability_api = stability_client.StabilityInference(key=os.environ["STABILITY_API_KEY"], verbose=True, engine="stable-diffusion-xl-1024-v1-0")
 
 claude_key = os.environ.get("ANTHROPIC_API_KEY")
 if not claude_key:
@@ -486,25 +487,28 @@ async def call_claude(messages, temperature, model, max_tokens, top_p, top_k):
 
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
+    ...
+    # we dont talk about stability here
+    return
     # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
-    bt.logging.info(f"calling stability for {prompt[:50]}...")
+    # bt.logging.info(f"calling stability for {prompt[:50]}...")
 
-    # Run the synchronous stability_api.generate function in a separate thread
-    meta = await asyncio.to_thread(
-        stability_api.generate,
-        prompt=prompt,
-        seed=seed,
-        steps=steps,
-        cfg_scale=cfg_scale,
-        width=width,
-        height=height,
-        samples=samples,
-        # sampler=sampler,
-    )
+    # # Run the synchronous stability_api.generate function in a separate thread
+    # meta = await asyncio.to_thread(
+    #     stability_api.generate,
+    #     prompt=prompt,
+    #     seed=seed,
+    #     steps=steps,
+    #     cfg_scale=cfg_scale,
+    #     width=width,
+    #     height=height,
+    #     samples=samples,
+    #     # sampler=sampler,
+    # )
 
-    # Convert image binary data to base64
-    b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
-    return b64s
+    # # Convert image binary data to base64
+    # b64s = [base64.b64encode(artifact.binary).decode() for image in meta for artifact in image.artifacts]
+    # return b64s
 
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.

@@ -18,6 +18,7 @@
 # DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 from transformers import logging as hf_logging
+
 hf_logging.set_verbosity_error()
 
 
@@ -44,6 +45,7 @@ from transformers import CLIPProcessor, CLIPModel
 
 # ==== TEXT ====
 
+
 def calculate_text_similarity(text1: str, text2: str):
     try:
         # Initialize the TF-IDF Vectorizer
@@ -61,6 +63,7 @@ def calculate_text_similarity(text1: str, text2: str):
         bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")
         raise
 
+
 async def api_score(api_answer: str, response: str, weight: float, temperature: float, provider: str) -> float:
     try:
         loop = asyncio.get_running_loop()
@@ -68,10 +71,10 @@ async def api_score(api_answer: str, response: str, weight: float, temperature: 
 
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
-        
-        word_count_over_threshold = words_in_api * 1.20 
+
+        word_count_over_threshold = words_in_api * 1.20
         word_count_under_threshold = words_in_api * 0.87
-        
+
         # Check if the word count of the response is within the thresholds
         if words_in_response <= word_count_over_threshold and words_in_response >= word_count_under_threshold:
             score = weight * similarity
@@ -91,22 +94,22 @@ processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
 # Could also verify the date from the url
 url_regex = (
-    r'https://(?:oaidalleapiprodscus|dalleprodsec)\.blob\.core\.windows\.net/private/org-[\w-]+/'
-    r'user-[\w-]+/img-[\w-]+\.(?:png|jpg)\?'
-    r'st=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
-    r'se=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
-    r'(?:sp=\w+&)?'
-    r'sv=\d{4}-\d{2}-\d{2}&'
-    r'sr=\w+&'
-    r'rscd=\w+&'
-    r'rsct=\w+/[\w-]+&'
-    r'skoid=[\w-]+&'
-    r'sktid=[\w-]+&'
-    r'skt=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
-    r'ske=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&'
-    r'sks=\w+&'
-    r'skv=\d{4}-\d{2}-\d{2}&'
-    r'sig=[\w/%+=]+'
+    r"https://(?:oaidalleapiprodscus|dalleprodsec)\.blob\.core\.windows\.net/private/org-[\w-]+/"
+    r"user-[\w-]+/img-[\w-]+\.(?:png|jpg)\?"
+    r"st=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&"
+    r"se=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&"
+    r"(?:sp=\w+&)?"
+    r"sv=\d{4}-\d{2}-\d{2}&"
+    r"sr=\w+&"
+    r"rscd=\w+&"
+    r"rsct=\w+/[\w-]+&"
+    r"skoid=[\w-]+&"
+    r"sktid=[\w-]+&"
+    r"skt=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&"
+    r"ske=\d{4}-\d{2}-\d{2}T\d{2}%3A\d{2}%3A\d{2}Z&"
+    r"sks=\w+&"
+    r"skv=\d{4}-\d{2}-\d{2}&"
+    r"sig=[\w/%+=]+"
 )
 
 
@@ -115,7 +118,7 @@ async def is_image_url(url: str) -> bool:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.head(url) as response:
-                return response.status == 200 and 'image' in response.headers.get('Content-Type', '')
+                return response.status == 200 and "image" in response.headers.get("Content-Type", "")
     except Exception as e:
         bt.logging.info(f"Error checking URL: {e}")
         return False
@@ -144,8 +147,12 @@ def calculate_image_similarity(image, description, max_length: int = 77):
     """Calculate the cosine similarity between a description and an image."""
     # Truncate the description
     inputs = processor(
-        text=description, images=None, return_tensors="pt",
-        padding=True, truncation=True, max_length=max_length,
+        text=description,
+        images=None,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=max_length,
     )
     text_embedding = model.get_text_features(**inputs)
 
@@ -155,6 +162,7 @@ def calculate_image_similarity(image, description, max_length: int = 77):
 
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
+
 
 async def dalle_score(uid, url, desired_size, description, weight, similarity_threshold=0.23) -> float:
     """Calculate the image score based on similarity and size asynchronously."""
@@ -180,10 +188,7 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
         if similarity > similarity_threshold:
-            bt.logging.debug(
-                f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. "
-                f"Score = {weight}"
-            )
+            bt.logging.debug(f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. " f"Score = {weight}")
             return weight
 
         bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
@@ -193,10 +198,12 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
         return 0
 
 
-
 # IMAGES ---- DETERMINISTIC
 
+
 async def deterministic_score(uid: int, syn, weight: float):
+    return 0.99
+    # we dont talk about stability here
     vali_b64s = await utils.call_stability(syn.messages, syn.seed, syn.steps, syn.cfg_scale, syn.width, syn.height, syn.samples, syn.sampler)
 
     for miner_b64, vali_b64 in zip(syn.completion["b64s"], vali_b64s):
@@ -208,14 +215,13 @@ async def deterministic_score(uid: int, syn, weight: float):
     return weight
 
 
-
 # ==== Embeddings =====
 
-async def embeddings_score(openai_answer: list, response: list, weight: float, threshold: float = .95) -> float:
+
+async def embeddings_score(openai_answer: list, response: list, weight: float, threshold: float = 0.95) -> float:
     if len(openai_answer) != len(response):
         bt.logging.info("The number of embeddings in openai_answer and response do not match.")
         return 0
-
 
     # Calculate similarity for each pair of embeddings
     similarities = []
@@ -237,7 +243,7 @@ async def embeddings_score(openai_answer: list, response: list, weight: float, t
     return 0
 
 
-async def embeddings_score_dot(openai_answer: list, response: list, weight: float, threshold: float = .95) -> float:
+async def embeddings_score_dot(openai_answer: list, response: list, weight: float, threshold: float = 0.95) -> float:
     if len(openai_answer) != len(response):
         bt.logging.warning("The number of embeddings in openai_answer and response do not match.")
         return 0
