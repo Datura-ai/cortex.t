@@ -609,10 +609,10 @@ class StreamMiner:
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
                     response = await openAI_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "openai/gpt-4o"),
                         messages=messages,
-                        temperature=temperature,
                         stream=True,
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "openai/gpt-4o"),
+                        temperature=temperature,
                         seed=seed,
                         max_tokens=max_tokens,
                     )
@@ -647,15 +647,15 @@ class StreamMiner:
                 elif provider == "Anthropic":
                     # Test seeds + higher temperature
                     response = await anthropic_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "anthropic/claude-2.1"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "anthropic/claude-2.1"),
                         messages=f"\n\nHuman: {messages}\n\nAssistant:",
                         # messages=messages,
                         temperature=temperature,
                         stream=True,
                         # seed=seed,
                         max_tokens=max_tokens,
-                        top_k=top_k,
-                        top_p=top_p,
+                        # top_k=top_k,
+                        # top_p=top_p,
                     )
                     buffer = []
                     n = 1
@@ -699,7 +699,7 @@ class StreamMiner:
                         filtered_messages = [{"role": "system", "content": system_prompt}] + filtered_messages
 
                     response = await claude_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "anthropic/claude-3-opus"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "anthropic/claude-3-opus"),
                         messages=filtered_messages,
                         # temperature=temperature,
                         stream=True,
@@ -736,7 +736,7 @@ class StreamMiner:
 
                 elif provider == "Gemini":
                     response = await google_genai_client.chat.completions.create(
-                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, "google/gemini-pro"),
+                        model=ENDPOINT_OVERRIDE_MAP["LlmModelMap"].get(model, {}).get("ModelName", "google/gemini-pro"),
                         messages=messages,
                         temperature=temperature,
                         stream=True,
