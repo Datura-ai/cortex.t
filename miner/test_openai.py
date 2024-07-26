@@ -14,8 +14,8 @@ from alt_key_handler import get_endpoint_overrides
 ENDPOINT_OVERRIDE_MAP = get_endpoint_overrides()
 
 api_key = ENDPOINT_OVERRIDE_MAP["ENVIRONMENT_KEY"][ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("ENVIRONMENT_KEY", "")]
-
-client = AsyncOpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1", timeout=60)
+base_url = base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get("OpenRouter", {}).get("api", "")
+client = AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=60)
 
 
 async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
