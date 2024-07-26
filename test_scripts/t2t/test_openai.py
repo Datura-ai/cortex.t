@@ -4,12 +4,12 @@ import traceback
 from openai import OpenAI
 from openai import AsyncOpenAI
 
-os.environ["OPENAI_API_KEY"] = "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"
+os.environ["OPENAI_API_KEY"] = "YOURAPIKEY"
 # OpenAI.api_key = os.environ.get("OPENAI_API_KEY")
 # if not OpenAI.api_key:
 #     raise ValueError("Please set the OPENAI_API_KEY environment variable.")
 
-client = AsyncOpenAI(api_key="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", base_url="https://openrouter.ai/api/v1", timeout=60)
+client = AsyncOpenAI(api_key="YOURAPIKEY", timeout=60)
 
 
 async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
@@ -42,7 +42,8 @@ async def send_openai_request(prompt, engine="gpt-4-1106-preview"):
 
 async def main():
     prompts = ["count to 10", "tell me a joke"]
-    tasks = [send_openai_request(prompt) for prompt in prompts]
+    # tasks = [send_openai_request(prompt) for prompt in prompts]
+    tasks = [send_openai_request("")]
 
     responses = await asyncio.gather(*tasks)
     for response in responses:

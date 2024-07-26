@@ -63,9 +63,9 @@ if check_endpoint_overrides():
     # Set up api keys from .env file and initialze clients
 
     # OpenRouter uses OpenAI's API spec
-    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
-    if not api_key:
-        raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
+    api_key = ENDPOINT_OVERRIDE_MAP["ENVIRONMENT_KEY"][ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", "")]
+    # if not api_key:
+    #     raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
     base_url = ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("api", "")
 
@@ -88,7 +88,7 @@ if check_endpoint_overrides():
     # if not stability_key:
     #     raise ValueError("Please set the STABILITY_KEY environment variable.")
 
-    claude_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
+    claude_key = ENDPOINT_OVERRIDE_MAP["ENVIRONMENT_KEY"][ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", "")]
     if not claude_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
@@ -108,7 +108,7 @@ if check_endpoint_overrides():
 
     # Anthropic
     # Only if using the official claude for access instead of aws bedrock
-    api_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
+    api_key = ENDPOINT_OVERRIDE_MAP["ENVIRONMENT_KEY"][ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", "")]
     if not api_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
     anthropic_client = AsyncOpenAI(
@@ -126,7 +126,7 @@ if check_endpoint_overrides():
     # anthropic_client = anthropic.Anthropic() # Remove - Redundant, but kept for clarity
 
     # For google/gemini
-    google_key = os.environ.get(ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", ""))
+    google_key = ENDPOINT_OVERRIDE_MAP["ENVIRONMENT_KEY"][ENDPOINT_OVERRIDE_MAP["ServiceEndpoint"].get(alt_llm_service, {}).get("ENVIRONMENT_KEY", "")]
     if not google_key:
         raise ValueError("Please set the OPENROUTER_API_KEY environment variable.")
 
@@ -795,6 +795,7 @@ class StreamMiner:
             except Exception as e:
                 bt.logging.error(f"error in _prompt_provider_overrides {e}\n{traceback.format_exc()}")
                 bt.logging.error("\n".join(log_error))
+                log_error = []
 
         token_streamer = partial(_prompt_provider_overrides, synapse) if OVERRIDE_ENDPOINTS else partial(_prompt, synapse)
 
