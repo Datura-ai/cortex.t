@@ -37,7 +37,7 @@ import nsfw_tools
 from alt_key_handler import (
     check_endpoint_overrides,
     get_endpoint_overrides,
-    override_endpoint_keys,
+    # override_endpoint_keys,
     image_client_lfu_closure,
 )
 
@@ -57,7 +57,7 @@ if check_endpoint_overrides():
     alt_image_service = "OpenAI"
 
     print("Overriding endpoints with yaml environment variables")
-    override_endpoint_keys()
+    # override_endpoint_keys()
     ENDPOINT_OVERRIDE_MAP = get_endpoint_overrides()
 
     # Set up api keys from .env file and initialze clients
