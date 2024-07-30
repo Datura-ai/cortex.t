@@ -197,8 +197,9 @@ class StreamMiner():
             #     return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
-            for uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
+            for _uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
                 if _axon.hotkey == hotkey:
+                    uid = _uid
                     break
 
             if uid is None and cortext.ALLOW_NON_REGISTERED is False:
