@@ -187,6 +187,8 @@ class StreamMiner():
 
     def base_blacklist(self, synapse, blacklist_amt = 5000) -> Tuple[bool, str]:
         try:
+            config = get_config()
+            blacklist_amt = 0 if config.test else blacklist_amt
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
 

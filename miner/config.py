@@ -86,6 +86,11 @@ def get_config() -> bt.config:
         default=False,
     )
 
+
+    parser.add_argument('--test', action='store_true', help='Use test configuration')
+
+
+
     # Adds subtensor specific arguments i.e. --subtensor.chain_endpoint ... --subtensor.network ...
     bt.subtensor.add_args(parser)
 
