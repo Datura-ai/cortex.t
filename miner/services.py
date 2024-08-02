@@ -6,7 +6,7 @@ from groq import AsyncGroq
 from anthropic_bedrock import AsyncAnthropicBedrock
 import pathlib
 
-from config import config
+from miner.config import config
 
 
 class Service:

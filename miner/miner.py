@@ -29,7 +29,7 @@ from cortext.utils import get_version, get_api_key
 import sys
 
 from starlette.types import Send
-from config import config
+from miner.config import config
 from pathlib import Path
 
 valid_hotkeys = []
@@ -38,6 +38,7 @@ valid_hotkeys = []
 class StreamMiner():
     def __init__(self, axon=None, wallet=None, subtensor=None):
 
+        self.last_epoch_block = None
         self.my_subnet_uid = None
         self.axon = axon
         self.wallet = wallet
@@ -187,22 +188,13 @@ class StreamMiner():
         return blacklist
 
     def run(self):
-        if not self.subtensor.is_hotkey_registered(
-                netuid=self.config.netuid,
-                hotkey_ss58=self.wallet.hotkey.ss58_address,
-        ):
-            bt.logging.error(
-                f"Wallet: {self.wallet} is not registered on netuid {self.config.netuid}"
-                f"Please register the hotkey using `btcli s register --netuid 18` before trying again"
-            )
-            sys.exit()
         bt.logging.info(
             f"Serving axon {StreamPrompting} "
-            f"on network: {self.config.subtensor.chain_endpoint} "
-            f"with netuid: {self.config.netuid}"
+            f"on network: {self.subtensor.chain_endpoint} "
+            f"with netuid: {config.NET_UID}"
         )
-        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
-        bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
+        self.axon.serve(config.NET_UID, subtensor=self.subtensor)
+        bt.logging.info(f"Starting axon server on port: {config.AXON_PORT}")
         self.axon.start()
         self.last_epoch_block = self.subtensor.get_current_block()
         bt.logging.info(f"Miner starting at block: {self.last_epoch_block}")
@@ -215,10 +207,10 @@ class StreamMiner():
                 current_block = self.subtensor.get_current_block()
                 while (
                         current_block - self.last_epoch_block
-                        < self.config.miner.blocks_per_epoch
+                        < config.BLOCKS_PER_EPOCH
                 ):
                     # --- Wait for next block.
-                    time.sleep(1)
+                    time.sleep(config.WAIT_NEXT_BLOCK_TIME)
                     current_block = self.subtensor.get_current_block()
                     # --- Check if we should exit.
                     if self.should_exit:
@@ -228,7 +220,7 @@ class StreamMiner():
                 self.last_epoch_block = self.subtensor.get_current_block()
 
                 metagraph = self.subtensor.metagraph(
-                    netuid=self.config.netuid,
+                    netuid=config.NET_UID,
                     lite=True,
                     block=self.last_epoch_block,
                 )
@@ -245,7 +237,7 @@ class StreamMiner():
                 bt.logging.info(log)
 
                 # --- Set weights.
-                if not self.config.miner.no_set_weights:
+                if not config.NO_SET_WEIGHTS:
                     pass
                 step += 1
 
