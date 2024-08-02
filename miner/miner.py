@@ -7,11 +7,9 @@ import json
 import os
 import pathlib
 import httpx
-import requests
 import threading
 import time
 import traceback
-import anthropic
 from collections import deque
 from functools import partial
 from typing import Tuple
@@ -19,16 +17,11 @@ from typing import Tuple
 import bittensor as bt
 import google.generativeai as genai
 import wandb
-from PIL import Image
-from stability_sdk import client
 from config import check_config, get_config
 from openai import AsyncOpenAI, OpenAI
 from anthropic import AsyncAnthropic
 from groq import AsyncGroq
-from stability_sdk import client as stability_client
-from PIL import Image
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
+from anthropic_bedrock import AsyncAnthropicBedrock
 
 import cortext
 from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
@@ -36,89 +29,81 @@ from cortext.utils import get_version, get_api_key
 import sys
 
 from starlette.types import Send
-
-
-# Set up api keys from .env file and initialze clients
-
-# OpenAI
-OpenAI.api_key = get_api_key("OpenAI", "OPENAI_API_KEY")
-openai_client = AsyncOpenAI(timeout=60.0)
-
-# Stability API
-# stability_key = get_api_key("Stability", "STABILITY_API_KEY")
-# stability_api = stability_client.StabilityInference(key=stability_key, verbose=True)
-
-# Anthropic
-anthropic_key = get_api_key("Anthropic", "ANTHROPIC_API_KEY")
-anthropic_client = AsyncAnthropic()
-anthropic_client.api_key = anthropic_key
-
-# Anthropic Bedrock (default)
-anthropic_bedrock_client = AsyncAnthropicBedrock(
-    # default is 10 minutes
-    # more granular timeout options:  timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
-    timeout=60.0,
-)
-
-# AWS Bedrock
-bedrock_client_parameters = {
-    "service_name": 'bedrock-runtime',
-    "aws_access_key_id": get_api_key("AWS Bedrock", "AWS_ACCESS_KEY"),
-    "aws_secret_access_key": get_api_key("AWS Bedrock", "AWS_SECRET_KEY"),
-    "region_name": "us-east-1"
-}
-
-# Google/gemini
-google_key=get_api_key("Google", "GOOGLE_API_KEY")
-genai.configure(api_key=google_key)
-
-# Groq
-groq_key = get_api_key("Groq", "GROQ_API_KEY")
-groq_client = AsyncGroq()
-groq_client.api_key = groq_key
-
-# Wandb
-netrc_path = pathlib.Path.home() / ".netrc"
-wandb_api_key = os.getenv("WANDB_API_KEY")
-bt.logging.info("WANDB_API_KEY is set")
-bt.logging.info("~/.netrc exists:", netrc_path.exists())
-
-if not wandb_api_key and not netrc_path.exists():
-    raise ValueError("Please log in to wandb using `wandb login` or set the WANDB_API_KEY environment variable.")
+from config import config
+from pathlib import Path
 
 valid_hotkeys = []
 
-class StreamMiner():
-    def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
-        bt.logging.info("starting stream miner")
-        base_config = copy.deepcopy(config or get_config())
-        self.config = self.config()
-        self.config.merge(base_config)
-        check_config(StreamMiner, self.config)
-        bt.logging.info(self.config)
-        self.prompt_cache: dict[str, Tuple[str, int]] = {}
-        self.request_timestamps = {}
 
+class StreamMiner():
+    def __init__(self, axon=None, wallet=None, subtensor=None):
+
+        self.my_subnet_uid = None
+        self.axon = axon
+        self.wallet = wallet
+        self.subtensor = subtensor
+
+        bt.logging.info("starting stream miner")
+
+        self.init_bittensor()
+        self.init_axon()
+
+        # Instantiate runners
+        self.prompt_cache: dict[str, Tuple[str, int]] = {}
+        self.request_timestamps: dict = {}
+        self.should_exit: bool = False
+        self.is_running: bool = False
+        self.thread: threading.Thread = None
+        self.lock = asyncio.Lock()
+
+    def init_bittensor(self):
         # Activating Bittensor's logging with the set configurations.
-        bt.logging(config=self.config, logging_dir=self.config.full_path)
+        bt.logging(trace=config.LOGGING_TRACE)
         bt.logging.info("Setting up bittensor objects.")
 
         # Wallet holds cryptographic information, ensuring secure transactions and communication.
-        self.wallet = wallet or bt.wallet(config=self.config)
+        self.wallet = self.wallet or bt.wallet(name=config.WALLET_NAME, hotkey=config.HOT_KEY)
         bt.logging.info(f"Wallet {self.wallet}")
 
         # subtensor manages the blockchain connection, facilitating interaction with the Bittensor blockchain.
-        self.subtensor = subtensor or bt.subtensor(config=self.config)
+        self.subtensor = self.subtensor or bt.subtensor(network=config.BT_SUBTENSOR_NETWORK)
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(
-            f"Running miner for subnet: {self.config.netuid} "
+            f"Running miner for subnet: {config.NET_UID} "
             f"on network: {self.subtensor.chain_endpoint} with config:"
         )
 
         # metagraph provides the network's current state, holding state about other participants in a subnet.
-        self.metagraph = self.subtensor.metagraph(self.config.netuid)
+        self.metagraph = self.subtensor.metagraph(config.NET_UID)
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
+        self.check_hotkey_validation()
+
+    def init_axon(self):
+
+        bt.logging.debug(
+            f"Starting axon on port {config.AXON_PORT} and external ip {config.EXTERNAL_IP}"
+        )
+        self.axon = self.axon or bt.axon(
+            wallet=self.wallet,
+            port=config.AXON_PORT,
+            external_ip=config.EXTERNAL_IP,
+        )
+
+        # Attach determiners which functions are called when servicing a request.
+        bt.logging.info("Attaching forward function to axon.")
+        print(f"Attaching forward function to axon. {self.prompt}")
+
+        axon_bridges = [(self.prompt, self.blacklist_prompt), (self.is_alive, self.blacklist_is_alive),
+                        (self.images, self.blacklist_images), (self.embeddings, self.blacklist_embeddings),
+                        (self.text, None)]
+
+        for forward_fn, blacklist_fn in axon_bridges:
+            self.axon = self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
+
+        bt.logging.info(f"Axon created: {self.axon}")
+
+    def check_hotkey_validation(self):
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
                 f"\nYour miner: {self.wallet} is not registered to this subnet"
@@ -132,71 +117,14 @@ class StreamMiner():
             )
             bt.logging.info(f"Running miner on uid: {self.my_subnet_uid}")
 
-        # The axon handles request processing, allowing validators to send this process requests.
-        if axon is not None:
-            self.axon = axon
-        elif self.config.axon.external_ip is not None:
-            bt.logging.debug(
-                f"Starting axon on port {self.config.axon.port} and external ip {self.config.axon.external_ip}"
-            )
-            self.axon = bt.axon(
-                wallet=self.wallet,
-                port=self.config.axon.port,
-                external_ip=self.config.axon.external_ip,
-            )
-        else:
-            bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
-            self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-
-        # Attach determiners which functions are called when servicing a request.
-        bt.logging.info("Attaching forward function to axon.")
-        print(f"Attaching forward function to axon. {self.prompt}")
-        self.axon.attach(
-            forward_fn=self.prompt,
-            blacklist_fn=self.blacklist_prompt,
-        ).attach(
-            forward_fn=self.is_alive,
-            blacklist_fn=self.blacklist_is_alive,
-        ).attach(
-            forward_fn=self.images,
-            blacklist_fn=self.blacklist_images,
-        ).attach(
-            forward_fn=self.embeddings,
-            blacklist_fn=self.blacklist_embeddings,
-        ).attach(
-            forward_fn=self.text,
-        )
-        bt.logging.info(f"Axon created: {self.axon}")
-
-        # Instantiate runners
-        self.should_exit: bool = False
-        self.is_running: bool = False
-        self.thread: threading.Thread = None
-        self.lock = asyncio.Lock()
-        self.request_timestamps: dict = {}
-        # thread = threading.Thread(target=get_valid_hotkeys, args=(self.config,))
-        # thread.start()
-
     def text(self, synapse: TextPrompting) -> TextPrompting:
         synapse.completion = "completed by miner"
         return synapse
 
-    def config(self) -> bt.config:
-        parser = argparse.ArgumentParser(description="Streaming Miner Configs")
-        return bt.config(parser)
-
-    def base_blacklist(self, synapse, blacklist_amt = 5000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt=5000) -> Tuple[bool, str]:
         try:
-            config = get_config()
-            blacklist_amt = 0 if config.test else blacklist_amt
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
-
-            # if hotkey in cortext.WHITELISTED_KEYS:
-            #     return False,  f"accepting {synapse_type} request from {hotkey}"
-
-            # if hotkey not in valid_hotkeys:
-            #     return True, f"Blacklisted a {synapse_type} request from a non-valid hotkey: {hotkey}"
 
             uid = None
             for _uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
@@ -238,31 +166,30 @@ class StreamMiner():
         except Exception:
             bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
 
-
-    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+    def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
-    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+    def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+    def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
     def run(self):
         if not self.subtensor.is_hotkey_registered(
-            netuid=self.config.netuid,
-            hotkey_ss58=self.wallet.hotkey.ss58_address,
+                netuid=self.config.netuid,
+                hotkey_ss58=self.wallet.hotkey.ss58_address,
         ):
             bt.logging.error(
                 f"Wallet: {self.wallet} is not registered on netuid {self.config.netuid}"
@@ -284,12 +211,11 @@ class StreamMiner():
         try:
             while not self.should_exit:
                 _start_epoch = time.time()
-
                 # --- Wait until next epoch.
                 current_block = self.subtensor.get_current_block()
                 while (
-                    current_block - self.last_epoch_block
-                    < self.config.miner.blocks_per_epoch
+                        current_block - self.last_epoch_block
+                        < self.config.miner.blocks_per_epoch
                 ):
                     # --- Wait for next block.
                     time.sleep(1)
@@ -312,7 +238,7 @@ class StreamMiner():
                     f"Stake:{metagraph.S[self.my_subnet_uid]} | "
                     f"Rank:{metagraph.R[self.my_subnet_uid]} | "
                     f"Trust:{metagraph.T[self.my_subnet_uid]} | "
-                    f"Consensus:{metagraph.C[self.my_subnet_uid] } | "
+                    f"Consensus:{metagraph.C[self.my_subnet_uid]} | "
                     f"Incentive:{metagraph.I[self.my_subnet_uid]} | "
                     f"Emission:{metagraph.E[self.my_subnet_uid]}"
                 )
@@ -365,9 +291,9 @@ class StreamMiner():
                     system_prompt = message["content"]
                 else:
                     message_to_append = {
-                            "role": message["role"],
-                            "content": [],
-                        }
+                        "role": message["role"],
+                        "content": [],
+                    }
                     if message.get("image"):
                         image_url = message.get("image")
                         image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -402,14 +328,13 @@ class StreamMiner():
                 top_p = synapse.top_p
                 top_k = synapse.top_k
 
-
                 if provider == "OpenAI":
                     # Test seeds + higher temperature
                     message = messages[0]
                     filtered_messages = [
                         {
-                        "role": message["role"],
-                        "content": [],
+                            "role": message["role"],
+                            "content": [],
                         }
                     ]
                     if message.get("content"):
@@ -645,6 +570,7 @@ class StreamMiner():
                         elif model.startswith("ai21"):
                             token = json.loads(message)["completions"][0]["data"]["text"]
                         return token
+
                     aws_session = aioboto3.Session()
                     aws_bedrock_client = aws_session.client(**bedrock_client_parameters)
 
@@ -727,7 +653,8 @@ class StreamMiner():
             samples = synapse.samples
             image_data = {}
 
-            bt.logging.debug(f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
+            bt.logging.debug(
+                f"data = {provider, model, messages, size, width, height, quality, style, seed, steps, image_revised_prompt, cfg_scale, sampler, samples}")
 
             if provider == "OpenAI":
                 meta = await openai_client.images.generate(
@@ -736,7 +663,7 @@ class StreamMiner():
                     size=size,
                     quality=quality,
                     style=style,
-                    )
+                )
                 image_url = meta.data[0].url
                 image_revised_prompt = meta.data[0].revised_prompt
                 image_data["url"] = image_url

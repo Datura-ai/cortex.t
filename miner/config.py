@@ -1,7 +1,49 @@
+from dotenv import load_dotenv
 import argparse
+import os
 from pathlib import Path
 
 import bittensor as bt
+
+
+class Config(bt.config):
+    def __init__(self):
+        super().__init__()
+        load_dotenv()  # Load environment variables from .env file
+
+        self.ENV = os.getenv('ENV')
+
+        self.WANDB_API_KEY = os.getenv('WANDB_API_KEY')
+        self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+        self.GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+        self.ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+        self.GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+        self.AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
+        self.AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
+        self.PIXABAY_API_KEY = os.getenv('PIXABAY_API_KEY')
+
+        self.CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS = os.getenv(
+            'CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS')
+        self.RICH_TRACEBACK = os.getenv('RICH_TRACEBACK')
+
+        self.WALLET_NAME = os.getenv('WALLET_NAME')
+        self.HOT_KEY = os.getenv('HOT_KEY')
+        self.NET_UID = os.getenv('NET_UID')
+        self.ASYNC_TIME_OUT = os.getenv('ASYNC_TIME_OUT')
+        self.AXON_PORT = os.getenv('AXON_PORT', 8098)
+        self.EXTERNAL_IP = os.getenv('EXTERNAL_IP')
+
+        self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
+        self.WANDB_OFF = False if self.ENV == 'prod' else True
+        self.LOGGING_TRACE = False if self.ENV == 'prod' else True
+
+    def __repr__(self):
+        return (
+            f"Config(BT_SUBTENSOR_NETWORK={self.BT_SUBTENSOR_NETWORK}, WALLET_NAME={self.WALLET_NAME}, HOT_KEY={self.HOT_KEY}"
+            f", NET_UID={self.NET_UID}, WANDB_OFF={self.WANDB_OFF}, LOGGING_TRACE={self.LOGGING_TRACE}")
+
+
+config = Config()
 
 
 def check_config(cls, config: bt.config):
@@ -86,10 +128,7 @@ def get_config() -> bt.config:
         default=False,
     )
 
-
     parser.add_argument('--test', action='store_true', help='Use test configuration')
-
-
 
     # Adds subtensor specific arguments i.e. --subtensor.chain_endpoint ... --subtensor.network ...
     bt.subtensor.add_args(parser)
