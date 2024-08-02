@@ -1,6 +1,7 @@
 import bittensor as bt
 from openai import AsyncOpenAI
 from starlette.types import Send
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
 from miner.providers.base import Provider
 from miner.config import config
@@ -13,24 +14,21 @@ class OpenAI(Provider):
         self.openai_client = AsyncOpenAI(timeout=config.ASYNC_TIME_OUT, api_key=config.OPENAI_API_KEY)
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
-        provider = synapse.provider
-        model = synapse.model
+        model: str = synapse.model
         messages = synapse.messages
         seed = synapse.seed
         temperature = synapse.temperature
         max_tokens = synapse.max_tokens
-        top_p = synapse.top_p
-        top_k = synapse.top_k
 
         message = messages[0]
-        filtered_messages = [
-            {
-                "role": message["role"],
-                "content": [],
-            }
-        ]
+
+        filtered_message: ChatCompletionMessageParam = {
+            "role": message["role"],
+            "content": [],
+        }
+
         if message.get("content"):
-            filtered_messages[0]["content"].append(
+            filtered_message["content"].append(
                 {
                     "type": "text",
                     "text": message["content"],
@@ -38,7 +36,7 @@ class OpenAI(Provider):
             )
         if message.get("image"):
             image_url = message.get("image")
-            filtered_messages[0]["content"].append(
+            filtered_message["content"].append(
                 {
                     "type": "image_url",
                     "image_url": {
@@ -47,12 +45,10 @@ class OpenAI(Provider):
                 }
             )
         response = await self.openai_client.chat.completions.create(
-            model=model,
-            messages=filtered_messages,
-            temperature=temperature,
-            stream=True,
+            model=model, messages=[filtered_message],
+            temperature=temperature, stream=True,
             seed=seed,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
         buffer = []
         n = 1
