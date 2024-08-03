@@ -1,3 +1,4 @@
+import asyncio
 import bittensor as bt
 from openai import AsyncOpenAI
 from starlette.types import Send
@@ -73,8 +74,49 @@ class OpenAI(Provider):
             )
             bt.logging.info(f"Streamed tokens: {joined_buffer}")
 
-    def image_service(self):
-        pass
+    async def image_service(self, synapse):
+        image_data = {}
+        meta = await self.openai_client.images.generate(
+            model=self.model,
+            prompt=self.messages,
+            size=self.size,
+            quality=self.quality,
+            style=self.style
+        )
+        image_url = meta.data[0].url
+        image_revised_prompt = meta.data[0].revised_prompt
+        image_data["url"] = image_url
+        image_data["image_revised_prompt"] = image_revised_prompt
+        bt.logging.info(f"returning image response of {image_url}")
+        synapse.completion = image_data
+        return synapse
 
-    def embeddings_service(self):
-        pass
+    async def embeddings_service(self, synapse):
+        batched_embeddings = await self.get_embeddings_in_batch(self.texts, self.model)
+        synapse.embeddings = batched_embeddings
+        # synapse.embeddings = [np.array(embed) for embed in batched_embeddings]
+        bt.logging.info(f"synapse response is {synapse.embeddings[0][:10]}")
+        return synapse
+
+    async def get_embeddings_in_batch(self, texts, model, batch_size=10):
+        batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
+        tasks = []
+        for batch in batches:
+            filtered_batch = [text for text in batch if text.strip()]
+            if filtered_batch:
+                task = asyncio.create_task(self.openai_client.embeddings.create(
+                    input=filtered_batch, model=model, encoding_format='float'
+                ))
+                tasks.append(task)
+            else:
+                bt.logging.info("Skipped an empty batch.")
+
+        all_embeddings = []
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                bt.logging.error(f"Error in processing batch: {result}")
+            else:
+                batch_embeddings = [item.embedding for item in result.data]
+                all_embeddings.extend(batch_embeddings)
+        return all_embeddings

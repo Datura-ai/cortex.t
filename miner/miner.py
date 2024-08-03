@@ -662,28 +662,6 @@ class StreamMiner():
                 image_data["image_revised_prompt"] = image_revised_prompt
                 bt.logging.info(f"returning image response of {image_url}")
 
-            # elif provider == "Stability":
-            #     bt.logging.debug(f"calling stability for {messages, seed, steps, cfg_scale, width, height, samples, sampler}")
-
-            #     meta = stability_api.generate(
-            #         prompt=messages,
-            #         seed=seed,
-            #         steps=steps,
-            #         cfg_scale=cfg_scale,
-            #         width=width,
-            #         height=height,
-            #         samples=samples,
-            #         # sampler=sampler
-            #     )
-            #     # Process and upload the image
-            #     b64s = []
-            #     for image in meta:
-            #         for artifact in image.artifacts:
-            #             b64s.append(base64.b64encode(artifact.binary).decode())
-
-            #     image_data["b64s"] = b64s
-            #     bt.logging.info(f"returning image response to {messages}")
-
             else:
                 bt.logging.error(f"Unknown provider: {provider}")
 

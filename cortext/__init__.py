@@ -22,17 +22,20 @@
 __version__ = "3.3.7"
 version_split = __version__.split(".")
 __spec_version__ = (
-    (1000 * int(version_split[0]))
-    + (10 * int(version_split[1]))
-    + (1 * int(version_split[2]))
+        (1000 * int(version_split[0]))
+        + (10 * int(version_split[1]))
+        + (1 * int(version_split[2]))
 )
 
-u64_max = 2**64 - 10
+u64_max = 2 ** 64 - 10
 __weights_version__ = u64_max
 
 import os
+from typing import Union
 
 from openai import AsyncOpenAI
+
+from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
 
 try:
     AsyncOpenAI.api_key = os.environ['OPENAI_API_KEY']
@@ -54,32 +57,32 @@ testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
 VALIDATOR_API_WHITELIST = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 valid_validators = [
-    '5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v',
-    '5EhvL1FVkQPpMjZX4MAADcW42i3xPSF1KiCpuaxTYVr28sux',
-    '5CXRfP2ekFhe62r7q3vppRajJmGhTi7vwvb2yr79jveZ282w',
-    '5CaNj3BarTHotEK1n513aoTtFeXcjf6uvKzAyzNuv9cirUoW',
-    '5HK5tp6t2S59DywmHRWPBVJeJ86T61KjurYqeooqj8sREpeN',
-    '5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed',
-    '5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T',
-    '5Dz8ShM6rtPw1GBAaqxjycT9LF1TC3iDpzpUH9gKr85Nizo6',
-    '5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8',
-    '5HNQURvmjjYhTSksi8Wfsw676b4owGwfLR2BFAQzG7H3HhYf',
-    '5HEo565WAy4Dbq3Sv271SAi7syBSofyfhhwRNjFNSM2gP9M2',
-    '5F4tQyWrhfGVcNhoqeiNsR6KjD4wMZ2kfhLj4oHYuyHbZAc3',
-    '5FKstHjZkh4v3qAMSBa1oJcHCLjxYZ8SNTSz1opTv4hR7gVB',
-    '5Dd8gaRNdhm1YP7G1hcB1N842ecAUQmbLjCRLqH5ycaTGrWv',
-    '5Fq5v71D4LX8Db1xsmRSy6udQThcZ8sFDqxQFwnUZ1BuqY5A',
-    '5HbLYXUBy1snPR8nfioQ7GoA9x76EELzEq9j7F32vWUQHm1x',
-    '5DnXm2tBGAD57ySJv5SfpTfLcsQbSKKp6xZKFWABw3cYUgqg',
-    '5CD5prNQgJzWVJCxohfL9yYTMZtYCEBugxDFVd8NEJojrVsE',
-] + os.environ.get('CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS', '').split(',')
+                       '5FFApaS75bv5pJHfAp2FVLBj9ZaXuFDjEypsaBNc1wCfe52v',
+                       '5EhvL1FVkQPpMjZX4MAADcW42i3xPSF1KiCpuaxTYVr28sux',
+                       '5CXRfP2ekFhe62r7q3vppRajJmGhTi7vwvb2yr79jveZ282w',
+                       '5CaNj3BarTHotEK1n513aoTtFeXcjf6uvKzAyzNuv9cirUoW',
+                       '5HK5tp6t2S59DywmHRWPBVJeJ86T61KjurYqeooqj8sREpeN',
+                       '5DvTpiniW9s3APmHRYn8FroUWyfnLtrsid5Mtn5EwMXHN2ed',
+                       '5G3f8VDTT1ydirT3QffnV2TMrNMR2MkQfGUubQNqZcGSj82T',
+                       '5Dz8ShM6rtPw1GBAaqxjycT9LF1TC3iDpzpUH9gKr85Nizo6',
+                       '5Hddm3iBFD2GLT5ik7LZnT3XJUnRnN8PoeCFgGQgawUVKNm8',
+                       '5HNQURvmjjYhTSksi8Wfsw676b4owGwfLR2BFAQzG7H3HhYf',
+                       '5HEo565WAy4Dbq3Sv271SAi7syBSofyfhhwRNjFNSM2gP9M2',
+                       '5F4tQyWrhfGVcNhoqeiNsR6KjD4wMZ2kfhLj4oHYuyHbZAc3',
+                       '5FKstHjZkh4v3qAMSBa1oJcHCLjxYZ8SNTSz1opTv4hR7gVB',
+                       '5Dd8gaRNdhm1YP7G1hcB1N842ecAUQmbLjCRLqH5ycaTGrWv',
+                       '5Fq5v71D4LX8Db1xsmRSy6udQThcZ8sFDqxQFwnUZ1BuqY5A',
+                       '5HbLYXUBy1snPR8nfioQ7GoA9x76EELzEq9j7F32vWUQHm1x',
+                       '5DnXm2tBGAD57ySJv5SfpTfLcsQbSKKp6xZKFWABw3cYUgqg',
+                       '5CD5prNQgJzWVJCxohfL9yYTMZtYCEBugxDFVd8NEJojrVsE',
+                   ] + os.environ.get('CORTEXT_MINER_ADDITIONAL_WHITELIST_VALIDATOR_KEYS', '').split(',')
 WHITELISTED_KEYS = testnet_key + test_key + valid_validators
 BLACKLISTED_KEYS = ["5G1NjW9YhXLadMWajvTkfcJy6up3yH2q1YzMXDTi6ijanChe"]
 
 PROJECT_NAMES = ['embeddings-data', 'synthetic-QA-v2', 'synthetic-images']
 PROJECT_NAME = 'multi-modality'
 
-IMAGE_PROMPTS=[
+IMAGE_PROMPTS = [
     "What is depicted in this image? Describe the main objects.",
     "What colors dominate in this image?",
     "What mood does the image convey?",
@@ -98,7 +101,7 @@ initial_instruct_themes = [
     'Medicine', 'Toxicity', 'Roleplay', 'Entertainment', 'Biology', 'Counterfactual', 'Literature',
     'Chemistry', 'Writing', 'Sport', 'Law', 'Language', 'Computer Science', 'Multilangual',
     'Common Sense', 'Art', 'Complex Format', 'Code Generation', 'Math', 'Code Debug', 'Reasoning',
-        'Love and relationships',
+    'Love and relationships',
     'Nature and environment',
     'Art and creativity',
     'Technology and innovation',
@@ -2432,7 +2435,7 @@ more_instruct_themes = [
     "Social Psychology and Group Dynamics",
     "Emerging Trends in Education",
     "Civic Engagement and Community Organizing"
-    ]
+]
 INSTRUCT_DEFAULT_THEMES = initial_instruct_themes + more_instruct_themes
 INSTRUCT_DEFAULT_QUESTIONS = ["ERROR in getting questions"]
 
@@ -2636,16 +2639,26 @@ IMAGE_DEFAULT_THEMES = [
     'Forest Spirits',
 ]
 IMAGE_DEFAULT_QUESTIONS = [
-    'A majestic golden eagle soaring high above a mountain range, its powerful wings spread wide against a clear blue sky.',  # noqa: E501
-    'A bustling medieval marketplace, full of colorful stalls, various goods, and people dressed in period attire, with a castle in the background.',  # noqa: E501
-    'An underwater scene showcasing a vibrant coral reef teeming with diverse marine life, including fish, sea turtles, and starfish.',  # noqa: E501
-    'A serene Zen garden with neatly raked sand, smooth stones, and a small, gently babbling brook surrounded by lush green foliage.',  # noqa: E501
-    'A futuristic cityscape at night, illuminated by neon lights, with flying cars zooming between towering skyscrapers.',  # noqa: E501
-    'A cozy cabin in a snowy forest at twilight, with warm light glowing from the windows and smoke rising from the chimney.',  # noqa: E501
-    'A surreal landscape with floating islands, cascading waterfalls, and a path leading to a castle in the sky, set against a sunset backdrop.',  # noqa: E501
-    'An astronaut exploring the surface of Mars, with a detailed spacesuit, the red Martian terrain around, and Earth visible in the sky.',  # noqa: E501
-    'A lively carnival scene with a Ferris wheel, colorful tents, crowds of happy people, and the air filled with the smell of popcorn and cotton candy.',  # noqa: E501
-    'A majestic lion resting on a savanna, with the African sunset in the background, highlighting its powerful mane and serene expression.'  # noqa: E501
+    'A majestic golden eagle soaring high above a mountain range, its powerful wings spread wide against a clear blue sky.',
+    # noqa: E501
+    'A bustling medieval marketplace, full of colorful stalls, various goods, and people dressed in period attire, with a castle in the background.',
+    # noqa: E501
+    'An underwater scene showcasing a vibrant coral reef teeming with diverse marine life, including fish, sea turtles, and starfish.',
+    # noqa: E501
+    'A serene Zen garden with neatly raked sand, smooth stones, and a small, gently babbling brook surrounded by lush green foliage.',
+    # noqa: E501
+    'A futuristic cityscape at night, illuminated by neon lights, with flying cars zooming between towering skyscrapers.',
+    # noqa: E501
+    'A cozy cabin in a snowy forest at twilight, with warm light glowing from the windows and smoke rising from the chimney.',
+    # noqa: E501
+    'A surreal landscape with floating islands, cascading waterfalls, and a path leading to a castle in the sky, set against a sunset backdrop.',
+    # noqa: E501
+    'An astronaut exploring the surface of Mars, with a detailed spacesuit, the red Martian terrain around, and Earth visible in the sky.',
+    # noqa: E501
+    'A lively carnival scene with a Ferris wheel, colorful tents, crowds of happy people, and the air filled with the smell of popcorn and cotton candy.',
+    # noqa: E501
+    'A majestic lion resting on a savanna, with the African sunset in the background, highlighting its powerful mane and serene expression.'
+    # noqa: E501
 ]
 
 IMAGE_THEMES = [
@@ -3753,5 +3766,4 @@ IMAGE_THEMES = [
 ]
 
 
-# Import all submodules.
-from . import protocol, reward, utils
+ALL_SYNAPSE_TYPE = Union[StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive]

@@ -4,12 +4,13 @@ import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
 
+
 # from ..providers.image import DallE, Stability
 
 # from ..providers.text import Anthropic, GeminiPro, OpenAI
 
 
-class IsAlive( bt.Synapse ):
+class IsAlive(bt.Synapse):
     answer: Optional[str] = None
     completion: str = pydantic.Field(
         "",
@@ -17,6 +18,7 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. "
                     "This attribute is mutable and can be updated.",
     )
+
 
 class ImageResponse(bt.Synapse):
     """ A class to represent the response for an image-related request. """
@@ -58,7 +60,7 @@ class ImageResponse(bt.Synapse):
         description="The cfg_scale to use for image generation"
     )
 
-     # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m, k_dpmpp_sde)
+    # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m, k_dpmpp_sde)
     sampler: str = pydantic.Field(
         default="",
         title="Sampler",
@@ -129,7 +131,8 @@ class ImageResponse(bt.Synapse):
         """ Deserialize the completion data of the image response. """
         return self.completion
 
-class Embeddings( bt.Synapse):
+
+class Embeddings(bt.Synapse):
     """ A class to represent the embeddings request and response. """
 
     texts: List[str] = pydantic.Field(
@@ -163,9 +166,7 @@ class Embeddings( bt.Synapse):
     )
 
 
-
 class StreamPrompting(bt.StreamingSynapse):
-
     messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
@@ -323,7 +324,6 @@ class StreamPrompting(bt.StreamingSynapse):
 
 
 class TextPrompting(bt.Synapse):
-
     messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",

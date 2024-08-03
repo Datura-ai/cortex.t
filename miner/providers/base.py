@@ -6,11 +6,11 @@ from starlette.types import Send
 from abc import abstractmethod
 
 from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
-from typing import Union
+from cortext import ALL_SYNAPSE_TYPE
 
 
 class Provider:
-    def __init__(self, synapse: Union[StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive]):
+    def __init__(self, synapse: ALL_SYNAPSE_TYPE):
         self.model = synapse.model
         self.uid = synapse.uid
         self.timeout = synapse.timeout
@@ -93,9 +93,9 @@ class Provider:
         pass
 
     @abstractmethod
-    def image_service(self, synapse: bt.Synapse):
+    async def image_service(self, synapse: bt.Synapse):
         pass
 
     @abstractmethod
-    def embeddings_service(self, synapse: bt.Synapse):
+    async def embeddings_service(self, synapse: bt.Synapse):
         pass
