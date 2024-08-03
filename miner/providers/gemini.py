@@ -8,20 +8,20 @@ from cortext.protocol import StreamPrompting
 
 
 class Gemini(Provider):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, synapse):
+        super().__init__(synapse)
         genai.configure(api_key=config.GOOGLE_API_KEY)
         self.genai = genai
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
-        model = self.genai.GenerativeModel(synapse.model)
+        model = self.genai.GenerativeModel(self.model)
         stream = model.generate_content(
-            str(synapse.messages),
+            str(self.messages),
             stream=True,
             generation_config=genai.types.GenerationConfig(
-                temperature=synapse.temperature,
-                top_p=synapse.top_p,
-                top_k=synapse.top_k,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                top_k=self.top_k,
             )
         )
         for chunk in stream:

@@ -9,18 +9,13 @@ from cortext.protocol import StreamPrompting
 
 
 class OpenAI(Provider):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, synapse):
+        super().__init__(synapse)
         self.openai_client = AsyncOpenAI(timeout=config.ASYNC_TIME_OUT, api_key=config.OPENAI_API_KEY)
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
-        model: str = synapse.model
-        messages = synapse.messages
-        seed = synapse.seed
-        temperature = synapse.temperature
-        max_tokens = synapse.max_tokens
 
-        message = messages[0]
+        message = self.messages[0]
 
         filtered_message: ChatCompletionMessageParam = {
             "role": message["role"],
@@ -45,10 +40,10 @@ class OpenAI(Provider):
                 }
             )
         response = await self.openai_client.chat.completions.create(
-            model=model, messages=[filtered_message],
-            temperature=temperature, stream=True,
-            seed=seed,
-            max_tokens=max_tokens,
+            model=self.model, messages=[filtered_message],
+            temperature=self.temperature, stream=True,
+            seed=self.seed,
+            max_tokens=self.max_tokens,
         )
         buffer = []
         n = 1

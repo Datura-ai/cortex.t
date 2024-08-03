@@ -8,18 +8,18 @@ from cortext.protocol import StreamPrompting
 
 
 class Groq(Provider):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, synapse):
+        super().__init__(synapse)
         self.groq_client = AsyncGroq(timeout=config.ASYNC_TIME_OUT, api_key=config.GROQ_API_KEY)
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         stream_kwargs = {
-            "messages": synapse.messages,
-            "model": synapse.model,
-            "temperature": synapse.temperature,
-            "max_tokens": synapse.max_tokens,
-            "top_p": synapse.top_p,
-            "seed": synapse.seed,
+            "messages": self.messages,
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "top_p": self.top_p,
+            "seed": self.seed,
             "stream": True,
         }
 
