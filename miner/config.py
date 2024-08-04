@@ -36,6 +36,7 @@ class Config(bt.config):
         self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
         self.WANDB_OFF = False if self.ENV == 'prod' else True
         self.LOGGING_TRACE = False if self.ENV == 'prod' else True
+        self.BLACKLIST_AMT = 5000 if self.ENV == 'prod' else 0
         self.BLOCKS_PER_EPOCH = os.getenv('BLOCKS_PER_EPOCH', 100)
         self.WAIT_NEXT_BLOCK_TIME = os.getenv('WAIT_NEXT_BLOCK_TIME', 1)
         self.NO_SET_WEIGHTS = os.getenv('NO_SET_WEIGHTS', False)
