@@ -2,7 +2,7 @@ import bittensor as bt
 import google.generativeai as genai
 from starlette.types import Send
 
-from miner.providers.base import Provider
+from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
 

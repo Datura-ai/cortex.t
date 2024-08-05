@@ -3,7 +3,7 @@ from cortext.protocol import StreamPrompting
 from cortext import PROMPT_BLACKLIST_STAKE
 from typing import Tuple
 
-from miner.services.base import BaseService
+from .base import BaseService
 
 
 class PromptService(BaseService):

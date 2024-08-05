@@ -7,13 +7,12 @@ import bittensor as bt
 from cortext.protocol import StreamPrompting
 from cortext.metaclasses import ServiceRegistryMeta
 import sys
-from config import config
-from services import ALL_SERVICE_TYPE
+from miner.config import config
 
 valid_hotkeys = []
 
 
-class StreamMiner():
+class StreamMiner:
     def __init__(self, axon=None, wallet=None, subtensor=None):
 
         self.metagraph = None
@@ -73,7 +72,7 @@ class StreamMiner():
         # Get all registered services
         all_classes = ServiceRegistryMeta.all_classes()
         for class_name, class_ref in all_classes.items():
-            service: ALL_SERVICE_TYPE = ServiceRegistryMeta.get_class(class_name)
+            service = ServiceRegistryMeta.get_class(class_name)
             forward_fn, blacklist_fn = service.get_axon_attach_funcs(metagraph=self.metagraph)
             self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
 

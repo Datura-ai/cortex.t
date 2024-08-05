@@ -1,10 +1,9 @@
 import aioboto3
 import json
-from anthropic_bedrock import AsyncAnthropicBedrock
 import bittensor as bt
 from starlette.types import Send
 
-from miner.providers.base import Provider
+from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
 

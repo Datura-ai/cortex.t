@@ -4,7 +4,7 @@ from openai import AsyncOpenAI
 from starlette.types import Send
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
-from miner.providers.base import Provider
+from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
 

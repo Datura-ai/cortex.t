@@ -63,8 +63,8 @@ class BaseService(metaclass=ServiceRegistryMeta):
                 BaseService.request_timestamps[hotkey] = deque()
 
             # Remove timestamps outside the current time window
-            while BaseService.request_timestamps[hotkey] and current_time - BaseService.request_timestamps[hotkey][
-                0] > time_window:
+            while (BaseService.request_timestamps[hotkey] and
+                   current_time - BaseService.request_timestamps[hotkey][0] > time_window):
                 BaseService.request_timestamps[hotkey].popleft()
 
             # Check if the number of requests exceeds the limit

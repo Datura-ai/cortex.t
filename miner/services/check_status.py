@@ -2,7 +2,7 @@ import bittensor as bt
 from cortext.protocol import StreamPrompting
 from typing import Tuple
 
-from miner.services.base import BaseService
+from .base import BaseService
 from cortext import ISALIVE_BLACKLIST_STAKE
 
 

@@ -2,10 +2,9 @@ import bittensor as bt
 from anthropic_bedrock import AsyncAnthropicBedrock
 from starlette.types import Send
 
-from miner.providers.base import Provider
+from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-from typing import Union
 
 
 class AnthropicBedrock(Provider):
