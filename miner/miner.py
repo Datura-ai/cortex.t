@@ -15,6 +15,7 @@ valid_hotkeys = []
 class StreamMiner:
     def __init__(self, axon=None, wallet=None, subtensor=None):
 
+        self.services = None
         self.metagraph = None
         self.last_epoch_block = None
         self.my_subnet_uid = None
@@ -58,6 +59,12 @@ class StreamMiner:
 
         self.check_hotkey_validation()
 
+        all_classes = ServiceRegistryMeta.all_classes()
+        self.services = []
+        for class_name, class_ref in all_classes.items():
+            service = ServiceRegistryMeta.get_class(class_name)(self.metagraph)
+            self.services.append(service)
+
     def init_axon(self):
 
         bt.logging.debug(
@@ -65,15 +72,12 @@ class StreamMiner:
         )
         self.axon = self.axon or bt.axon(
             wallet=self.wallet,
-            port=config.AXON_PORT,
-            external_ip=config.EXTERNAL_IP,
+            port=config.AXON_PORT
         )
 
         # Get all registered services
-        all_classes = ServiceRegistryMeta.all_classes()
-        for class_name, class_ref in all_classes.items():
-            service = ServiceRegistryMeta.get_class(class_name)
-            forward_fn, blacklist_fn = service.get_axon_attach_funcs(metagraph=self.metagraph)
+        for service in self.services:
+            forward_fn, blacklist_fn = service.forward_fn, service.blacklist_fn
             self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
 
         bt.logging.info(f"Axon created: {self.axon}")

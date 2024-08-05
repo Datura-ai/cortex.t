@@ -28,7 +28,7 @@ class Config(bt.config):
 
         self.WALLET_NAME = os.getenv('WALLET_NAME')
         self.HOT_KEY = os.getenv('HOT_KEY')
-        self.NET_UID = os.getenv('NET_UID')
+        self.NET_UID = int(os.getenv('NET_UID'))
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT'))
         self.AXON_PORT = int(os.getenv('AXON_PORT', 8098))
         self.EXTERNAL_IP = os.getenv('EXTERNAL_IP')
