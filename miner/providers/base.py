@@ -7,30 +7,10 @@ from abc import abstractmethod
 
 from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
 from cortext import ALL_SYNAPSE_TYPE
+from cortext.metaclasses import ProviderRegistryMeta
 
 
-class RegistryMeta(type):
-    _registry = {}
-
-    def __new__(cls, name, bases, attrs):
-        # Create the new class
-        new_class = super().__new__(cls, name, bases, attrs)
-        # Register the class name and the class itself
-        cls._registry[name] = new_class
-        return new_class
-
-    @classmethod
-    def get_class(cls, name):
-        # Retrieve the class by name from the registry
-        return cls._registry.get(name)
-
-    @classmethod
-    def all_classes(cls):
-        # Return all registered classes
-        return cls._registry
-
-
-class Provider(metaclass=RegistryMeta):
+class Provider(metaclass=ProviderRegistryMeta):
     def __init__(self, synapse: ALL_SYNAPSE_TYPE):
         self.model = synapse.model
         self.uid = synapse.uid

@@ -8,7 +8,7 @@ from cortext.protocol import StreamPrompting
 from typing import Union
 
 
-class Anthropic(Provider):
+class AnthropicBedrock(Provider):
     def __init__(self, synapse):
         super().__init__(synapse)
         bedrock_client_parameters = {
@@ -46,8 +46,8 @@ class Anthropic(Provider):
         # Send final message to close the stream
         await send({"type": "http.response.body", "body": b'', "more_body": False})
 
-    def image_service(self):
+    def image_service(self, synapse):
         pass
 
-    def embeddings_service(self):
+    def embeddings_service(self, synapse):
         pass

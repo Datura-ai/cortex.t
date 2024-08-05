@@ -41,8 +41,8 @@ class Groq(Provider):
                 bt.logging.info(f"Streamed tokens: {joined_buffer}")
                 buffer = []
 
-    def image_service(self):
+    def image_service(self, synapse):
         pass
 
-    def embeddings_service(self):
+    def embeddings_service(self, synapse):
         pass

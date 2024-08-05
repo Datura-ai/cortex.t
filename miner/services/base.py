@@ -6,13 +6,36 @@ import time
 import traceback
 from collections import deque
 from miner.config import config
+from miner.providers.base import Provider
+from cortext.metaclasses import ProviderRegistryMeta, ServiceRegistryMeta
 
 
-class BaseService:
-    def __init__(self, metagraph, request_timestamps, blacklist_amt):
+class BaseService(metaclass=ServiceRegistryMeta):
+    request_timestamps: dict = {}
+
+    def __init__(self, metagraph, blacklist_amt=config.BLACKLIST_AMT):
         self.metagraph = metagraph
-        self.request_timestamps = request_timestamps
         self.blacklist_amt = blacklist_amt if blacklist_amt is not None else config.BLACKLIST_AMT
+
+    def get_instance_of_provider(self, provider_name):
+        provider_obj: Provider = ProviderRegistryMeta.get_class(provider_name)()
+        if provider_obj is None:
+            bt.logging.info(f"{provider_name} is not supported currently in this network {self.metagraph.network}.")
+            return None
+        return provider_obj
+
+    @abstractmethod
+    def forward_fn(self, synapse):
+        pass
+
+    @abstractmethod
+    def blacklist_fn(self, synapse):
+        pass
+
+    @classmethod
+    def get_axon_attach_funcs(cls, metagraph):
+        service = cls(metagraph)
+        return service.forward_fn, service.blacklist_fn
 
     def base_blacklist(self, synapse) -> Tuple[bool, str]:
         try:
@@ -36,23 +59,24 @@ class BaseService:
             time_window = cortext.MIN_REQUEST_PERIOD * 60
             current_time = time.time()
 
-            if hotkey not in self.request_timestamps:
-                self.request_timestamps[hotkey] = deque()
+            if hotkey not in BaseService.request_timestamps:
+                BaseService.request_timestamps[hotkey] = deque()
 
             # Remove timestamps outside the current time window
-            while self.request_timestamps[hotkey] and current_time - self.request_timestamps[hotkey][0] > time_window:
-                self.request_timestamps[hotkey].popleft()
+            while BaseService.request_timestamps[hotkey] and current_time - BaseService.request_timestamps[hotkey][
+                0] > time_window:
+                BaseService.request_timestamps[hotkey].popleft()
 
             # Check if the number of requests exceeds the limit
-            if len(self.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
+            if len(BaseService.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
                 return (
                     True,
                     f"Request frequency for {hotkey} exceeded: "
-                    f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
+                    f"{len(BaseService.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
                     f"Limit is {cortext.MAX_REQUESTS} requests."
                 )
 
-            self.request_timestamps[hotkey].append(current_time)
+            BaseService.request_timestamps[hotkey].append(current_time)
 
             return False, f"accepting {synapse_type} request from {hotkey}"
 

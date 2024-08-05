@@ -1,36 +1,14 @@
-import argparse
 import asyncio
-import base64
-import aioboto3
-import copy
-import json
-import os
-import pathlib
-import httpx
 import threading
 import time
 import traceback
-from collections import deque
-from functools import partial
 from typing import Tuple
-
 import bittensor as bt
-import google.generativeai as genai
-import wandb
-from config import check_config, get_config
-from openai import AsyncOpenAI, OpenAI
-from anthropic import AsyncAnthropic
-from groq import AsyncGroq
-from anthropic_bedrock import AsyncAnthropicBedrock
-
-import cortext
-from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
-from cortext.utils import get_version, get_api_key
+from cortext.protocol import StreamPrompting
+from cortext.metaclasses import ServiceRegistryMeta
 import sys
-
-from starlette.types import Send
-from miner.config import config
-from pathlib import Path
+from config import config
+from services import ALL_SERVICE_TYPE
 
 valid_hotkeys = []
 
@@ -38,6 +16,7 @@ valid_hotkeys = []
 class StreamMiner():
     def __init__(self, axon=None, wallet=None, subtensor=None):
 
+        self.metagraph = None
         self.last_epoch_block = None
         self.my_subnet_uid = None
         self.axon = axon
@@ -91,16 +70,12 @@ class StreamMiner():
             external_ip=config.EXTERNAL_IP,
         )
 
-        # Attach determiners which functions are called when servicing a request.
-        bt.logging.info("Attaching forward function to axon.")
-        print(f"Attaching forward function to axon. {self.prompt}")
-
-        axon_bridges = [(self.prompt, self.blacklist_prompt), (self.is_alive, self.blacklist_is_alive),
-                        (self.images, self.blacklist_images), (self.embeddings, self.blacklist_embeddings),
-                        (self.text, None)]
-
-        for forward_fn, blacklist_fn in axon_bridges:
-            self.axon = self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
+        # Get all registered services
+        all_classes = ServiceRegistryMeta.all_classes()
+        for class_name, class_ref in all_classes.items():
+            service: ALL_SERVICE_TYPE = ServiceRegistryMeta.get_class(class_name)
+            forward_fn, blacklist_fn = service.get_axon_attach_funcs(metagraph=self.metagraph)
+            self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
 
         bt.logging.info(f"Axon created: {self.axon}")
 
@@ -117,75 +92,6 @@ class StreamMiner():
                 self.wallet.hotkey.ss58_address
             )
             bt.logging.info(f"Running miner on uid: {self.my_subnet_uid}")
-
-    def text(self, synapse: TextPrompting) -> TextPrompting:
-        synapse.completion = "completed by miner"
-        return synapse
-
-    def base_blacklist(self, synapse, blacklist_amt=5000) -> Tuple[bool, str]:
-        try:
-            hotkey = synapse.dendrite.hotkey
-            synapse_type = type(synapse).__name__
-
-            uid = None
-            for _uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007
-                if _axon.hotkey == hotkey:
-                    uid = _uid
-                    break
-
-            if uid is None and cortext.ALLOW_NON_REGISTERED is False:
-                return True, f"Blacklisted a non registered hotkey's {synapse_type} request from {hotkey}"
-
-            # check the stake
-            stake = self.metagraph.S[self.metagraph.hotkeys.index(hotkey)]
-            if stake < blacklist_amt:
-                return True, f"Blacklisted a low stake {synapse_type} request: {stake} < {blacklist_amt} from {hotkey}"
-
-            time_window = cortext.MIN_REQUEST_PERIOD * 60
-            current_time = time.time()
-
-            if hotkey not in self.request_timestamps:
-                self.request_timestamps[hotkey] = deque()
-
-            # Remove timestamps outside the current time window
-            while self.request_timestamps[hotkey] and current_time - self.request_timestamps[hotkey][0] > time_window:
-                self.request_timestamps[hotkey].popleft()
-
-            # Check if the number of requests exceeds the limit
-            if len(self.request_timestamps[hotkey]) >= cortext.MAX_REQUESTS:
-                return (
-                    True,
-                    f"Request frequency for {hotkey} exceeded: "
-                    f"{len(self.request_timestamps[hotkey])} requests in {cortext.MIN_REQUEST_PERIOD} minutes. "
-                    f"Limit is {cortext.MAX_REQUESTS} requests."
-                )
-
-            self.request_timestamps[hotkey].append(current_time)
-
-            return False, f"accepting {synapse_type} request from {hotkey}"
-
-        except Exception:
-            bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
-
-    def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
-        return blacklist
-
-    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
-        bt.logging.debug(blacklist[1])
-        return blacklist
-
-    def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
-        return blacklist
-
-    def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
-        return blacklist
 
     def run(self):
         bt.logging.info(
@@ -269,13 +175,8 @@ class StreamMiner():
     def __enter__(self):
         self.run_in_background_thread()
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback_):
         self.stop_run_thread()
-
-    async def is_alive(self, synapse: IsAlive) -> IsAlive:
-        bt.logging.debug("answered to be active")
-        synapse.completion = "True"
-        return synapse
 
 
 if __name__ == "__main__":

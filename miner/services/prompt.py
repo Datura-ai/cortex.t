@@ -1,18 +1,19 @@
 import bittensor as bt
 from cortext.protocol import StreamPrompting
+from cortext import PROMPT_BLACKLIST_STAKE
 from typing import Tuple
 
 from miner.services.base import BaseService
 
 
-class Prompt(BaseService):
-    def __init__(self, metagraph, request_timestamps, blacklist_amt):
-        super().__init__(metagraph, request_timestamps, blacklist_amt)
+class PromptService(BaseService):
+    def __init__(self, metagraph, blacklist_amt=PROMPT_BLACKLIST_STAKE):
+        super().__init__(metagraph, blacklist_amt)
 
     def forward_fn(self, synapse: StreamPrompting):
-        provider = synapse.provider
-
-
+        provider = self.get_instance_of_provider(synapse.provider)
+        service = provider.prompt_service if provider is not None else None
+        return service
 
     def blacklist_fn(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse)
