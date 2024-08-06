@@ -1,13 +1,8 @@
 from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional, Union
+from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
-
-
-# from ..providers.image import DallE, Stability
-
-# from ..providers.text import Anthropic, GeminiPro, OpenAI
 
 
 class IsAlive(bt.Synapse):

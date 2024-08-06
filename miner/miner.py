@@ -1,4 +1,6 @@
+import argparse
 import asyncio
+import copy
 import threading
 import time
 import traceback
@@ -7,15 +9,23 @@ import bittensor as bt
 from cortext.protocol import StreamPrompting
 from cortext.metaclasses import ServiceRegistryMeta
 import sys
-from miner.config import config
+from miner.config import get_config, Config
+from miner.util import external_config
 
 valid_hotkeys = []
 
 
 class StreamMiner:
-    def __init__(self, axon=None, wallet=None, subtensor=None):
+    def __init__(self, config=None, axon=None, wallet=None, subtensor=None):
 
-        self.services = None
+        bt.logging.info("starting stream miner")
+        default_cfg, app_cfg = get_config()
+        base_config = copy.deepcopy(config or default_cfg)
+        self.config = external_config()
+        self.config.merge(base_config)
+        self.app_cfg: Config = app_cfg
+
+        self.services = []
         self.metagraph = None
         self.last_epoch_block = None
         self.my_subnet_uid = None
@@ -23,9 +33,11 @@ class StreamMiner:
         self.wallet = wallet
         self.subtensor = subtensor
 
+        bt.logging(config=self.config, logging_dir=self.config.full_path)
         bt.logging.info("starting stream miner")
 
         self.init_bittensor()
+        self.load_available_services()
         self.init_axon()
 
         # Instantiate runners
@@ -38,29 +50,30 @@ class StreamMiner:
 
     def init_bittensor(self):
         # Activating Bittensor's logging with the set configurations.
-        bt.logging(trace=config.LOGGING_TRACE)
+        bt.logging(config=self.config)
         bt.logging.info("Setting up bittensor objects.")
 
         # Wallet holds cryptographic information, ensuring secure transactions and communication.
-        self.wallet = self.wallet or bt.wallet(name=config.WALLET_NAME, hotkey=config.HOT_KEY)
+        self.wallet = self.wallet or bt.wallet(config=self.config, name=self.config.wallet.name,
+                                               hotkey=self.config.wallet.hotkey)
         bt.logging.info(f"Wallet {self.wallet}")
 
         # subtensor manages the blockchain connection, facilitating interaction with the Bittensor blockchain.
-        self.subtensor = self.subtensor or bt.subtensor(network=config.BT_SUBTENSOR_NETWORK)
+        self.subtensor = self.subtensor or bt.subtensor(network=self.config.subtensor.network, config=self.config)
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(
-            f"Running miner for subnet: {config.NET_UID} "
+            f"Running miner for subnet: {self.config.netuid} "
             f"on network: {self.subtensor.chain_endpoint} with config:"
         )
 
         # metagraph provides the network's current state, holding state about other participants in a subnet.
-        self.metagraph = self.subtensor.metagraph(config.NET_UID)
+        self.metagraph = self.subtensor.metagraph(self.config.netuid)
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
         self.check_hotkey_validation()
 
+    def load_available_services(self):
         all_classes = ServiceRegistryMeta.all_classes()
-        self.services = []
         for class_name, class_ref in all_classes.items():
             service = ServiceRegistryMeta.get_class(class_name)(self.metagraph)
             self.services.append(service)
@@ -68,11 +81,10 @@ class StreamMiner:
     def init_axon(self):
 
         bt.logging.debug(
-            f"Starting axon on port {config.AXON_PORT} and external ip {config.EXTERNAL_IP}"
+            f"Starting axon on port {self.config.axon.port}"
         )
         self.axon = self.axon or bt.axon(
-            wallet=self.wallet,
-            port=config.AXON_PORT
+            config=self.config
         )
 
         # Get all registered services
@@ -100,10 +112,10 @@ class StreamMiner:
         bt.logging.info(
             f"Serving axon {StreamPrompting} "
             f"on network: {self.subtensor.chain_endpoint} "
-            f"with netuid: {config.NET_UID}"
+            f"with netuid: {self.config.netuid}"
         )
-        self.axon.serve(config.NET_UID, subtensor=self.subtensor)
-        bt.logging.info(f"Starting axon server on port: {config.AXON_PORT}")
+        self.axon.serve(self.config.netuid, subtensor=self.subtensor)
+        bt.logging.info(f"Starting axon server on port: {self.config.axon.port}")
         self.axon.start()
         self.last_epoch_block = self.subtensor.get_current_block()
         bt.logging.info(f"Miner starting at block: {self.last_epoch_block}")
@@ -116,10 +128,10 @@ class StreamMiner:
                 current_block = self.subtensor.get_current_block()
                 while (
                         current_block - self.last_epoch_block
-                        < config.BLOCKS_PER_EPOCH
+                        < self.config.miner.blocks_per_epoch
                 ):
                     # --- Wait for next block.
-                    time.sleep(config.WAIT_NEXT_BLOCK_TIME)
+                    time.sleep(self.app_cfg.WAIT_NEXT_BLOCK_TIME)
                     current_block = self.subtensor.get_current_block()
                     # --- Check if we should exit.
                     if self.should_exit:
@@ -129,7 +141,7 @@ class StreamMiner:
                 self.last_epoch_block = self.subtensor.get_current_block()
 
                 metagraph = self.subtensor.metagraph(
-                    netuid=config.NET_UID,
+                    netuid=self.config.netuid,
                     lite=True,
                     block=self.last_epoch_block,
                 )
@@ -146,7 +158,7 @@ class StreamMiner:
                 bt.logging.info(log)
 
                 # --- Set weights.
-                if not config.NO_SET_WEIGHTS:
+                if not self.config.miner.no_set_weights:
                     pass
                 step += 1
 
