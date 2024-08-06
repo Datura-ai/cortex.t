@@ -59,8 +59,3 @@ def get_valid_hotkeys(config):
 
         except json.JSONDecodeError as e:
             bt.logging.debug(f"JSON decoding error: {e} {run.id}")
-
-
-def external_config() -> bt.config:
-    parser = argparse.ArgumentParser(description="Streaming Miner Configs")
-    return bt.config(parser)

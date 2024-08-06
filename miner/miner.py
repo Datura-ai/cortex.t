@@ -10,7 +10,6 @@ from cortext.protocol import StreamPrompting
 from cortext.metaclasses import ServiceRegistryMeta
 import sys
 from miner.config import get_config, Config
-from miner.util import external_config
 
 valid_hotkeys = []
 
@@ -20,10 +19,9 @@ class StreamMiner:
 
         bt.logging.info("starting stream miner")
         default_cfg, app_cfg = get_config()
-        base_config = copy.deepcopy(config or default_cfg)
-        self.config = external_config()
-        self.config.merge(base_config)
+        self.config = copy.deepcopy(config or default_cfg)
         self.app_cfg: Config = app_cfg
+        bt.logging.info(f"config is {self.config}")
 
         self.services = []
         self.metagraph = None
@@ -54,8 +52,7 @@ class StreamMiner:
         bt.logging.info("Setting up bittensor objects.")
 
         # Wallet holds cryptographic information, ensuring secure transactions and communication.
-        self.wallet = self.wallet or bt.wallet(config=self.config, name=self.config.wallet.name,
-                                               hotkey=self.config.wallet.hotkey)
+        self.wallet = self.wallet or bt.wallet(config=self.config)
         bt.logging.info(f"Wallet {self.wallet}")
 
         # subtensor manages the blockchain connection, facilitating interaction with the Bittensor blockchain.
@@ -83,9 +80,20 @@ class StreamMiner:
         bt.logging.debug(
             f"Starting axon on port {self.config.axon.port}"
         )
-        self.axon = self.axon or bt.axon(
-            config=self.config
-        )
+        if self.axon is not None:
+            pass
+        elif self.config.axon.external_ip is not None:
+            bt.logging.debug(
+                f"Starting axon on port {self.config.axon.port} and external ip {self.config.axon.external_ip}"
+            )
+            self.axon = bt.axon(
+                wallet=self.wallet,
+                port=self.config.axon.port,
+                external_ip=self.config.axon.external_ip,
+            )
+        else:
+            bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
+            self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
 
         # Get all registered services
         for service in self.services:

@@ -48,41 +48,69 @@ class Config(bt.config):
             f", NET_UID={self.NET_UID}, WANDB_OFF={self.WANDB_OFF}, LOGGING_TRACE={self.LOGGING_TRACE}")
 
 
+def remove_argument(parser, arg_name):
+    """
+    Remove an argument from the parser by its name.
+    """
+    # Filter out the argument to be removed
+    parser._actions = [action for action in parser._actions if arg_name not in action.option_strings]
+
+    # Remove the argument from the parser's option strings
+    if arg_name in parser._option_string_actions:
+        del parser._option_string_actions[arg_name]
+
+
 def get_config() -> (bt.config, Config):
     default_config = Config()
     parser = argparse.ArgumentParser()
+
+    # add default args to bittensor object.
+    bt.wallet.add_args(parser)
+    bt.logging.add_args(parser)
+    bt.axon.add_args(parser)
+    bt.subtensor.add_args(parser)
+
+    remove_argument(parser, "--axon.port")
     parser.add_argument(
         "--axon.port", type=int, default=default_config.AXON_PORT, help="Port to run the axon on."
     )
-    # External IP
+
+    remove_argument(parser, "--axon.external_ip")
     parser.add_argument(
         "--axon.external_ip", type=str, default=bt.utils.networking.get_external_ip(), help="IP for the metagraph"
     )
-    # Subtensor network to connect to
+
+    remove_argument(parser, "--subtensor.network")
     parser.add_argument(
         "--subtensor.network",
         default=default_config.BT_SUBTENSOR_NETWORK,
         help="Bittensor network to connect to."
     )
-    # wallet name
+
+    remove_argument(parser, "--wallet.name")
     parser.add_argument(
         "--wallet.name",
         default=default_config.WALLET_NAME,
         help="Bittensor Wallet Name to use."
     )
-    # Subtensor network to connect to
+
+    remove_argument(parser, "--wallet.hotkey")
     parser.add_argument(
         "--wallet.hotkey",
         default=default_config.HOT_KEY,
         help="Wallet Hotkey"
     )
+
     # Chain endpoint to connect to
+    remove_argument(parser, "--subtensor.chain_endpoint")
     parser.add_argument(
         "--subtensor.chain_endpoint",
         default="wss://entrypoint-finney.opentensor.ai:443",
         help="Chain endpoint to connect to.",
     )
+
     # Adds override arguments for network and netuid.
+    remove_argument(parser, "--netuid")
     parser.add_argument("--netuid", type=int, default=default_config.NET_UID, help="The chain subnet uid.")
 
     parser.add_argument(
@@ -91,6 +119,7 @@ def get_config() -> (bt.config, Config):
         help="Trials for this miner go in miner.root / (wallet_cold - wallet_hot) / miner.name ",
         default="~/.bittensor/miners/",
     )
+
     parser.add_argument(
         "--miner.name",
         type=str,
@@ -141,6 +170,7 @@ def get_config() -> (bt.config, Config):
         default=default_config.WANDB_OFF,
     )
 
+    remove_argument(parser, "--logging.trace")
     parser.add_argument(
         "--logging.trace",
         action="store_true",
@@ -148,12 +178,12 @@ def get_config() -> (bt.config, Config):
         default=default_config.LOGGING_TRACE,
     )
 
-    # Adds logging specific arguments i.e. --logging.debug ..., --logging.trace .. or --logging.logging_dir ...
-    bt.logging.add_args(parser)
-
     # Activating the parser to read any command-line inputs.
     # To print help message, run python3 template/miner.py --help
+    print("start")
     bt_config = bt.config(parser)
+    print(bt_config, "acerr")
+    exit(0)
 
     # Logging captures events for diagnosis or understanding miner's behavior.
     full_path = Path(f"{bt_config.logging.logging_dir}/{bt_config.wallet.name}/{bt_config.wallet.hotkey}"
