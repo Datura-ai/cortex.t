@@ -170,10 +170,10 @@ Before starting make sure you have pm2, nano and any other useful tools installe
 apt update -y && apt-get install git -y && apt install python3-pip -y && apt install npm -y && npm install pm2@latest -g  && apt install nano
 ```
 
-Download the repository, navigate to the folder and then install the necessary requirements with the following chained command.
+Download the repository, navigate to the folder and then create virtual env and install the necessary requirements with the following chained command.
 
 ```bash
-git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip install -e .
+git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && python3 -m venv .venv && source .venv/bin/activate && pip install -e .
 ```
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command
@@ -181,9 +181,8 @@ Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. I
 btcli s register --netuid 18 --wallet.name [wallet_name] --wallet.hotkey [wallet.hotkey]
 ```
 
-We recommend using [direnv](https://direnv.net). After installing it, copy `envrc.example` to `.envrc` and substitute
-all env vars with values appropriate for your accounts. After making changes to `.envrc` run `direnv allow` and start a
-new terminal tab.
+After installing it, copy `env.example` to `.env` and substitute
+all env vars with values appropriate for your accounts.
 
 ## Mining
 

@@ -1,4 +1,4 @@
-bittensor==6.9.3
+git+https://github.com/opentensor/bittensor.git@release/6.9.4
 aiohttp==3.*
 datasets==2.*
 envparse==0.2.0
