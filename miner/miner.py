@@ -1,14 +1,16 @@
-import argparse
 import asyncio
+import bittensor as bt
 import copy
+import sys
 import threading
 import time
 import traceback
 from typing import Tuple
-import bittensor as bt
+
 from cortext.protocol import StreamPrompting
 from cortext.metaclasses import ServiceRegistryMeta
-import sys
+from miner.services import ALL_SERVICE_TYPE
+
 from miner.config import get_config, Config
 
 valid_hotkeys = []
@@ -72,7 +74,7 @@ class StreamMiner:
     def load_available_services(self):
         all_classes = ServiceRegistryMeta.all_classes()
         for class_name, class_ref in all_classes.items():
-            service = ServiceRegistryMeta.get_class(class_name)(self.metagraph)
+            service: ALL_SERVICE_TYPE = ServiceRegistryMeta.get_class(class_name)(self.metagraph)
             self.services.append(service)
 
     def init_axon(self):
@@ -98,7 +100,7 @@ class StreamMiner:
         # Get all registered services
         for service in self.services:
             forward_fn, blacklist_fn = service.forward_fn, service.blacklist_fn
-            self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
+            self.axon = self.axon.attach(forward_fn=forward_fn, blacklist_fn=blacklist_fn)
 
         bt.logging.info(f"Axon created: {self.axon}")
 

@@ -129,6 +129,7 @@ class ImageResponse(bt.Synapse):
 
 class Embeddings(bt.Synapse):
     """ A class to represent the embeddings request and response. """
+    provider: str = "Embedding"
 
     texts: List[str] = pydantic.Field(
         ...,

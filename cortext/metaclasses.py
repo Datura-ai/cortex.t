@@ -5,7 +5,10 @@ class ProviderRegistryMeta(type):
         # Create the new class
         new_class = super().__new__(cls, name, bases, attrs)
         # Register the class name and the class itself
-        cls._registry[name] = new_class
+        if bases:
+            # Register the class
+            cls._registry[name] = new_class
+
         return new_class
 
     @classmethod
@@ -26,7 +29,8 @@ class ServiceRegistryMeta(type):
         # Create the new class
         new_class = super().__new__(cls, name, bases, attrs)
         # Register the class name and the class itself
-        cls._registry[name] = new_class
+        if bases:
+            cls._registry[name] = new_class
         return new_class
 
     @classmethod

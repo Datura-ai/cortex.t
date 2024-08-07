@@ -13,23 +13,23 @@ from cortext.metaclasses import ProviderRegistryMeta, ServiceRegistryMeta
 class BaseService(metaclass=ServiceRegistryMeta):
     request_timestamps: dict = {}
 
-    def __init__(self, metagraph, blacklist_amt=config.BLACKLIST_AMT):
+    def __init__(self, metagraph, blacklist_amt):
         self.metagraph = metagraph
-        self.blacklist_amt = blacklist_amt if blacklist_amt is not None else config.BLACKLIST_AMT
+        self.blacklist_amt = blacklist_amt if config.ENV == 'prod' else config.BLACKLIST_AMT
 
     def get_instance_of_provider(self, provider_name):
-        provider_obj: Provider = ProviderRegistryMeta.get_class(provider_name)()
+        provider_obj: Provider = ProviderRegistryMeta.get_class(provider_name)
         if provider_obj is None:
             bt.logging.info(f"{provider_name} is not supported currently in this network {self.metagraph.network}.")
             return None
         return provider_obj
 
     @abstractmethod
-    def forward_fn(self, synapse):
+    async def forward_fn(self, synapse):
         pass
 
     @abstractmethod
-    def blacklist_fn(self, synapse):
+    async def blacklist_fn(self, synapse):
         pass
 
     @classmethod
