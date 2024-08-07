@@ -2,22 +2,15 @@ import argparse
 import asyncio
 import logging
 import os
-import random
 import sys
-import time
-import traceback
 from pathlib import Path
-from typing import Tuple
 
 import base  # noqa
 import bittensor as bt
 import cortext
-import torch
 import wandb
-from base_validator import BaseValidator
 from cortext import utils
 from embeddings_validator import EmbeddingsValidator
-from envparse import env
 from image_validator import ImageValidator
 from text_validator import TextValidator
 from weight_setter import WeightSetter
