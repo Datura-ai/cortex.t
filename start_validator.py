@@ -1,44 +1,20 @@
 import argparse
-import time
+import os
 import subprocess
-import cortext
-from cortext.utils import get_version, send_discord_alert
+from dotenv import load_dotenv
 
-default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
-webhook_url = ""
-current_version = cortext.__version__
-pid_validator = None
+load_dotenv()  # Load environment variables from .env file
+env_ = str(os.getenv('ENV')).upper()
+default_address = "wss://test.finney.opentensor.ai:443" if env_ == 'DEV' \
+    else "wss://bittensor-finney.api.onfinality.io/public-ws"
+subtensor_network = 'test' if env_ == 'DEV' else 'local'
+net_uid = '196' if env_ == 'DEV' else '18'
 
 
 def update_and_restart(wallet_name, wallet_hotkey, address, autoupdate):
-    global current_version, pid_validator
     subprocess.run(["python3", "-m", "validators.validator",
-                    "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18",
-                    "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
-    while True:
-        latest_version = get_version()
-        print(f"Current version: {current_version}")
-        print(f"Latest version: {latest_version}")
-
-        if current_version != latest_version and latest_version != None:
-            if not autoupdate:
-                send_discord_alert(
-                    f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}",
-                    webhook_url)
-            print("Updating to the latest version...")
-            if pid_validator:
-                subprocess.run(["kill", "-9", pid_validator])
-            subprocess.run(["git", "reset", "--hard"])
-            subprocess.run(["git", "pull"])
-            subprocess.run(["pip", "install", "-e", "."])
-            subprocess.run(
-                ["python3", "-m", "validators.validator.py",
-                 "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18",
-                 "--subtensor.network", "local", "--subtensor.chain_endpoint", address, "$"])
-            pid_validator = subprocess.run(["echo $!"])
-            current_version = latest_version
-        print("All up to date!")
-        time.sleep(180)
+                    "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", net_uid,
+                    "--subtensor.network", subtensor_network, "--subtensor.chain_endpoint", address])
 
 
 if __name__ == "__main__":

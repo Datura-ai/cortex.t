@@ -91,7 +91,7 @@ class StreamMiner:
             self.axon = bt.axon(
                 wallet=self.wallet,
                 port=self.config.axon.port,
-                external_ip=self.config.axon.external_ip,
+                external_ip=self.config.axon.external_ip
             )
         else:
             bt.logging.debug(f"Starting axon on port {self.config.axon.port}")

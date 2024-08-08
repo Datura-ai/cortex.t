@@ -173,7 +173,7 @@ apt update -y && apt-get install git -y && apt install python3-pip -y && apt ins
 Download the repository, navigate to the folder and then create virtual env and install the necessary requirements with the following chained command.
 
 ```bash
-git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && python3 -m venv .venv && source .venv/bin/activate && pip install -e .
+git clone https://github.com/corcel-api/cortex.t.git && cd cortex.t && pip3 install -e .
 ```
 
 Prior to proceeding, ensure you have a registered hotkey on subnet 18 mainnet. If not, run the command

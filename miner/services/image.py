@@ -14,7 +14,8 @@ class ImageService(BaseService):
         provider = self.get_instance_of_provider(synapse.provider)(synapse)
         service = provider.image_service if provider is not None else None
         bt.logging.info("image service is executed.")
-        return await service(synapse)
+        resp = await service(synapse)
+        return resp
 
     def blacklist_fn(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse)
