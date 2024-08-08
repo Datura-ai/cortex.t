@@ -9,7 +9,8 @@ import cortext.reward
 from cortext import client
 from datasets import load_dataset
 from cortext.protocol import Embeddings
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
+
 
 class EmbeddingsValidator(BaseValidator):
     def __init__(self, dendrite, config, subtensor, wallet):
@@ -103,7 +104,7 @@ class EmbeddingsValidator(BaseValidator):
         scoring_tasks = []
 
         random_number = random.random()
-        will_score_all = random_number < 1/1.1
+        will_score_all = random_number < 1 / 1.1
         bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
 
         for uid, response in query_responses:

@@ -189,7 +189,7 @@ all env vars with values appropriate for your accounts.
 You can launch your miners via pm2 using the following command.
 
 ```bash
-pm2 start ./miner/miner.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
+python3 -m miner.miner --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
 ```
 
 
@@ -204,13 +204,13 @@ wand login
 You can launch your validator via pm2 WITH AUTO-UPDATES (reccomended) using the following command.
 
 ```bash
-pm2 start ./start_validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+python3 ./start_validator.py -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
 ```
 
 You can launch your validator via pm2 WITHOUT AUTO-UPDATES using the following command.
 
 ```bash
-pm2 start ./validators/validator.py --interpreter python3 -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+python3 -m validators.validator.py --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
 ```
 
 ## Logging

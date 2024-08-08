@@ -12,7 +12,7 @@ import bittensor as bt
 from PIL import Image
 from io import BytesIO
 from cortext.utils import get_question
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
 from cortext.protocol import ImageResponse
 
 

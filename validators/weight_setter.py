@@ -46,16 +46,17 @@ import sys
 from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
-from text_validator import TextValidator
-from image_validator import ImageValidator
-from embeddings_validator import EmbeddingsValidator
+from validators.text_validator import TextValidator
+from validators.image_validator import ImageValidator
+from validators.embeddings_validator import EmbeddingsValidator
 
 iterations_per_set_weights = 5
 scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali, embed_vali):
+    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali,
+                 embed_vali):
         bt.logging.info("starting weight setter")
         self.config = config
         bt.logging.info(f"config:\n{self.config}")
@@ -84,27 +85,27 @@ class WeightSetter:
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
-    def blacklist_prompt( self, synapse: StreamPrompting ) -> Tuple[bool, str]:
+    def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_is_alive( self, synapse: IsAlive ) -> Tuple[bool, str]:
+    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
-    def blacklist_images( self, synapse: ImageResponse ) -> Tuple[bool, str]:
+    def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def blacklist_embeddings( self, synapse: Embeddings ) -> Tuple[bool, str]:
+    def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
         bt.logging.info(blacklist[1])
         return blacklist
 
-    def base_blacklist(self, synapse, blacklist_amt = 20000) -> Tuple[bool, str]:
+    def base_blacklist(self, synapse, blacklist_amt=20000) -> Tuple[bool, str]:
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
@@ -123,7 +124,8 @@ class WeightSetter:
     async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received {synapse}")
 
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
+                                      timeout=synapse.timeout)
 
         bt.logging.info(f"new synapse = {synapse}")
         return synapse
@@ -131,7 +133,8 @@ class WeightSetter:
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
         bt.logging.info(f"received {synapse}")
 
-        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
+                                      timeout=synapse.timeout)
 
         bt.logging.info(f"new synapse = {synapse}")
         return synapse
@@ -143,6 +146,7 @@ class WeightSetter:
             bt.logging.info(
                 f"Sending {synapse} request to uid: {synapse.uid}, "
             )
+
             async def handle_response(responses):
                 for resp in responses:
                     async for chunk in resp:
@@ -171,10 +175,11 @@ class WeightSetter:
         return synapse.create_streaming_response(token_streamer)
 
     def text(self, synapse: TextPrompting) -> TextPrompting:
-        synapse.completion =  "completed"
+        synapse.completion = "completed"
         bt.logging.info("completed")
 
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False, timeout=synapse.timeout)
+        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
+                                      timeout=synapse.timeout)
 
         bt.logging.info(f"synapse = {synapse}")
         return synapse
@@ -193,11 +198,11 @@ class WeightSetter:
         ).attach(
             forward_fn=self.text,
         )
-        self.axon.serve(netuid = self.config.netuid, subtensor = self.subtensor)
+        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         self.axon.start()
         self.my_subnet_uid = self.metagraph.hotkeys.index(
             self.wallet.hotkey.ss58_address
-            )
+        )
         bt.logging.info(f"Running validator on uid: {self.my_subnet_uid}")
         while True:
             try:
@@ -219,9 +224,9 @@ class WeightSetter:
                 else:
                     await asyncio.sleep(60)
             except Exception as e:
-                bt.logging.error(f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
+                bt.logging.error(
+                    f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
-
 
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
@@ -250,7 +255,8 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in self.metagraph.uids}
+        tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
+                 self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
 
         # Create a dictionary of UID to axon info for active UIDs

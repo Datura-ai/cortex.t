@@ -10,10 +10,10 @@ import bittensor as bt
 import cortext
 import wandb
 from cortext import utils
-from embeddings_validator import EmbeddingsValidator
-from image_validator import ImageValidator
-from text_validator import TextValidator
-from weight_setter import WeightSetter
+from validators.embeddings_validator import EmbeddingsValidator
+from validators.image_validator import ImageValidator
+from validators.text_validator import TextValidator
+from validators.weight_setter import WeightSetter
 
 text_vali = None
 image_vali = None

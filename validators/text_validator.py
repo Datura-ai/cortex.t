@@ -6,10 +6,11 @@ from typing import AsyncIterator, Tuple
 import bittensor as bt
 import cortext.reward
 import torch
-from base_validator import BaseValidator
+from validators.base_validator import BaseValidator
 from typing import Optional
 from cortext.protocol import StreamPrompting
-from cortext.utils import call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini, call_groq, call_openai, get_question
+from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
+                           call_groq, call_openai, get_question)
 
 
 class TextValidator(BaseValidator):
@@ -93,7 +94,8 @@ class TextValidator(BaseValidator):
             query_tasks = []
             uid_to_question = {}
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + ["Groq"] * 20 + ["Bedrock"] * 15
+            providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
+                "Groq"] * 20 + ["Bedrock"] * 15
             self.provider = random.choice(providers)
 
             if self.provider == "AnthropicBedrock":
@@ -115,7 +117,8 @@ class TextValidator(BaseValidator):
 
             elif self.provider == "Anthropic":
                 num_uids_to_pick = 30
-                models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
+                models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229",
+                          "claude-3-haiku-20240307"]
                 self.model = random.choice(models)
 
             elif self.provider == "Groq":
@@ -129,12 +132,14 @@ class TextValidator(BaseValidator):
                     "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
                     "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
                     "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
-                    "anthropic.claude-3-opus-20240229-v1:0", "anthropic.claude-3-haiku-20240307-v1:0"
+                                                                          "anthropic.claude-3-opus-20240229-v1:0",
+                    "anthropic.claude-3-haiku-20240307-v1:0"
                 ]
                 self.model = random.choice(models)
 
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
-            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0", "claude-3-5-sonnet-20240620"]
+            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0",
+                             "claude-3-5-sonnet-20240620"]
 
             if num_uids_to_pick < len(available_uids):
                 uids_to_query = random.sample(available_uids, num_uids_to_pick)
@@ -186,10 +191,12 @@ class TextValidator(BaseValidator):
     async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:
         if provider == "OpenAI":
             return await call_openai(
-                [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed, self.max_tokens
+                [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed,
+                self.max_tokens
             )
         elif provider == "AnthropicBedrock":
-            return await call_anthropic_bedrock(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
+            return await call_anthropic_bedrock(prompt, self.temperature, self.model, self.max_tokens, self.top_p,
+                                                self.top_k)
         elif provider == "Gemini":
             return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
         elif provider == "Anthropic":
@@ -223,11 +230,11 @@ class TextValidator(BaseValidator):
             bt.logging.error(f"provider {provider} not found")
 
     async def score_responses(
-        self,
-        available_uids: list[int],
-        query_responses: list[tuple[int, str]],  # [(uid, response)]
-        uid_to_question: dict[int, str],  # uid -> prompt
-        metagraph: bt.metagraph,
+            self,
+            available_uids: list[int],
+            query_responses: list[tuple[int, str]],  # [(uid, response)]
+            uid_to_question: dict[int, str],  # uid -> prompt
+            metagraph: bt.metagraph,
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
 
         scores = torch.zeros(len(metagraph.hotkeys))
