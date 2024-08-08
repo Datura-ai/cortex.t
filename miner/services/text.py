@@ -1,3 +1,4 @@
+import bittensor as bt
 from cortext.protocol import TextPrompting
 from typing import Tuple
 
@@ -11,7 +12,8 @@ class TextService(BaseService):
 
     async def forward_fn(self, synapse: TextPrompting):
         synapse.completion = "completed by miner"
+        bt.logging.info("text service is executed.")
         return synapse
 
-    async def blacklist_fn(self, synapse: TextPrompting) -> Tuple[bool, str]:
+    def blacklist_fn(self, synapse: TextPrompting) -> Tuple[bool, str]:
         return False, ""

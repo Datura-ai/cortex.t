@@ -13,9 +13,10 @@ class EmbeddingService(BaseService):
     async def forward_fn(self, synapse: Embeddings):
         provider = self.get_instance_of_provider(synapse.provider)(synapse)
         service = provider.embeddings_service if provider is not None else None
-        return service
+        bt.logging.info("embedding service is executed.")
+        return await service(synapse)
 
-    async def blacklist_fn(self, synapse: Embeddings) -> Tuple[bool, str]:
+    def blacklist_fn(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse)
         bt.logging.info(blacklist[1])
         return blacklist

@@ -29,12 +29,12 @@ class BaseService(metaclass=ServiceRegistryMeta):
         pass
 
     @abstractmethod
-    async def blacklist_fn(self, synapse):
+    def blacklist_fn(self, synapse):
         pass
 
     @classmethod
     def get_axon_attach_funcs(cls, metagraph):
-        service = cls(metagraph)
+        service = cls(metagraph, config.BLACKLIST_AMT)
         return service.forward_fn, service.blacklist_fn
 
     def base_blacklist(self, synapse) -> Tuple[bool, str]:

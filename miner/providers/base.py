@@ -85,7 +85,7 @@ class Provider(metaclass=ProviderRegistryMeta):
                 filtered_messages.append(message_to_append)
         return filtered_messages, system_prompt
 
-    async def prompt_service(self, synapse: bt.StreamingSynapse):
+    def prompt_service(self, synapse: bt.StreamingSynapse):
         token_streamer = partial(self._prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 

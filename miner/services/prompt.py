@@ -12,10 +12,11 @@ class PromptService(BaseService):
 
     async def forward_fn(self, synapse: StreamPrompting):
         provider = self.get_instance_of_provider(synapse.provider)(synapse)
-        service = provider.prompt_service if provider is not None else None
+        service = provider.prompt_service(synapse) if provider is not None else None
+        bt.logging.info(f"prompt service is executed. {service}")
         return service
 
-    async def blacklist_fn(self, synapse: StreamPrompting) -> Tuple[bool, str]:
+    def blacklist_fn(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse)
         bt.logging.info(blacklist[1])
         return blacklist

@@ -13,9 +13,10 @@ class IsAliveService(BaseService):
     async def forward_fn(self, synapse: IsAlive):
         bt.logging.debug("answered to be active")
         synapse.completion = "True"
+        bt.logging.info("check status is executed.")
         return synapse
 
-    async def blacklist_fn(self, synapse: IsAlive) -> Tuple[bool, str]:
+    def blacklist_fn(self, synapse: IsAlive) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse)
         bt.logging.info(blacklist[1])
         return blacklist
