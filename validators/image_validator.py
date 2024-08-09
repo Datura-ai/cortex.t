@@ -59,9 +59,10 @@ class ImageValidator(BaseValidator):
             # Query all images concurrently
             for uid in available_uids:
                 messages = await get_question("images", len(available_uids))
-                uid_to_question[uid] = messages  # Store messages for each UID
+                content = " ".join(messages)
+                uid_to_question[uid] = content  # Store messages for each UID
 
-                syn = ImageResponse(messages=messages, model=self.model, size=self.size, quality=self.quality, style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
+                syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality, style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
                 bt.logging.info(f"uid = {uid}, syn = {syn}")
 
                 # bt.logging.info(
@@ -70,7 +71,7 @@ class ImageValidator(BaseValidator):
                 # )
                 task = self.query_miner(metagraph, uid, syn)
                 query_tasks.append(task)
-                self.wandb_data["prompts"][uid] = messages
+                self.wandb_data["prompts"][uid] = content
 
             # Query responses is (uid. syn)
             query_responses = await asyncio.gather(*query_tasks)
