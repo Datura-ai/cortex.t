@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Optional
 import torch
 import random
 import asyncio
-import bittensor as bt
+from validators.services import bittensor as bt
 import cortext.reward
 from cortext import client
 from datasets import load_dataset
 from cortext.protocol import Embeddings
-from validators.base_validator import BaseValidator
+from validators.services.validators.base_validator import BaseValidator
 
 
 class EmbeddingsValidator(BaseValidator):

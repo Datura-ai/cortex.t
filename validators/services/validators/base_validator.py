@@ -1,15 +1,17 @@
 from abc import ABC, abstractmethod
+from typing import List
 
-import bittensor as bt
+from validators.services.bittensor import bt_validator as bt
+from validators.config import app_config
 
 
 class BaseValidator(ABC):
-    def __init__(self, dendrite, config, subtensor, wallet, timeout):
-        self.dendrite = dendrite
-        self.config = config
-        self.subtensor = subtensor
-        self.wallet = wallet
-        self.timeout = timeout
+    def __init__(self):
+        self.dendrite = bt.dendrite
+        self.config = bt.config
+        self.subtensor = bt.subtensor
+        self.wallet = bt.wallet
+        self.timeout = app_config.ASYNC_TIME_OUT
         self.streaming = False
 
     async def query_miner(self, metagraph, uid, syn):
@@ -26,14 +28,14 @@ class BaseValidator(ABC):
         return uid, responses
 
     @abstractmethod
-    async def start_query(self, available_uids) -> tuple[list, dict]:
+    async def start_query(self, available_uids: List[int]) -> tuple[list, dict]:
         ...
 
     @abstractmethod
     async def score_responses(self, responses):
         ...
 
-    async def get_and_score(self, available_uids, metagraph):
+    async def get_and_score(self, available_uids: List[int], metagraph):
         bt.logging.info("starting query")
         query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
         bt.logging.info("scoring query")

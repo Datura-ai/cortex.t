@@ -1,54 +1,24 @@
-import asyncio
 import concurrent
 import itertools
-import traceback
 import random
-from typing import Tuple
-import cortext
 
-import bittensor as bt
 import torch
-import wandb
-import os
-import shutil
 
 import argparse
 import asyncio
-import base64
-import copy
-import json
-import os
-import pathlib
-import requests
-import threading
-import time
 import traceback
-from collections import deque
 from functools import partial
 from typing import Tuple
-import bittensor as bt
-import google.generativeai as genai
+import validators.services.bittensor as bt
 import wandb
-from PIL import Image
-from stability_sdk import client
-from openai import AsyncOpenAI, OpenAI
-from stability_sdk import client as stability_client
-from PIL import Image
-import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
-import anthropic
-from anthropic_bedrock import AsyncAnthropicBedrock, HUMAN_PROMPT, AI_PROMPT, AnthropicBedrock
 
 import cortext
-from cortext.protocol import Embeddings, ImageResponse, IsAlive, StreamPrompting, TextPrompting
-from cortext.utils import get_version
-import sys
+from cortext.protocol import TextPrompting
 
 from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
-from validators.text_validator import TextValidator
-from validators.image_validator import ImageValidator
-from validators.embeddings_validator import EmbeddingsValidator
+from validators.services.validators.text_validator import TextValidator
 
 iterations_per_set_weights = 5
 scoring_organic_timeout = 60

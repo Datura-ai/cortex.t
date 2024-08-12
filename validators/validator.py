@@ -1,18 +1,15 @@
-import argparse
 import asyncio
-import logging
 import os
 import sys
-from pathlib import Path
 
 import base  # noqa
-import bittensor as bt
+from validators.services import bittensor as bt
 import cortext
 import wandb
 from cortext import utils
-from validators.embeddings_validator import EmbeddingsValidator
-from validators.image_validator import ImageValidator
-from validators.text_validator import TextValidator
+from validators.services.validators.embeddings_validator import EmbeddingsValidator
+from validators.services.validators.image_validator import ImageValidator
+from validators.services.validators.text_validator import TextValidator
 from validators.weight_setter import WeightSetter
 
 text_vali = None
@@ -20,26 +17,6 @@ image_vali = None
 embed_vali = None
 metagraph = None
 wandb_runs = {}
-
-
-def get_config() -> bt.config:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--netuid", type=int, default=18)
-    parser.add_argument("--wandb_off", action="store_false", dest="wandb_on")
-    parser.add_argument("--axon.port", type=int, default=8000)
-    parser.set_defaults(wandb_on=True)
-    bt.subtensor.add_args(parser)
-    bt.logging.add_args(parser)
-    bt.wallet.add_args(parser)
-    bt.axon.add_args(parser)
-    config = bt.config(parser)
-    _args = parser.parse_args()
-    full_path = Path(
-        f"{config.logging.logging_dir}/{config.wallet.name}/{config.wallet.hotkey}/netuid{config.netuid}/validator"
-    ).expanduser()
-    config.full_path = str(full_path)
-    full_path.mkdir(parents=True, exist_ok=True)
-    return config
 
 
 def init_wandb(config, my_uid, wallet: bt.wallet):
@@ -94,8 +71,6 @@ def initialize_validators(vali_config, test=False):
 
 
 def main(test=False) -> None:
-    config = get_config()
-    wallet, subtensor, dendrite, my_uid = initialize_components(config)
     validator_config = {"dendrite": dendrite, "config": config, "subtensor": subtensor, "wallet": wallet}
     initialize_validators(validator_config, test)
     init_wandb(config, my_uid, wallet)

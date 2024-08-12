@@ -1,12 +1,12 @@
 import asyncio
 import random
 import traceback
-from typing import AsyncIterator, Tuple
+from typing import AsyncIterator
 
-import bittensor as bt
+from validators.services.bittensor import bt_validator
 import cortext.reward
 import torch
-from validators.base_validator import BaseValidator
+from validators.services.validators.base_validator import BaseValidator
 from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
@@ -14,7 +14,7 @@ from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic,
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, dendrite, config, subtensor, wallet: bt.wallet):
+    def __init__(self, dendrite, config, subtensor, wallet: bt_validator.wallet):
         super().__init__(dendrite, config, subtensor, wallet, timeout=75)
         self.streaming = True
         self.query_type = "text"
@@ -47,7 +47,7 @@ class TextValidator(BaseValidator):
                 top_p=self.top_p,
                 top_k=self.top_k,
             )
-            bt.logging.info(
+            bt_validator.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
             )
@@ -65,7 +65,7 @@ class TextValidator(BaseValidator):
                 if not isinstance(resp, str):
                     continue
 
-                bt.logging.trace(resp)
+                bt_validator.logging.trace(resp)
                 yield uid, resp
 
     async def handle_response(self, uid: str, responses) -> tuple[str, str]:

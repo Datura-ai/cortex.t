@@ -6,7 +6,7 @@ from pathlib import Path
 import bittensor as bt
 
 
-class Config(bt.config):
+class Config:
     def __init__(self):
         super().__init__()
         load_dotenv()  # Load environment variables from .env file

@@ -1,4 +1,3 @@
-import io
 import torch
 import wandb
 import random
@@ -7,12 +6,12 @@ import aiohttp
 import base64
 import traceback
 import cortext.reward
-import bittensor as bt
+from validators.services import bittensor as bt
 
 from PIL import Image
 from io import BytesIO
 from cortext.utils import get_question
-from validators.base_validator import BaseValidator
+from validators.services.validators.base_validator import BaseValidator
 from cortext.protocol import ImageResponse
 
 
