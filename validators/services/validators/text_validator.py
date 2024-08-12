@@ -3,7 +3,8 @@ import random
 import traceback
 from typing import AsyncIterator
 
-from validators.services.bittensor import bt_validator
+from validators.services.bittensor import bt_validator as bt
+import constants
 import cortext.reward
 import torch
 from validators.services.validators.base_validator import BaseValidator
@@ -14,18 +15,18 @@ from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic,
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, dendrite, config, subtensor, wallet: bt_validator.wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=75)
+    def __init__(self, provider: str = None, model: str = None):
+        super().__init__()
         self.streaming = True
         self.query_type = "text"
-        self.model = "gpt-4-turbo-2024-04-09"
-        self.max_tokens = 4096
-        self.temperature = 0.001
-        self.weight = 1
-        self.seed = 1234
-        self.top_p = 0.01
-        self.top_k = 1
-        self.provider = "OpenAI"
+        self.model = model or constants.TEXT_MODEL
+        self.max_tokens = constants.TEXT_MAX_TOKENS
+        self.temperature = constants.TEXT_TEMPERATURE
+        self.weight = constants.TEXT_WEIGHT
+        self.seed = constants.TEXT_SEED
+        self.top_p = constants.TEXT_TOP_P
+        self.top_k = constants.TEXT_TOP_K
+        self.provider = provider or constants.TEXT_PROVIDER
 
         self.wandb_data = {
             "modality": "text",
@@ -47,7 +48,7 @@ class TextValidator(BaseValidator):
                 top_p=self.top_p,
                 top_k=self.top_k,
             )
-            bt_validator.logging.info(
+            bt.logging.info(
                 f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                 f"timeout {self.timeout}: {syn.messages[0]['content']}"
             )
@@ -65,7 +66,7 @@ class TextValidator(BaseValidator):
                 if not isinstance(resp, str):
                     continue
 
-                bt_validator.logging.trace(resp)
+                bt.logging.trace(resp)
                 yield uid, resp
 
     async def handle_response(self, uid: str, responses) -> tuple[str, str]:
@@ -87,56 +88,15 @@ class TextValidator(BaseValidator):
         image_url = question.get("image")
         return prompt, image_url
 
-    async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
+    async def start_query(self, available_uids) -> tuple[list, dict]:
         try:
             uids_to_query = available_uids
             num_uids_to_pick = len(uids_to_query)
             query_tasks = []
             uid_to_question = {}
+
             # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
-                "Groq"] * 20 + ["Bedrock"] * 15
-            self.provider = random.choice(providers)
-
-            if self.provider == "AnthropicBedrock":
-                num_uids_to_pick = 1
-                # bedrock models = ["anthropic.claude-v2:1", "anthropic.claude-instant-v1", "anthropic.claude-v1", "anthropic.claude-v2"]
-                # anthropic models = ["claude-2.1", "claude-2.0", "claude-instant-1.2"]
-                # gemini models = ["gemini-pro"]
-                self.model = "anthropic.claude-v2:1"
-
-            elif self.provider == "OpenAI":
-                num_uids_to_pick = 30
-                models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
-                self.model = random.choice(models)
-
-            elif self.provider == "Gemini":
-                num_uids_to_pick = 30
-                models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
-                self.model = random.choice(models)
-
-            elif self.provider == "Anthropic":
-                num_uids_to_pick = 30
-                models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229",
-                          "claude-3-haiku-20240307"]
-                self.model = random.choice(models)
-
-            elif self.provider == "Groq":
-                num_uids_to_pick = 30
-                models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
-                self.model = random.choice(models)
-
-            elif self.provider == "Bedrock":
-                num_uids_to_pick = 30
-                models = [
-                    "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
-                    "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
-                    "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
-                                                                          "anthropic.claude-3-opus-20240229-v1:0",
-                    "anthropic.claude-3-haiku-20240307-v1:0"
-                ]
-                self.model = random.choice(models)
-
+            num_uids_to_pick = self.select_random_provider_and_model() or num_uids_
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0",
                              "claude-3-5-sonnet-20240620"]
@@ -172,7 +132,7 @@ class TextValidator(BaseValidator):
                     f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
                     f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
                 )
-                task = self.query_miner(metagraph, uid, syn)
+                task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
                 self.wandb_data["prompts"][uid] = prompt
 
