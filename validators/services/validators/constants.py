@@ -6,3 +6,7 @@ TEXT_WEIGHT = 1
 TEXT_SEED = 1234
 TEXT_TOP_P = 0.01
 TEXT_TOP_K = 1
+VISION_MODELS = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0",
+                 "claude-3-5-sonnet-20240620"]
+DEFAULT_NUM_UID_PICK = 30
+DEFAULT_NUM_UID_PICK_ANTHROPIC = 1

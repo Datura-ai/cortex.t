@@ -61,7 +61,8 @@ class ImageValidator(BaseValidator):
                 content = " ".join(messages)
                 uid_to_question[uid] = content  # Store messages for each UID
 
-                syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality, style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
+                syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
+                                    style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
                 bt.logging.info(f"uid = {uid}, syn = {syn}")
 
                 # bt.logging.info(
@@ -78,7 +79,6 @@ class ImageValidator(BaseValidator):
         except:
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 
-
     async def b64_to_image(self, b64):
         image_data = base64.b64decode(b64)
         return await asyncio.to_thread(Image.open, BytesIO(image_data))
@@ -91,14 +91,13 @@ class ImageValidator(BaseValidator):
         except Exception as e:
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
 
-
     async def score_responses(self, _, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))
         uid_scores_dict = {}
         download_tasks = []
         score_tasks = []
         rand = random.random()
-        will_score_all = rand < 1/1
+        will_score_all = rand < 1 / 1
 
         async with aiohttp.ClientSession() as session:
             try:
@@ -122,12 +121,12 @@ class ImageValidator(BaseValidator):
 
                         if will_score_all:
                             if syn.provider == "OpenAI":
-                                score_task = cortext.reward.dalle_score(uid, image_url, self.size, syn.messages, self.weight)
+                                score_task = cortext.reward.dalle_score(uid, image_url, self.size, syn.messages,
+                                                                        self.weight)
                             else:
                                 continue
                                 score_task = cortext.reward.deterministic_score(uid, syn, self.weight)
                             score_tasks.append(asyncio.create_task(score_task))
-
 
                 # Process download results
                 try:

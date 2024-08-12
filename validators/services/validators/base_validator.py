@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 import random
+import constants
 
 from validators.services.bittensor import bt_validator as bt
 from validators.config import app_config
@@ -44,43 +45,3 @@ class BaseValidator(ABC):
         query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
         bt.logging.info("scoring query")
         return await self.score_responses(available_uids, query_responses, uid_to_question, metagraph)
-
-    def select_random_provider_and_model(self):
-        providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
-            "Groq"] * 20 + ["Bedrock"] * 15
-        self.provider = random.choice(providers)
-        num_uids_to_pick = 30
-
-        if self.provider == "AnthropicBedrock":
-            num_uids_to_pick = 1
-            self.model = "anthropic.claude-v2:1"
-
-        elif self.provider == "OpenAI":
-            models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Gemini":
-            models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Anthropic":
-            models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229",
-                      "claude-3-haiku-20240307"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Groq":
-            models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Bedrock":
-            models = [
-                "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
-                "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
-                "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
-                                                                      "anthropic.claude-3-opus-20240229-v1:0",
-                "anthropic.claude-3-haiku-20240307-v1:0"
-            ]
-            self.model = random.choice(models)
-        else:
-            num_uids_to_pick = None
-        return num_uids_to_pick

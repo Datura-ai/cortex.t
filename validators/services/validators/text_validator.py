@@ -27,6 +27,7 @@ class TextValidator(BaseValidator):
         self.top_p = constants.TEXT_TOP_P
         self.top_k = constants.TEXT_TOP_K
         self.provider = provider or constants.TEXT_PROVIDER
+        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         self.wandb_data = {
             "modality": "text",
@@ -88,50 +89,22 @@ class TextValidator(BaseValidator):
         image_url = question.get("image")
         return prompt, image_url
 
-    async def start_query(self, available_uids) -> tuple[list, dict]:
+    async def start_query(self, available_uids):
         try:
             uids_to_query = available_uids
-            num_uids_to_pick = len(uids_to_query)
             query_tasks = []
             uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            num_uids_to_pick = self.select_random_provider_and_model() or num_uids_
+            self.select_random_provider_and_model()
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
-            vision_models = ["gpt-4o", "claude-3-opus-20240229", "anthropic.claude-3-sonnet-20240229-v1:0",
-                             "claude-3-5-sonnet-20240620"]
 
-            if num_uids_to_pick < len(available_uids):
-                uids_to_query = random.sample(available_uids, num_uids_to_pick)
+            if self.num_uids_to_pick < len(available_uids):
+                uids_to_query = random.sample(available_uids, self.num_uids_to_pick)
 
-            bt.logging.debug(f"querying {num_uids_to_pick} uids: {uids_to_query}")
+            bt.logging.debug(f"querying {self.num_uids_to_pick} uids: {uids_to_query}")
             for uid in uids_to_query:
-                messages = [{"role": "user"}]
-                is_vision_model = self.model in vision_models
-                prompt, image_url = await self.get_new_question(len(uids_to_query), is_vision_model)
-
-                uid_to_question[uid] = {"prompt": prompt}
-                if image_url:
-                    uid_to_question[uid]["image"] = image_url
-                    messages[0]["image"] = image_url
-
-                messages[0]["content"] = prompt
-
-                syn = StreamPrompting(
-                    messages=messages,
-                    model=self.model,
-                    seed=self.seed,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature,
-                    provider=self.provider,
-                    top_p=self.top_p,
-                    top_k=self.top_k,
-                )
-                image_info = f" Image: {syn.messages[0]['image']}" if image_url else ""
-                bt.logging.info(
-                    f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                    f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
-                )
+                syn, prompt = self.build_synapse(uid_to_question, uid)
                 task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
                 self.wandb_data["prompts"][uid] = prompt
@@ -139,8 +112,74 @@ class TextValidator(BaseValidator):
             query_responses = await asyncio.gather(*query_tasks)
 
             return query_responses, uid_to_question
-        except:
-            bt.logging.error(f"error in start_query = {traceback.format_exc()}")
+        except Exception as err:
+            bt.logging.error(f"error in start_query = {err}")
+
+    async def build_synapse(self, uid_to_question: dict, uid: int):
+        messages = [{"role": "user"}]
+        is_vision_model = self.model in constants.VISION_MODELS
+        prompt, image_url = await self.get_new_question(self.num_uids_to_pick, is_vision_model)
+
+        uid_to_question[uid] = {"prompt": prompt}
+        if image_url:
+            uid_to_question[uid]["image"] = image_url
+            messages[0]["image"] = image_url
+
+        messages[0]["content"] = prompt
+
+        syn = StreamPrompting(
+            messages=messages,
+            model=self.model,
+            seed=self.seed,
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            provider=self.provider,
+            top_p=self.top_p,
+            top_k=self.top_k,
+        )
+        image_info = f" Image: {syn.messages[0]['image']}" if image_url else ""
+        bt.logging.info(
+            f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+            f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
+        )
+        return syn, prompt
+
+    def select_random_provider_and_model(self):
+        providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
+            "Groq"] * 20 + ["Bedrock"] * 15
+        self.provider = random.choice(providers)
+        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
+
+        if self.provider == "AnthropicBedrock":
+            self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK_ANTHROPIC
+            self.model = "anthropic.claude-v2:1"
+
+        elif self.provider == "OpenAI":
+            models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
+            self.model = random.choice(models)
+
+        elif self.provider == "Gemini":
+            models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
+            self.model = random.choice(models)
+
+        elif self.provider == "Anthropic":
+            models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229",
+                      "claude-3-haiku-20240307"]
+            self.model = random.choice(models)
+
+        elif self.provider == "Groq":
+            models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
+            self.model = random.choice(models)
+
+        elif self.provider == "Bedrock":
+            models = [
+                "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
+                "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
+                "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
+                                                                      "anthropic.claude-3-opus-20240229-v1:0",
+                "anthropic.claude-3-haiku-20240307-v1:0"
+            ]
+            self.model = random.choice(models)
 
     def should_i_score(self):
         random_number = random.random()
