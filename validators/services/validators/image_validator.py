@@ -6,7 +6,7 @@ import aiohttp
 import base64
 import traceback
 import cortext.reward
-from validators.services import bittensor as bt
+from validators.services.bittensor import bt_validator as bt
 
 from PIL import Image
 from io import BytesIO

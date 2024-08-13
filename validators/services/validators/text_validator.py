@@ -231,9 +231,8 @@ class TextValidator(BaseValidator):
     async def score_responses(
             self,
             available_uids: list[int],
-            query_responses: list[tuple[int, str]],  # [(uid, response)]
-            uid_to_question: dict[int, str],  # uid -> prompt
-            metagraph: bt.metagraph,
+            query_responses: list[tuple[int, str]],
+            uid_to_question: dict[int, str],
     ) -> tuple[torch.Tensor, dict[int, float], dict]:
 
         scores = torch.zeros(len(metagraph.hotkeys))

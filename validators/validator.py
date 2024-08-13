@@ -3,7 +3,7 @@ import os
 import sys
 
 import base  # noqa
-from validators.services import bittensor as bt
+from validators.services.bittensor import bt_validator as bt
 import cortext
 import wandb
 from cortext import utils
