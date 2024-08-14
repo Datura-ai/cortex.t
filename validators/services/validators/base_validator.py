@@ -94,79 +94,47 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         for uid, resp in responses:
             self.wandb_data["responses"][uid] = resp
 
-    @abstractmethod
     def should_i_score(self):
+        return True
+
+    @abstractmethod
+    def get_answer_task(self, response):
         pass
-
     @abstractmethod
-    def get_answer_tasks(self, responses):
-        response_tasks = []
-        will_score_all = self.should_i_score()
-        for uid, response in responses:
-            if will_score_all and response:
-                question = self.uid_to_question[uid]
-                response_tasks.append((uid, self.get_organic_result(question)))
-        return response_tasks
-
-    @abstractmethod
-    def get_scoring_tasks(self, responses):
-        scoring_tasks = []
-        for (uid, _), api_answer in zip(response_tasks, api_responses):
-            if api_answer:
-                response = next(res for u, res in responses if u == uid)  # Find the matching response
-                task = cortext.reward.api_score(api_answer, response, self.weight, self.temperature, self.provider)
-                scoring_tasks.append((uid, task))
-        return scoring_tasks
+    def get_scoring_task(self, answer, response):
+        pass
 
     @update_wandb_data
     async def score_responses(self, responses):
         scores = torch.zeros(len(self.metagraph.hotkeys))
-        uid_scores_dict = {}
-        response_tasks = []
-        # Decide to score all UIDs this round based on a chance
-        will_score_all = self.should_i_score()
-        bt.logging.info("starting wandb logging")
-        for uid, response in responses:
-            self.wandb_data["responses"][uid] = response
-            if will_score_all and response:
-                question = self.uid_to_question[uid]
-                response_tasks.append((uid, self.call_api(question)))
-
-        bt.logging.info("finished wandb logging and scoring")
-        api_responses = await asyncio.gather(*[task for _, task in response_tasks])
-        bt.logging.info("gathered response_tasks for api calls")
-
+        answering_tasks = []
         scoring_tasks = []
-        for (uid, _), api_answer in zip(response_tasks, api_responses):
-            if api_answer:
-                response = next(res for u, res in responses if u == uid)  # Find the matching response
-                task = cortext.reward.api_score(api_answer, response, self.weight, self.temperature, self.provider)
+        uid_scores_dict = {}
+        will_score_all = self.should_i_score()
+
+        for uid, response in responses:
+            if will_score_all and response:
+                task = self.get_answer_task(response)
+                answering_tasks.append((uid, task))
+
+        # Await all embedding tasks
+        answers_results = await asyncio.gather(*[task for _, task in answering_tasks])
+
+        # Now create new tasks for scoring embeddings
+        for (uid, response), answer in zip(responses, answering_tasks):
+            if not answer:
+                continue
+            if response is not None:
+                task = self.get_scoring_task(answer, response)
                 scoring_tasks.append((uid, task))
-
-        scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
-        average_score = sum(scored_responses) / len(scored_responses) if scored_responses else 0
-
-        bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
-        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
-            if scored_response is not None:
-                scores[uid] = scored_response
-                uid_scores_dict[uid] = scored_response
-                self.wandb_data["scores"][uid] = scored_response
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
 
-        query_response_uids = [item[0] for item in query_responses]
-        if query_response_uids:
-            for uid in available_uids:
-                if uid not in query_response_uids:
-                    scores[uid] = average_score
-                    uid_scores_dict[uid] = average_score
-                    self.wandb_data["scores"][uid] = average_score
+        # Await all scoring tasks
+        scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
 
-        if uid_scores_dict != {}:
-            bt.logging.info(f"text_scores is {uid_scores_dict}")
-        return scores, uid_scores_dict, self.wandb_data
+        return scoring_tasks, scored_responses
 
     async def get_and_score(self, available_uids: List[int], metagraph):
         bt.logging.info("starting query")
