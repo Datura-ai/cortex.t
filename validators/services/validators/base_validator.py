@@ -1,13 +1,16 @@
-from abc import ABC, abstractmethod
-from typing import List
+from abc import abstractmethod
+from datasets import load_dataset
 import random
-import constants
+from typing import List
+
+from cortext.metaclasses import ValidatorRegistryMeta
+from cortext import utils
 
 from validators.services.bittensor import bt_validator as bt
 from validators.config import app_config
 
 
-class BaseValidator(ABC):
+class BaseValidator(metaclass=ValidatorRegistryMeta):
     def __init__(self):
         self.dendrite = bt.dendrite
         self.config = bt.config
@@ -18,6 +21,38 @@ class BaseValidator(ABC):
         self.streaming = False
         self.provider = None
         self.model = None
+        self.uid_to_question = dict()
+        self.available_uids = []
+
+    def get_random_texts(self, dataset_name: str, config_name: str, num_samples: int = 100) -> list[str]:
+        dataset = load_dataset(dataset_name, config_name)
+        texts = [item['text'] for item in dataset['train']]
+        return random.sample(texts, num_samples)
+
+    async def load_questions(self, available_uids, item_type: str = "text", vision=False):
+        self.uid_to_question = dict()
+
+        random_texts = self.get_random_texts('wikitext', 'wikitext-2-v1', 100)
+        num_texts_per_uid = len(random_texts) // len(available_uids)
+
+        for index, uid in enumerate(available_uids):
+            if item_type == "images":
+                messages = await utils.get_question("images", len(available_uids))
+                content = " ".join(messages)
+                self.uid_to_question[uid] = content  # Store messages for each UID
+            elif item_type == "text":
+                question = await utils.get_question("text", len(available_uids), vision)
+                if isinstance(question, str):
+                    bt.logging.info(f"Question is str, dict expected: {question}")
+                prompt = question.get("prompt")
+                image_url = question.get("image")
+                self.uid_to_question[uid] = {"prompt": prompt}
+                self.uid_to_question[uid]["image"] = image_url
+            else:
+                start_index = index * num_texts_per_uid
+                end_index = start_index + num_texts_per_uid
+                prompt = random_texts[start_index:end_index]
+                self.uid_to_question[uid] = prompt
 
     async def query_miner(self, metagraph, uid, syn):
         try:

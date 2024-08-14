@@ -8,7 +8,8 @@ class BittensorValidator:
         self.config = bt_config
         bt.logging(config=config, logging_dir=config.full_path)
         self.logging = bt.logging
-        self.logging.info(f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
+        self.logging.info(
+            f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
         self.wallet = bt.wallet(config=config)
         self.subtensor = bt.subtensor(config=config)
         self.metagraph = self.subtensor.metagraph(config.netuid)
@@ -23,6 +24,9 @@ class BittensorValidator:
                 f"{self.subtensor}. Run btcli register --netuid 18 and try again."
             )
             sys.exit()
+
+    def refresh_network(self):
+        pass
 
 
 bt_validator = BittensorValidator()

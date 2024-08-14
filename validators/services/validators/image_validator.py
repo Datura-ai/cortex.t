@@ -42,7 +42,6 @@ class ImageValidator(BaseValidator):
     async def start_query(self, available_uids, metagraph):
         try:
             query_tasks = []
-            uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
             providers = ["OpenAI"] * 100 + ["Stability"] * 0
@@ -59,7 +58,7 @@ class ImageValidator(BaseValidator):
             for uid in available_uids:
                 messages = await get_question("images", len(available_uids))
                 content = " ".join(messages)
-                uid_to_question[uid] = content  # Store messages for each UID
+                self.uid_to_question[uid] = content  # Store messages for each UID
 
                 syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
                                     style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
@@ -75,7 +74,7 @@ class ImageValidator(BaseValidator):
 
             # Query responses is (uid. syn)
             query_responses = await asyncio.gather(*query_tasks)
-            return query_responses, uid_to_question
+            return query_responses, self.uid_to_question
         except:
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 

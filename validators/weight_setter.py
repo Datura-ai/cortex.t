@@ -9,7 +9,7 @@ import asyncio
 import traceback
 from functools import partial
 from typing import Tuple
-import validators.services.bittensor as bt
+from validators.services.bittensor import bt_validator as bt
 import wandb
 
 import cortext
@@ -197,6 +197,9 @@ class WeightSetter:
                 bt.logging.error(
                     f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
                 await asyncio.sleep(10)
+
+    async def refresh_metagraph(self):
+        self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
 
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:

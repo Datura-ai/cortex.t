@@ -91,12 +91,15 @@ class TextValidator(BaseValidator):
 
     async def start_query(self, available_uids):
         try:
+            self.num_uids_to_pick = self.select_random_provider_and_model()
+            is_vision_model = self.model in constants.VISION_MODELS
+            await self.load_questions(available_uids, "text", is_vision_model)
+
             uids_to_query = available_uids
             query_tasks = []
-            uid_to_question = {}
 
             # Randomly choose the provider based on specified probabilities
-            self.select_random_provider_and_model()
+            self.num_uids_to_pick = self.select_random_provider_and_model()
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
 
             if self.num_uids_to_pick < len(available_uids):
@@ -104,31 +107,28 @@ class TextValidator(BaseValidator):
 
             bt.logging.debug(f"querying {self.num_uids_to_pick} uids: {uids_to_query}")
             for uid in uids_to_query:
-                syn, prompt = self.build_synapse(uid_to_question, uid)
+                syn, prompt = self.build_synapse(uid)
                 task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
                 self.wandb_data["prompts"][uid] = prompt
 
             query_responses = await asyncio.gather(*query_tasks)
 
-            return query_responses, uid_to_question
+            return query_responses
         except Exception as err:
             bt.logging.error(f"error in start_query = {err}")
 
-    async def build_synapse(self, uid_to_question: dict, uid: int):
-        messages = [{"role": "user"}]
-        is_vision_model = self.model in constants.VISION_MODELS
-        prompt, image_url = await self.get_new_question(self.num_uids_to_pick, is_vision_model)
-
-        uid_to_question[uid] = {"prompt": prompt}
+    async def build_synapse(self, uid: int):
+        message = {"role": "user"}
+        prompt = self.uid_to_question[uid].get("prompt")
+        image_url = self.uid_to_question[uid].get("image")
         if image_url:
-            uid_to_question[uid]["image"] = image_url
-            messages[0]["image"] = image_url
+            message["image"] = image_url
 
-        messages[0]["content"] = prompt
+        message["content"] = prompt
 
         syn = StreamPrompting(
-            messages=messages,
+            messages=[message],
             model=self.model,
             seed=self.seed,
             max_tokens=self.max_tokens,
@@ -142,7 +142,7 @@ class TextValidator(BaseValidator):
             f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
             f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
         )
-        return syn, prompt
+        return syn
 
     def select_random_provider_and_model(self):
         providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
@@ -180,6 +180,7 @@ class TextValidator(BaseValidator):
                 "anthropic.claude-3-haiku-20240307-v1:0"
             ]
             self.model = random.choice(models)
+        return self.num_uids_to_pick
 
     def should_i_score(self):
         random_number = random.random()

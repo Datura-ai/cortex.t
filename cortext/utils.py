@@ -510,7 +510,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
             return response
 
         except Exception as e:
-            bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}")
+            bt.logging.error(f"Error when calling OpenAI: {traceback.format_exc()}.")
             await asyncio.sleep(0.5)
 
 
