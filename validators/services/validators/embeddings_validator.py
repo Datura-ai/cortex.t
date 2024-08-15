@@ -1,9 +1,10 @@
 from __future__ import annotations
-
+from typing import List, Tuple, Any
+from bittensor import Synapse
 import torch
 import random
 import asyncio
-from validators.services import bittensor as bt
+from validators.services.bittensor import bt_validator as bt
 import cortext.reward
 from cortext import client
 from datasets import load_dataset
@@ -68,33 +69,24 @@ class EmbeddingsValidator(BaseValidator):
         texts = [item['text'] for item in dataset['train']]
         return random.sample(texts, num_samples)
 
-    async def start_query(self, available_uids, metagraph) -> tuple[list, dict]:
+    async def start_query(self, available_uids) -> tuple[(int, Synapse)] | None:
         if not available_uids:
-            return [], {}
+            return None
 
         query_tasks = []
-        uid_to_question = {}
-        random_texts = self.get_random_texts('wikitext', 'wikitext-2-v1', 100)
-        num_texts_per_uid = len(random_texts) // len(available_uids)
+        await self.load_questions(available_uids, "embedding")
 
-        bt.logging.info(f"Each UID will receive {num_texts_per_uid} texts")
-
-        for index, uid in enumerate(available_uids):
-            start_index = index * num_texts_per_uid
-            end_index = start_index + num_texts_per_uid
-            prompt = random_texts[start_index:end_index]
-            uid_to_question[uid] = prompt
+        for uid, prompt in self.uid_to_questions:
             syn = Embeddings(model=self.model, texts=prompt)
             bt.logging.info(
                 f"Sending {self.query_type} request to uid: {uid} "
                 f"using {syn.model} with timeout {self.timeout}: {syn.texts[0]}"
             )
-            task = self.query_miner(metagraph, uid, syn)
+            task = self.query_miner(self.metagraph, uid, syn)
             query_tasks.append(task)
-            self.wandb_data["texts"][uid] = prompt
 
         query_responses = await asyncio.gather(*query_tasks)
-        return query_responses, uid_to_question
+        return query_responses
 
     async def score_responses(self, _, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))

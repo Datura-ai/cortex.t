@@ -62,6 +62,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     def build_synapse(self, question) -> bittensor.synapse:
         pass
 
+
     async def query_miner(self, metagraph, uid, syn):
         try:
             responses = await self.dendrite([metagraph.axons[uid]], syn, deserialize=False, timeout=self.timeout,
@@ -75,19 +76,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def handle_response(self, uid, responses):
         return uid, responses
 
+    @abstractmethod
     async def start_query(self, available_uids: List[int]):
-        try:
-            uid_to_questions: dict = self.load_questions(available_uids)
-            query_tasks = []
-            for uid, question in uid_to_questions.items():
-                syn = self.build_synapse(question)
-                task = self.query_miner(self.metagraph, uid, syn)
-                query_tasks.append(task)
-                self.update_wandb_data()
-            query_responses = await asyncio.gather(*query_tasks)
-            return query_responses
-        except Exception as err:
-            bt.logging.exception(err)
+        pass
 
     @abstractmethod
     def build_wandb_data(self, scores, responses):

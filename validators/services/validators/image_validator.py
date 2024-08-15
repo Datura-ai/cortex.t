@@ -38,39 +38,32 @@ class ImageValidator(BaseValidator):
             "scores": {},
             "timestamps": {},
         }
+    def select_random_provider_and_model(self):
+        # Randomly choose the provider based on specified probabilities
+        providers = ["OpenAI"] * 100 + ["Stability"] * 0
+        self.provider = random.choice(providers)
 
-    async def start_query(self, available_uids, metagraph):
+        if self.provider == "Stability":
+            self.seed = random.randint(1000, 1000000)
+            self.model = "stable-diffusion-xl-1024-v1-0"
+
+        elif self.provider == "OpenAI":
+            self.model = "dall-e-3"
+
+    async def start_query(self, available_uids):
         try:
             query_tasks = []
 
-            # Randomly choose the provider based on specified probabilities
-            providers = ["OpenAI"] * 100 + ["Stability"] * 0
-            self.provider = random.choice(providers)
-
-            if self.provider == "Stability":
-                self.seed = random.randint(1000, 1000000)
-                self.model = "stable-diffusion-xl-1024-v1-0"
-
-            elif self.provider == "OpenAI":
-                self.model = "dall-e-3"
+            self.select_random_provider_and_model()
+            await self.load_questions(available_uids, "images")
 
             # Query all images concurrently
-            for uid in available_uids:
-                messages = await get_question("images", len(available_uids))
-                content = " ".join(messages)
-                self.uid_to_questions[uid] = content  # Store messages for each UID
-
+            for uid, content in self.uid_to_questions:
                 syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
                                     style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
                 bt.logging.info(f"uid = {uid}, syn = {syn}")
-
-                # bt.logging.info(
-                #     f"Sending a {self.size} {self.quality} {self.style} {self.query_type} request "
-                #     f"to uid: {uid} using {syn.model} with timeout {self.timeout}: {syn.messages}"
-                # )
-                task = self.query_miner(metagraph, uid, syn)
+                task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
-                self.wandb_data["prompts"][uid] = content
 
             # Query responses is (uid. syn)
             query_responses = await asyncio.gather(*query_tasks)
@@ -82,9 +75,10 @@ class ImageValidator(BaseValidator):
         image_data = base64.b64decode(b64)
         return await asyncio.to_thread(Image.open, BytesIO(image_data))
 
-    async def download_image(self, url, session):
+    async def download_image(self, url):
         try:
-            async with session.get(url) as response:
+            async with aiohttp.ClientSession() as session:
+                response = await  session.get(url)
                 content = await response.read()
                 return await asyncio.to_thread(Image.open, BytesIO(content))
         except Exception as e:
@@ -93,6 +87,7 @@ class ImageValidator(BaseValidator):
     def should_i_score(self):
         rand = random.random()
         return rand < 1 / 1
+
     async def get_scoring_task(self, uid, answer, response):
         if not self.should_i_score():
             return None
@@ -110,63 +105,18 @@ class ImageValidator(BaseValidator):
             pass
         return synapse
 
-    async def score_responses(self, _, query_responses, uid_to_question, metagraph):
-        scores = torch.zeros(len(metagraph.hotkeys))
-        uid_scores_dict = {}
+    async def update_wandb(self, resp_synapses):
         download_tasks = []
-        score_tasks = []
-        rand = random.random()
-        will_score_all = rand < 1 / 1
+        for uid, syn in resp_synapses:
+            completion = syn.completion
+            if syn.provider == "OpenAI":
+                image_url = completion["url"]
+                bt.logging.info(f"UID {uid} response = {image_url}")
+                download_tasks.append(asyncio.create_task(self.download_image(image_url)))
+            else:  # Stability
+                b64s = completion["b64s"]
+                bt.logging.info(f"UID {uid} responded with an image")
+                for b64 in b64s:
+                    download_tasks.append(asyncio.create_task(self.b64_to_image(b64)))
 
-        async with aiohttp.ClientSession() as session:
-            try:
-                for uid, syn in query_responses:
-                    syn = syn[0]
-                    completion = syn.completion
-                    if completion is None:
-                        scores[uid] = uid_scores_dict[uid] = 0
-                        continue
-
-                    if syn.provider in ["OpenAI", "Stability"]:
-                        if syn.provider == "OpenAI":
-                            image_url = completion["url"]
-                            bt.logging.info(f"UID {uid} response = {image_url}")
-                            download_tasks.append(asyncio.create_task(self.download_image(image_url, session)))
-                        else:  # Stability
-                            b64s = completion["b64s"]
-                            bt.logging.info(f"UID {uid} responded with an image")
-                            for b64 in b64s:
-                                download_tasks.append(asyncio.create_task(self.b64_to_image(b64)))
-
-                        if will_score_all:
-                            if syn.provider == "OpenAI":
-                                score_task = cortext.reward.dalle_score(uid, image_url, self.size, syn.messages,
-                                                                        self.weight)
-                            else:
-                                continue
-                                score_task = cortext.reward.deterministic_score(uid, syn, self.weight)
-                            score_tasks.append(asyncio.create_task(score_task))
-
-                # Process download results
-                try:
-                    download_results = await asyncio.gather(*download_tasks)
-                    for image, uid in zip(download_results, [uid for uid, _ in query_responses]):
-                        self.wandb_data["images"][uid] = wandb.Image(image)
-                except:
-                    bt.logging.error(f"error in downloading images {traceback.exception_exc()}")
-
-                # Process score results
-                score_results = await asyncio.gather(*score_tasks, return_exceptions=True)
-                for score, uid in zip(score_results, [uid for uid, _ in query_responses]):
-                    try:
-                        final_score = score if score is not None else 0
-                        scores[uid] = uid_scores_dict[uid] = final_score
-                    except Exception as e:
-                        bt.logging.error(f"Error processing score for UID {uid}: {traceback.format_exc()}")
-
-            except:
-                bt.logging.debug(f"error in score_responses {traceback.format_exc()}")
-
-        bt.logging.info(f"Final scores: {uid_scores_dict}")
-        bt.logging.info("score_responses process completed.")
-        return scores, uid_scores_dict, self.wandb_data
+            self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
