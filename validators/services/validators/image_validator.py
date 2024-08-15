@@ -58,7 +58,7 @@ class ImageValidator(BaseValidator):
             for uid in available_uids:
                 messages = await get_question("images", len(available_uids))
                 content = " ".join(messages)
-                self.uid_to_question[uid] = content  # Store messages for each UID
+                self.uid_to_questions[uid] = content  # Store messages for each UID
 
                 syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
                                     style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
@@ -74,7 +74,7 @@ class ImageValidator(BaseValidator):
 
             # Query responses is (uid. syn)
             query_responses = await asyncio.gather(*query_tasks)
-            return query_responses, self.uid_to_question
+            return query_responses, self.uid_to_questions
         except:
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 
@@ -89,6 +89,26 @@ class ImageValidator(BaseValidator):
                 return await asyncio.to_thread(Image.open, BytesIO(content))
         except Exception as e:
             bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
+
+    def should_i_score(self):
+        rand = random.random()
+        return rand < 1 / 1
+    async def get_scoring_task(self, uid, answer, response):
+        if not self.should_i_score():
+            return None
+        if self.provider == "OpenAI":
+            completion = answer.completion
+            image_url = completion["url"]
+            score_task = cortext.reward.dalle_score(uid, image_url, self.size, answer.messages,
+                                                    self.weight)
+        else:
+            score_task = None  # cortext.reward.deterministic_score(uid, syn, self.weight)
+        return score_task
+
+    async def get_answer_task(self, uid, synapse=None):
+        if not self.should_i_score():
+            pass
+        return synapse
 
     async def score_responses(self, _, query_responses, uid_to_question, metagraph):
         scores = torch.zeros(len(metagraph.hotkeys))

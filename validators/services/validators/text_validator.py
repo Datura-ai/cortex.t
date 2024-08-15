@@ -120,8 +120,8 @@ class TextValidator(BaseValidator):
 
     async def build_synapse(self, uid: int):
         message = {"role": "user"}
-        prompt = self.uid_to_question[uid].get("prompt")
-        image_url = self.uid_to_question[uid].get("image")
+        prompt = self.uid_to_questions[uid].get("prompt")
+        image_url = self.uid_to_questions[uid].get("image")
         if image_url:
             message["image"] = image_url
 
@@ -188,6 +188,16 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
+    def build_wandb_data(self, scores, responses):
+        for uid, response in responses:
+            self.wandb_data["responses"][uid] = response
+        for uid in self.available_uids:
+            prompt = self.uid_to_questions[uid]
+            self.wandb_data["prompts"][uid] = prompt
+        for (uid, _), scored_response in zip(self.uid_to_questions, scores):
+            if scored_response:
+                self.wandb_data["scores"][uid] = scored_response
+
     async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:
         if provider == "OpenAI":
             return await call_openai(
@@ -229,59 +239,13 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
-    async def score_responses(
-            self,
-            available_uids: list[int],
-            query_responses: list[tuple[int, str]],
-            uid_to_question: dict[int, str],
-    ) -> tuple[torch.Tensor, dict[int, float], dict]:
+    async def get_answer_task(self, uid):
+        if not self.should_i_score():
+            return None
+        question = self.uid_to_questions[uid]
+        prompt = question.get("prompt")
+        image_url = question.get("image")
+        return await self.call_api(prompt, image_url, self.provider)
 
-        scores = torch.zeros(len(metagraph.hotkeys))
-        uid_scores_dict = {}
-        response_tasks = []
-        # Decide to score all UIDs this round based on a chance
-        will_score_all = self.should_i_score()
-        bt.logging.info("starting wandb logging")
-        for uid, response in query_responses:
-            self.wandb_data["responses"][uid] = response
-            if will_score_all and response:
-                question = uid_to_question[uid]
-                prompt = question.get("prompt")
-                image_url = question.get("image")
-                response_tasks.append((uid, self.call_api(prompt, image_url, self.provider)))
-
-        bt.logging.info("finished wandb logging and scoring")
-        api_responses = await asyncio.gather(*[task for _, task in response_tasks])
-        bt.logging.info("gathered response_tasks for api calls")
-
-        scoring_tasks = []
-        for (uid, _), api_answer in zip(response_tasks, api_responses):
-            if api_answer:
-                response = next(res for u, res in query_responses if u == uid)  # Find the matching response
-                task = cortext.reward.api_score(api_answer, response, self.weight, self.temperature, self.provider)
-                scoring_tasks.append((uid, task))
-
-        scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
-        average_score = sum(scored_responses) / len(scored_responses) if scored_responses else 0
-
-        bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
-        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
-            if scored_response is not None:
-                scores[uid] = scored_response
-                uid_scores_dict[uid] = scored_response
-                self.wandb_data["scores"][uid] = scored_response
-            else:
-                scores[uid] = 0
-                uid_scores_dict[uid] = 0
-
-        query_response_uids = [item[0] for item in query_responses]
-        if query_response_uids:
-            for uid in available_uids:
-                if uid not in query_response_uids:
-                    scores[uid] = average_score
-                    uid_scores_dict[uid] = average_score
-                    self.wandb_data["scores"][uid] = average_score
-
-        if uid_scores_dict != {}:
-            bt.logging.info(f"text_scores is {uid_scores_dict}")
-        return scores, uid_scores_dict, self.wandb_data
+    async def get_scoring_task(self, answer, response):
+        return await cortext.reward.api_score(answer, response, self.weight, self.temperature, self.provider)
