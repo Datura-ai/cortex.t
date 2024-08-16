@@ -2,16 +2,17 @@ from abc import abstractmethod
 import asyncio
 from datasets import load_dataset
 import random
-from typing import List
+from typing import List, Tuple
 
 import bittensor
 
 from cortext.metaclasses import ValidatorRegistryMeta
 from cortext import utils
-import cortext
 from validators.services.bittensor import bt_validator as bt
 from validators.config import app_config
 import torch
+
+dataset = None
 
 
 class BaseValidator(metaclass=ValidatorRegistryMeta):
@@ -27,16 +28,19 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.model = None
         self.uid_to_questions = dict()
         self.available_uids = []
+        self.num_samples = 100
 
-    def get_random_texts(self, dataset_name: str, config_name: str, num_samples: int = 100) -> list[str]:
-        dataset = load_dataset(dataset_name, config_name)
+    def get_random_texts(self) -> list[str]:
+        global dataset
+        if dataset is None:
+            dataset = load_dataset('wikitext', 'wikitext-2-v1')
         texts = [item['text'] for item in dataset['train']]
-        return random.sample(texts, num_samples)
+        return random.sample(texts, self.num_samples)
 
     async def load_questions(self, available_uids, item_type: str = "text", vision=False):
         self.uid_to_questions = dict()
 
-        random_texts = self.get_random_texts('wikitext', 'wikitext-2-v1', 100)
+        random_texts = self.get_random_texts()
         num_texts_per_uid = len(random_texts) // len(available_uids)
 
         for index, uid in enumerate(available_uids):
@@ -58,11 +62,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 prompt = random_texts[start_index:end_index]
                 self.uid_to_questions[uid] = prompt
 
-    @abstractmethod
-    def build_synapse(self, question) -> bittensor.synapse:
-        pass
-
-
     async def query_miner(self, metagraph, uid, syn):
         try:
             responses = await self.dendrite([metagraph.axons[uid]], syn, deserialize=False, timeout=self.timeout,
@@ -73,8 +72,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 
-    async def handle_response(self, uid, responses):
-        return uid, responses
+    async def handle_response(self, uid, response) -> Tuple[int, bittensor.Synapse]:
+        if type(response) == list and response:
+            response = response[0]
+        return uid, response
 
     @abstractmethod
     async def start_query(self, available_uids: List[int]):
@@ -88,7 +89,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         return True
 
     @abstractmethod
-    def get_answer_task(self, uid, synapse=None):
+    async def get_answer_task(self, uid, synapse=None):
         pass
 
     @abstractmethod
@@ -96,20 +97,19 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     async def score_responses(self, responses):
-        scores = torch.zeros(len(self.metagraph.hotkeys))
+        scores = torch.zeros(len(self.available_uids))
         answering_tasks = []
         scoring_tasks = []
         uid_scores_dict = {}
-        will_score_all = self.should_i_score()
 
-        for uid, response in responses:
-            task = self.get_answer_task(response)
+        for uid, syn in responses:
+            task = self.get_answer_task(uid, syn)
             answering_tasks.append((uid, task))
 
         answers_results = await asyncio.gather(*[task for _, task in answering_tasks])
 
         for (uid, response), answer in zip(responses, answers_results):
-            task = self.get_scoring_task(answer, response)
+            task = self.get_scoring_task(uid, answer, response)
             scoring_tasks.append((uid, task))
 
         # Await all scoring tasks
@@ -117,14 +117,17 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         average_score = sum(scored_responses) / len(scored_responses) if scored_responses else 0
         bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
 
-        for (uid, _), scored_response in zip(self.uid_to_questions, scored_responses):
+        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
                 scores[uid] = scored_response
                 uid_scores_dict[uid] = scored_response
             else:
                 scores[uid] = 0
                 uid_scores_dict[uid] = 0
-        bt.logging.info(f"text_scores is {uid_scores_dict}")
+
+        if uid_scores_dict != {}:
+            bt.logging.info(f"text_scores is {uid_scores_dict}")
+        bt.logging.info("score_responses process completed.")
 
         return scores, uid_scores_dict
 

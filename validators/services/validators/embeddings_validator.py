@@ -1,20 +1,17 @@
 from __future__ import annotations
-from typing import List, Tuple, Any
 from bittensor import Synapse
-import torch
 import random
 import asyncio
 from validators.services.bittensor import bt_validator as bt
 import cortext.reward
 from cortext import client
-from datasets import load_dataset
 from cortext.protocol import Embeddings
 from validators.services.validators.base_validator import BaseValidator
 
 
 class EmbeddingsValidator(BaseValidator):
-    def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=15)
+    def __init__(self):
+        super().__init__()
         self.streaming = False
         self.query_type = "embeddings"
         self.model = "text-embedding-ada-002"
@@ -28,9 +25,11 @@ class EmbeddingsValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def call_openai_embeddings(self, model, texts, batch_size=10):
+    async def call_openai_embeddings(self, model=None, texts='', batch_size=10):
 
-        async def get_embeddings_in_batch(texts, model, batch_size=10):
+        model = model or self.model
+
+        async def get_embeddings_in_batch(texts, model, batch_size):
             batches = [texts[i:i + batch_size] for i in range(0, len(texts), batch_size)]
             tasks = []
             for batch in batches:
@@ -54,7 +53,7 @@ class EmbeddingsValidator(BaseValidator):
                     all_embeddings.extend(batch_embeddings)
             return all_embeddings
 
-        all_embeddings = await get_embeddings_in_batch(texts, model)
+        all_embeddings = await get_embeddings_in_batch(texts, model, batch_size)
         # for task in asyncio.as_completed(tasks):
         #     try:
         #         response = await task
@@ -63,11 +62,6 @@ class EmbeddingsValidator(BaseValidator):
         #     except Exception as e:
         #         bt.logging.error(f"Error in processing batch: {e}")
         return all_embeddings
-
-    def get_random_texts(self, dataset_name: str, config_name: str, num_samples: int = 100) -> list[str]:
-        dataset = load_dataset(dataset_name, config_name)
-        texts = [item['text'] for item in dataset['train']]
-        return random.sample(texts, num_samples)
 
     async def start_query(self, available_uids) -> tuple[(int, Synapse)] | None:
         if not available_uids:
@@ -88,44 +82,19 @@ class EmbeddingsValidator(BaseValidator):
         query_responses = await asyncio.gather(*query_tasks)
         return query_responses
 
-    async def score_responses(self, _, query_responses, uid_to_question, metagraph):
-        scores = torch.zeros(len(metagraph.hotkeys))
-        uid_scores_dict = {}
-        embedding_score_tasks = []
-        scoring_tasks = []
-
+    def should_i_score(self):
         random_number = random.random()
         will_score_all = random_number < 1 / 1.1
-        bt.logging.info(f"Random Number: {random_number}, Will Score All: {will_score_all}")
+        return will_score_all
 
-        for uid, response in query_responses:
-            if will_score_all and response:
-                messages = uid_to_question[uid]
-                task = self.call_openai_embeddings(self.model, messages)
-                embedding_score_tasks.append((uid, task))
+    async def get_answer_task(self, uid, synapse=None):
+        messages = self.uid_to_questions[uid]
+        task = await self.call_openai_embeddings(self.model, messages)
+        return task
 
-        # Await all embedding tasks
-        embeddings_results = await asyncio.gather(*[task for _, task in embedding_score_tasks])
+    async def get_scoring_task(self, uid, answer, response):
+        task = await cortext.reward.embeddings_score_dot(answer, response.embeddings, self.weight)
+        return task
 
-        # Now create new tasks for scoring embeddings
-        for (uid, _), openai_answer in zip(embedding_score_tasks, embeddings_results):
-            if not openai_answer:
-                continue
-
-            response = next(res for u, res in query_responses if u == uid)
-            response = response[0]
-            if response.embeddings is not None:
-                task = cortext.reward.embeddings_score_dot(openai_answer, response.embeddings, self.weight)
-                scoring_tasks.append((uid, task))
-            else:
-                scores[uid] = 0
-                uid_scores_dict[uid] = 0
-
-        # Await all scoring tasks
-        scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
-
-        for (uid, _), score in zip(scoring_tasks, scored_responses):  # Use scoring_tasks here
-            uid_scores_dict[uid] = scores[uid] = score or 0
-            self.wandb_data["scores"][uid] = score
-
-        return scores, uid_scores_dict, self.wandb_data
+    def build_wandb_data(self, scores, responses):
+        pass

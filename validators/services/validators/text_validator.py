@@ -1,12 +1,11 @@
 import asyncio
 import random
-import traceback
+import bittensor
 from typing import AsyncIterator
 
 from validators.services.bittensor import bt_validator as bt
 import constants
 import cortext.reward
-import torch
 from validators.services.validators.base_validator import BaseValidator
 from typing import Optional
 from cortext.protocol import StreamPrompting
@@ -81,68 +80,32 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def get_new_question(self, qty, vision):
-        question = await get_question("text", qty, vision)
-        if isinstance(question, str):
-            bt.logging.info(f"Question is str, dict expected: {question}")
-        prompt = question.get("prompt")
-        image_url = question.get("image")
-        return prompt, image_url
 
     async def start_query(self, available_uids):
         try:
-            self.num_uids_to_pick = self.select_random_provider_and_model()
+            self.select_random_provider_and_model()
             is_vision_model = self.model in constants.VISION_MODELS
             await self.load_questions(available_uids, "text", is_vision_model)
 
-            uids_to_query = available_uids
             query_tasks = []
-
-            # Randomly choose the provider based on specified probabilities
-            self.num_uids_to_pick = self.select_random_provider_and_model()
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
-
-            if self.num_uids_to_pick < len(available_uids):
-                uids_to_query = random.sample(available_uids, self.num_uids_to_pick)
-
-            bt.logging.debug(f"querying {self.num_uids_to_pick} uids: {uids_to_query}")
-            for uid in uids_to_query:
-                syn, prompt = self.build_synapse(uid)
+            for uid, prompt in self.uid_to_questions:
+                messages = [{'role': 'user', 'content': prompt}]
+                syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
+                                      temperature=self.temperature, provider=self.provider, top_p=self.top_p,
+                                      top_k=self.top_k)
+                bt.logging.info(
+                    f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
+                    f"timeout {self.timeout}: {syn.messages[0]['content']}"
+                )
                 task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
-                self.wandb_data["prompts"][uid] = prompt
 
             query_responses = await asyncio.gather(*query_tasks)
 
             return query_responses
         except Exception as err:
-            bt.logging.error(f"error in start_query = {err}")
-
-    async def build_synapse(self, uid: int):
-        message = {"role": "user"}
-        prompt = self.uid_to_questions[uid].get("prompt")
-        image_url = self.uid_to_questions[uid].get("image")
-        if image_url:
-            message["image"] = image_url
-
-        message["content"] = prompt
-
-        syn = StreamPrompting(
-            messages=[message],
-            model=self.model,
-            seed=self.seed,
-            max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            provider=self.provider,
-            top_p=self.top_p,
-            top_k=self.top_k,
-        )
-        image_info = f" Image: {syn.messages[0]['image']}" if image_url else ""
-        bt.logging.info(
-            f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-            f"timeout {self.timeout}. Prompt: {syn.messages[0]['content']}.{image_info}"
-        )
-        return syn
+            bt.logging.exception(err)
 
     def select_random_provider_and_model(self):
         providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
@@ -239,13 +202,14 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
-    async def get_answer_task(self, uid):
-        if not self.should_i_score():
+    async def get_answer_task(self, uid: int, syn=None):
+        if not self.should_i_score() or not syn:
+            bt.logging.info(f"uid {uid} doesn't need to be scored. so skip this.")
             return None
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
         return await self.call_api(prompt, image_url, self.provider)
 
-    async def get_scoring_task(self, answer, response):
+    async def get_scoring_task(self, uid, answer, response):
         return await cortext.reward.api_score(answer, response, self.weight, self.temperature, self.provider)

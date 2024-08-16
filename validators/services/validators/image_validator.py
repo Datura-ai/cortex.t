@@ -1,23 +1,17 @@
-import torch
-import wandb
-import random
 import asyncio
-import aiohttp
-import base64
+import random
 import traceback
-import cortext.reward
-from validators.services.bittensor import bt_validator as bt
 
-from PIL import Image
-from io import BytesIO
-from cortext.utils import get_question
-from validators.services.validators.base_validator import BaseValidator
+import cortext.reward
 from cortext.protocol import ImageResponse
+from validators.services.bittensor import bt_validator as bt
+from validators.services.validators.base_validator import BaseValidator
+from validators import utils
 
 
 class ImageValidator(BaseValidator):
-    def __init__(self, dendrite, config, subtensor, wallet):
-        super().__init__(dendrite, config, subtensor, wallet, timeout=30)
+    def __init__(self):
+        super().__init__()
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
@@ -38,6 +32,7 @@ class ImageValidator(BaseValidator):
             "scores": {},
             "timestamps": {},
         }
+
     def select_random_provider_and_model(self):
         # Randomly choose the provider based on specified probabilities
         providers = ["OpenAI"] * 100 + ["Stability"] * 0
@@ -71,30 +66,17 @@ class ImageValidator(BaseValidator):
         except:
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 
-    async def b64_to_image(self, b64):
-        image_data = base64.b64decode(b64)
-        return await asyncio.to_thread(Image.open, BytesIO(image_data))
-
-    async def download_image(self, url):
-        try:
-            async with aiohttp.ClientSession() as session:
-                response = await  session.get(url)
-                content = await response.read()
-                return await asyncio.to_thread(Image.open, BytesIO(content))
-        except Exception as e:
-            bt.logging.error(f"Exception occurred while downloading image: {traceback.format_exc()}")
-
     def should_i_score(self):
         rand = random.random()
         return rand < 1 / 1
 
-    async def get_scoring_task(self, uid, answer, response):
-        if not self.should_i_score():
+    async def get_scoring_task(self, uid, answer, response: ImageResponse):
+        if answer is None:
             return None
-        if self.provider == "OpenAI":
+        if response.provider == "OpenAI":
             completion = answer.completion
             image_url = completion["url"]
-            score_task = cortext.reward.dalle_score(uid, image_url, self.size, answer.messages,
+            score_task = cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
                                                     self.weight)
         else:
             score_task = None  # cortext.reward.deterministic_score(uid, syn, self.weight)
@@ -102,21 +84,21 @@ class ImageValidator(BaseValidator):
 
     async def get_answer_task(self, uid, synapse=None):
         if not self.should_i_score():
-            pass
+            return None
         return synapse
 
-    async def update_wandb(self, resp_synapses):
+    async def build_wandb_data(self, resp_synapses):
         download_tasks = []
         for uid, syn in resp_synapses:
             completion = syn.completion
             if syn.provider == "OpenAI":
                 image_url = completion["url"]
                 bt.logging.info(f"UID {uid} response = {image_url}")
-                download_tasks.append(asyncio.create_task(self.download_image(image_url)))
+                download_tasks.append(asyncio.create_task(utils.download_image(image_url)))
             else:  # Stability
                 b64s = completion["b64s"]
                 bt.logging.info(f"UID {uid} responded with an image")
                 for b64 in b64s:
-                    download_tasks.append(asyncio.create_task(self.b64_to_image(b64)))
+                    download_tasks.append(asyncio.create_task(utils.b64_to_image(b64)))
 
             self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
