@@ -5,11 +5,12 @@ import argparse
 import os
 from pathlib import Path
 
+load_dotenv()  # Load environment variables from .env file
+
 
 class Config:
     def __init__(self):
         super().__init__()
-        load_dotenv()  # Load environment variables from .env file
 
         self.ENV = os.getenv('ENV')
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
@@ -17,7 +18,7 @@ class Config:
         # bittensor config
         self.WALLET_NAME = os.getenv('WALLET_NAME')
         self.HOT_KEY = os.getenv('HOT_KEY')
-        self.NET_UID = int(os.getenv('NET_UID'))
+        self.NET_UID = int(os.getenv('NET_UID', 0))
         self.AXON_PORT = int(os.getenv('AXON_PORT', 8000))
         self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
 
