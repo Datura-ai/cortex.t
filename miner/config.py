@@ -5,11 +5,12 @@ from pathlib import Path
 
 import bittensor as bt
 
+load_dotenv()  # Load environment variables from .env file
+
 
 class Config:
     def __init__(self):
         super().__init__()
-        load_dotenv()  # Load environment variables from .env file
 
         self.ENV = os.getenv('ENV')
 

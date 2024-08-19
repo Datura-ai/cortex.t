@@ -245,11 +245,11 @@ class WeightSetter:
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
 
-            bt.logging.trace(f"UID {uid} is not active")
+            bt.logging.error(f"UID {uid} is not active")
             return None
 
-        except Exception as e:
-            bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
+        except Exception as err:
+            bt.logging.error(f"Error checking UID {uid}: {err}")
             return None
 
     @staticmethod

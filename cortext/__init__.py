@@ -31,12 +31,14 @@ u64_max = 2 ** 64 - 10
 __weights_version__ = u64_max
 
 import os
+from dotenv import load_dotenv
 from typing import Union
 
 from openai import AsyncOpenAI
 
 from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
 
+load_dotenv()
 try:
     AsyncOpenAI.api_key = os.environ['OPENAI_API_KEY']
 except KeyError as exc:
