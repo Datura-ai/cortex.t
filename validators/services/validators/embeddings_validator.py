@@ -96,5 +96,17 @@ class EmbeddingsValidator(BaseValidator):
         task = await cortext.reward.embeddings_score_dot(answer, response.embeddings, self.weight)
         return task
 
-    def build_wandb_data(self, scores, responses):
-        pass
+    def init_wandb_data(self):
+        self.wandb_data = {
+            "modality": "embeddings",
+            "texts": {},
+            "embeddings": {},
+            "scores": {},
+            "timestamps": {},
+        }
+
+    async def build_wandb_data(self, scores, responses):
+        for (uid, _), score in zip(self.uid_to_questions, scores):  # Use scoring_tasks here
+            self.wandb_data["scores"][uid] = score
+            self.wandb_data["texts"][uid] = self.uid_to_questions[uid]
+        return self.wandb_data

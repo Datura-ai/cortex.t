@@ -18,39 +18,35 @@ from cortext.protocol import TextPrompting
 from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
+from cortext.metaclasses import ValidatorRegistryMeta
+from validators.services.validators.base_validator import BaseValidator
 from validators.services.validators.text_validator import TextValidator
+from validators.config import bt_config
+from validators.services.bittensor import bt_validator as bt
 
 iterations_per_set_weights = 5
 scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop, dendrite, subtensor, config, wallet, text_vali, image_vali,
-                 embed_vali):
+    def __init__(self, loop: asyncio.AbstractEventLoop):
         bt.logging.info("starting weight setter")
-        self.config = config
+        self.config = bt_config
         bt.logging.info(f"config:\n{self.config}")
         self.prompt_cache: dict[str, Tuple[str, int]] = {}
         self.request_timestamps = {}
         self.loop = loop
-        self.dendrite = dendrite
-        self.subtensor = subtensor
-        self.wallet = wallet
-        self.text_vali = text_vali
-        self.image_vali = image_vali
-        self.embed_vali = embed_vali
+        self.dendrite = bt.dendrite
+        self.subtensor = bt.subtensor
+        self.wallet = bt.wallet
         self.moving_average_scores = None
         self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-        self.metagraph = self.subtensor.metagraph(config.netuid)
+        self.metagraph = self.subtensor.metagraph(bt_config.netuid)
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
-
-    def config(self) -> bt.config:
-        parser = argparse.ArgumentParser(description="Validator Configs")
-        return bt.config(parser)
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -204,10 +200,10 @@ class WeightSetter:
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
             for steps_passed in itertools.count():
-                self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+                self.refresh_metagraph()
 
                 available_uids = await self.get_available_uids()
-                selected_validator = self.select_validator(steps_passed)
+                selected_validator = self.select_validator()
                 scores, _ = await self.process_modality(selected_validator, available_uids)
                 self.total_scores += scores
 
@@ -223,8 +219,17 @@ class WeightSetter:
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(300)
 
-    def select_validator(self, steps_passed):
-        return self.text_vali if steps_passed % 10 in (0, 1, 2, 3, 4, 5, 6, 7, 8) else self.image_vali
+    @staticmethod
+    def select_validator():
+        rand = random.random()
+        text_validator = ValidatorRegistryMeta.get_class('TextValidator')()
+        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')()
+        if rand < 0.9:
+            bt.logging.info("text_validator is selected.")
+            return text_validator
+        else:
+            bt.logging.info("image_validator is selected.")
+            return image_validator
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
@@ -252,15 +257,18 @@ class WeightSetter:
             bt.logging.error(f"Error checking UID {uid}: {e}\n{traceback.format_exc()}")
             return None
 
-    def shuffled(self, list_: list) -> list:
+    @staticmethod
+    def shuffled(list_: list) -> list:
         list_ = list_.copy()
         random.shuffle(list_)
         return list_
 
-    async def process_modality(self, selected_validator, available_uids):
+    async def process_modality(self, selected_validator: BaseValidator, available_uids):
         uid_list = self.shuffled(list(available_uids.keys()))
         bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-        scores, uid_scores_dict, wandb_data = await selected_validator.get_and_score(uid_list, self.metagraph)
+        scores, uid_scores_dict, scored_responses, responses = \
+            await selected_validator.get_and_score(uid_list)
+        wandb_data = await selected_validator.build_wandb_data(scored_responses, responses)
         if self.config.wandb_on:
             wandb.log(wandb_data)
             bt.logging.success("wandb_log successful")

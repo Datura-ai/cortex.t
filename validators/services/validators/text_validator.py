@@ -80,7 +80,6 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-
     async def start_query(self, available_uids):
         try:
             self.select_random_provider_and_model()
@@ -151,15 +150,16 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
-    def build_wandb_data(self, scores, responses):
-        for uid, response in responses:
-            self.wandb_data["responses"][uid] = response
+    async def build_wandb_data(self, scores, responses):
         for uid in self.available_uids:
             prompt = self.uid_to_questions[uid]
             self.wandb_data["prompts"][uid] = prompt
-        for (uid, _), scored_response in zip(self.uid_to_questions, scores):
+        for uid, response in responses:
+            self.wandb_data["responses"][uid] = response
+        for uid, scored_response in zip(self.uid_to_questions.keys(), scores):
             if scored_response:
                 self.wandb_data["scores"][uid] = scored_response
+        return self.wandb_data
 
     async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:
         if provider == "OpenAI":

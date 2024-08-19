@@ -29,6 +29,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.uid_to_questions = dict()
         self.available_uids = []
         self.num_samples = 100
+        self.wandb_data = {}
 
     def get_random_texts(self) -> list[str]:
         global dataset
@@ -78,11 +79,11 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         return uid, response
 
     @abstractmethod
-    async def start_query(self, available_uids: List[int]):
+    async def start_query(self, available_uids: List[int]) -> bittensor.Synapse:
         pass
 
     @abstractmethod
-    def build_wandb_data(self, scores, responses):
+    async def build_wandb_data(self, scores, responses):
         pass
 
     def should_i_score(self):
@@ -101,6 +102,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         answering_tasks = []
         scoring_tasks = []
         uid_scores_dict = {}
+        scored_response = []
 
         for uid, syn in responses:
             task = self.get_answer_task(uid, syn)
@@ -129,11 +131,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         bt.logging.info("score_responses process completed.")
 
-        return scores, uid_scores_dict
+        return scores, uid_scores_dict, scored_response, responses
 
-
-async def get_and_score(self, available_uids: List[int], metagraph):
-    bt.logging.info("starting query")
-    query_responses, uid_to_question = await self.start_query(available_uids, metagraph)
-    bt.logging.info("scoring query")
-    return await self.score_responses(available_uids, query_responses, uid_to_question, metagraph)
+    async def get_and_score(self, available_uids: List[int]):
+        bt.logging.info("starting query")
+        query_responses = await self.start_query(available_uids)
+        bt.logging.info("scoring query")
+        return await self.score_responses(query_responses)
