@@ -201,16 +201,17 @@ Login to wandb using
 wand login
 ```
 
-You can launch your validator via pm2 WITH AUTO-UPDATES (reccomended) using the following command.
+Pls change argument in start_miner.sh and start_validator.sh. and you can run miner using following command.
+you can use <LOCAL/FINNEY/test> for subtensor network in arguments.
 
 ```bash
-python3 ./start_validator.py -- --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+sh start_miner.sh
 ```
 
-You can launch your validator via pm2 WITHOUT AUTO-UPDATES using the following command.
+You can launch your validator using following command
 
 ```bash
-python3 -m validators.validator.py --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME>
+sh start_validator.sh
 ```
 
 ## Logging
