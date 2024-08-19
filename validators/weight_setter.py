@@ -1,15 +1,12 @@
+import asyncio
+import bittensor
 import concurrent
 import itertools
 import random
-
 import torch
-
-import argparse
-import asyncio
 import traceback
 from functools import partial
 from typing import Tuple
-from validators.services.bittensor import bt_validator as bt
 import wandb
 
 import cortext
@@ -19,8 +16,7 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services.validators.base_validator import BaseValidator
-from validators.services.validators.text_validator import TextValidator
+from validators.services import BaseValidator, TextValidator
 from validators.config import bt_config
 from validators.services.bittensor import bt_validator as bt
 
@@ -40,8 +36,9 @@ class WeightSetter:
         self.subtensor = bt.subtensor
         self.wallet = bt.wallet
         self.moving_average_scores = None
-        self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
-        self.metagraph = self.subtensor.metagraph(bt_config.netuid)
+        self.axon = bt.axon
+        self.metagraph = bt.metagraph
+        self.my_uid = bt.my_uid
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
@@ -84,8 +81,8 @@ class WeightSetter:
 
             return True, f"rejecting {synapse_type} request from {hotkey}"
 
-        except Exception:
-            bt.logging.error(f"errror in blacklist {traceback.format_exc()}")
+        except Exception as err:
+            bt.logging.exception(err)
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received {synapse}")
@@ -166,10 +163,7 @@ class WeightSetter:
         )
         self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
         self.axon.start()
-        self.my_subnet_uid = self.metagraph.hotkeys.index(
-            self.wallet.hotkey.ss58_address
-        )
-        bt.logging.info(f"Running validator on uid: {self.my_subnet_uid}")
+        bt.logging.info(f"Running validator on uid: {self.my_uid}")
         while True:
             try:
                 if self.organic_scoring_tasks:
@@ -189,20 +183,21 @@ class WeightSetter:
                     self.organic_scoring_tasks.difference_update(completed)
                 else:
                     await asyncio.sleep(60)
-            except Exception as e:
-                bt.logging.error(
-                    f'Encountered in {self.consume_organic_scoring.__name__} loop:\n{traceback.format_exc()}')
+            except Exception as err:
+                bt.logging.exception(err)
                 await asyncio.sleep(10)
 
     async def refresh_metagraph(self):
-        self.metagraph = await self.run_sync_in_async(lambda: self.subtensor.metagraph(self.config.netuid))
+        await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
             for steps_passed in itertools.count():
-                self.refresh_metagraph()
-
+                await self.refresh_metagraph()
                 available_uids = await self.get_available_uids()
+                if not len(available_uids):
+                    bt.logging.info("no available uids. so referesh network and continue.")
+                    continue
                 selected_validator = self.select_validator()
                 scores, _ = await self.process_modality(selected_validator, available_uids)
                 self.total_scores += scores
@@ -233,7 +228,7 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
+        tasks = {uid: self.check_uid(self.metagraph.axons[uid], uid) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
 

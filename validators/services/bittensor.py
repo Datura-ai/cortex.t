@@ -6,13 +6,14 @@ import sys
 class BittensorValidator:
     def __init__(self):
         self.config = bt_config
-        bt.logging(config=config, logging_dir=config.full_path)
+        bt.logging(config=self.config, logging_dir=self.config.full_path)
         self.logging = bt.logging
         self.logging.info(
-            f"Running validator for subnet: {config.netuid} on network: {config.subtensor.chain_endpoint}")
-        self.wallet = bt.wallet(config=config)
-        self.subtensor = bt.subtensor(config=config)
-        self.metagraph = self.subtensor.metagraph(config.netuid)
+            f"Running validator for subnet: {self.config.netuid} on network: {self.config.subtensor.network}")
+        self.wallet = bt.wallet(config=self.config)
+        self.subtensor = bt.subtensor(config=self.config, network=self.config.subtensor.network)
+        self.metagraph = self.subtensor.metagraph(netuid=self.config.netuid)
+        self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
         self.dendrite = bt.dendrite(wallet=self.wallet)
         self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         self.check_wallet_registered_in_network()

@@ -1,15 +1,13 @@
 import asyncio
 import os
-import sys
 
 import base  # noqa
-from validators.services.bittensor import bt_validator as bt
 import cortext
 import wandb
 from cortext import utils
 from validators.weight_setter import WeightSetter
-from validators.config import bt_config, app_config
-from validators.services.bittensor import bt_validator as bt
+from validators.config import bt_config
+from validators.services import bt_validator as bt
 
 
 def init_wandb():
@@ -36,6 +34,7 @@ def init_wandb():
 
     bt.logging.success(f"Started wandb run for project '{cortext.PROJECT_NAME}'")
 
+
 def main(test=False) -> None:
     init_wandb()
     loop = asyncio.get_event_loop()
@@ -47,6 +46,7 @@ def main(test=False) -> None:
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
+        bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
         utils.save_state_to_file(state, state_path)
         if bt_config.wandb_on:

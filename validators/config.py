@@ -30,8 +30,9 @@ def get_config() -> bt.config:
     default_config = Config()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--wallet.name", type=int, default=default_config.WALLET_NAME)
-    parser.add_argument("--wallet.hotkey", type=int, default=default_config.HOT_KEY)
+    parser.add_argument("--subtensor.network", type=str, default=default_config.BT_SUBTENSOR_NETWORK)
+    parser.add_argument("--wallet.name", type=str, default=default_config.WALLET_NAME)
+    parser.add_argument("--wallet.hotkey", type=str, default=default_config.HOT_KEY)
     parser.add_argument("--netuid", type=int, default=default_config.NET_UID)
     parser.add_argument("--wandb_off", action="store_false", dest="wandb_on", default=default_config.WANDB_OFF)
     parser.add_argument("--axon.port", type=int, default=default_config.AXON_PORT)

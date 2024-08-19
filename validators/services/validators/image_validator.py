@@ -1,6 +1,7 @@
 import asyncio
 import random
 import traceback
+import wandb
 
 import cortext.reward
 from cortext.protocol import ImageResponse
@@ -87,9 +88,9 @@ class ImageValidator(BaseValidator):
             return None
         return synapse
 
-    async def build_wandb_data(self, resp_synapses):
+    async def build_wandb_data(self, scores, responses):
         download_tasks = []
-        for uid, syn in resp_synapses:
+        for uid, syn in responses:
             completion = syn.completion
             if syn.provider == "OpenAI":
                 image_url = completion["url"]
@@ -101,4 +102,8 @@ class ImageValidator(BaseValidator):
                 for b64 in b64s:
                     download_tasks.append(asyncio.create_task(utils.b64_to_image(b64)))
 
+        download_results = await asyncio.gather(*download_tasks)
+        for image, uid in zip(download_results, self.uid_to_questions.keys()):
+            self.wandb_data["images"][uid] = wandb.Image(image)
             self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
+        return self.wandb_data

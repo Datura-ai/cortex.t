@@ -1,10 +1,9 @@
 import asyncio
 import random
-import bittensor
 from typing import AsyncIterator
 
 from validators.services.bittensor import bt_validator as bt
-import constants
+from . import constants
 import cortext.reward
 from validators.services.validators.base_validator import BaseValidator
 from typing import Optional

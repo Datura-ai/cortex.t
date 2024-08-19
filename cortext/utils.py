@@ -34,6 +34,7 @@ from . import client
 
 list_update_lock = asyncio.Lock()
 
+
 # Function to get API key from environment variables
 def get_api_key(service_name, env_var):
     key = os.environ.get(env_var)
@@ -43,6 +44,7 @@ def get_api_key(service_name, env_var):
             f"Go to the respective service's settings to get one. Then set it as {env_var} in your .env"
         )
     return key
+
 
 pixabay_key = get_api_key("Pixabay", "PIXABAY_API_KEY")
 
@@ -56,7 +58,7 @@ anthropic_client = AsyncAnthropic()
 anthropic_client.api_key = anthropic_key
 
 # Google
-google_key=get_api_key("Google", "GOOGLE_API_KEY")
+google_key = get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
 
 # Anthropic Bedrock
@@ -155,22 +157,6 @@ def save_state_to_file(state, filename="state.json"):
         json.dump(state, file)
 
 
-def get_validators_with_runs_in_all_projects():
-    api = wandb.Api()
-    validators_runs = {project: set() for project in projects}
-
-    # Retrieve runs for each project and store validator UIDs
-    for project in cortext.PROJECT_NAMES:
-        runs = api.runs(f"cortex-t/{project}")
-        for run in runs:
-            if run.config["type"] == "validator":
-                validators_runs[project].add(run.config["uid"])
-
-    # Find common validators across all projects
-    common_validators = set.intersection(*validators_runs.values())
-    return common_validators
-
-
 def fetch_random_image_urls(num_images):
     try:
         url = f"https://pixabay.com/api/?key={pixabay_key}&per_page={num_images}&order=popular"
@@ -243,7 +229,7 @@ async def get_list(list_type, num_questions_needed, theme=None):
             extracted_list = extract_python_list(answer)
             if extracted_list:
                 if list_type == "text_questions":
-                    extracted_lists +=  [{"prompt": s} for s in extracted_list]
+                    extracted_lists += [{"prompt": s} for s in extracted_list]
                 else:
                     extracted_lists += extracted_list
             else:
@@ -288,7 +274,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
 
 
 async def update_counters_and_get_new_list(category, item_type, num_questions_needed, vision, theme=None):
-
     async def get_items(category, item_type, theme=None):
         if item_type == "themes":
             if category == "images":
@@ -405,7 +390,7 @@ def preprocess_string(text: str) -> str:
                 following_char_index += 1
 
             if found_comma_or_bracket or (
-                following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in "],"
+                    following_char_index < len(no_comments_text) and no_comments_text[following_char_index] in "],"
             ):
                 inside_quotes = not inside_quotes
             else:
@@ -432,7 +417,7 @@ def preprocess_string(text: str) -> str:
 
     start, end = cleaned_str.find("["), cleaned_str.rfind("]")
     if start != -1 and end != -1 and end > start:
-        cleaned_str = cleaned_str[start : end + 1]
+        cleaned_str = cleaned_str[start: end + 1]
 
     return cleaned_str
 
@@ -476,8 +461,8 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
             message = messages[0]
             filtered_messages = [
                 {
-                "role": message["role"],
-                "content": [],
+                    "role": message["role"],
+                    "content": [],
                 }
             ]
             if message.get("content"):
@@ -584,6 +569,7 @@ async def call_anthropic_bedrock(prompt, temperature, model, max_tokens=2048, to
         bt.logging.error(f"Error when calling Bedrock via Anthropic: {traceback.format_exc()}")
         await asyncio.sleep(0.5)
 
+
 async def generate_messages_to_claude(messages):
     system_prompt = None
     filtered_messages = []
@@ -592,9 +578,9 @@ async def generate_messages_to_claude(messages):
             system_prompt = message["content"]
         else:
             message_to_append = {
-                    "role": message["role"],
-                    "content": [],
-                }
+                "role": message["role"],
+                "content": [],
+            }
             if message.get("image"):
                 image_url = message.get("image")
                 image_data = base64.b64encode(httpx.get(image_url).content).decode("utf-8")
@@ -617,6 +603,7 @@ async def generate_messages_to_claude(messages):
                 )
         filtered_messages.append(message_to_append)
     return filtered_messages, system_prompt
+
 
 async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k):
     try:
