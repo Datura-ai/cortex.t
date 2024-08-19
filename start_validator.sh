@@ -1,0 +1,1 @@
+python3 -m validators.validator --subtensor.network test --netuid 196 --wallet.name miner --wallet.hotkey default
