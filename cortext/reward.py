@@ -63,6 +63,8 @@ def calculate_text_similarity(text1: str, text2: str):
 
 async def api_score(api_answer: str, response: str, weight: float, temperature: float, provider: str) -> float:
     try:
+        if api_answer is None or response is None:
+            return 0
         loop = asyncio.get_running_loop()
         similarity = await loop.run_in_executor(None, calculate_text_similarity, api_answer, response)
 

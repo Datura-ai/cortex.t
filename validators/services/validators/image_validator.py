@@ -73,14 +73,16 @@ class ImageValidator(BaseValidator):
 
     async def get_scoring_task(self, uid, answer, response: ImageResponse):
         if answer is None:
-            return None
+            return 0
         if response.provider == "OpenAI":
             completion = answer.completion
+            if completion is None:
+                return 0
             image_url = completion["url"]
             score = await cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
                                                     self.weight)
         else:
-            score = None  # cortext.reward.deterministic_score(uid, syn, self.weight)
+            score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 
     async def get_answer_task(self, uid, synapse=None):
