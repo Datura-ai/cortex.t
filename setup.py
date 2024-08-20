@@ -20,11 +20,9 @@
 import re
 import os
 import codecs
-import pathlib
 from os import path
 from io import open
 from setuptools import setup, find_packages
-from pkg_resources import parse_requirements
 
 
 def read_requirements(path):
@@ -35,13 +33,8 @@ def read_requirements(path):
         for req in requirements:
             # For git or other VCS links
             if req.startswith("git+") or "@" in req:
-                pkg_name = re.search(r"(#egg=)([\w\-_]+)", req)
-                if pkg_name:
-                    processed_requirements.append(pkg_name.group(2))
-                else:
-                    # You may decide to raise an exception here,
-                    # if you want to ensure every VCS link has an #egg=<package_name> at the end
-                    continue
+                pkg_name = "bittensor @ " + req
+                processed_requirements.append(pkg_name)
             else:
                 processed_requirements.append(req)
         return processed_requirements
@@ -55,7 +48,7 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
 
 # loading version from setup.py
 with codecs.open(
-    os.path.join(here, "cortext/__init__.py"), encoding="utf-8"
+        os.path.join(here, "cortext/__init__.py"), encoding="utf-8"
 ) as init_file:
     version_match = re.search(
         r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.M
@@ -65,11 +58,11 @@ with codecs.open(
 setup(
     name="Cortex.t",
     version=version_string,
-    description="Decentralized APIs for synthetic data generation", 
+    description="Decentralized APIs for synthetic data generation",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/corcel-api/cortex.t",  
-    author="Fish",  
+    url="https://github.com/corcel-api/cortex.t",
+    author="Fish",
     packages=find_packages(),
     include_package_data=True,
     author_discord="p383_54249",
