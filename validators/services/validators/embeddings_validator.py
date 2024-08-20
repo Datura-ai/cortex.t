@@ -70,7 +70,7 @@ class EmbeddingsValidator(BaseValidator):
         query_tasks = []
         await self.load_questions(available_uids, "embedding")
 
-        for uid, prompt in self.uid_to_questions:
+        for uid, prompt in self.uid_to_questions.items():
             syn = Embeddings(model=self.model, texts=prompt)
             bt.logging.info(
                 f"Sending {self.query_type} request to uid: {uid} "
@@ -105,8 +105,8 @@ class EmbeddingsValidator(BaseValidator):
             "timestamps": {},
         }
 
-    async def build_wandb_data(self, scores, responses):
-        for (uid, _), score in zip(self.uid_to_questions, scores):  # Use scoring_tasks here
+    async def build_wandb_data(self, uid_to_score, responses):
+        for uid, score in uid_to_score.items():  # Use scoring_tasks here
             self.wandb_data["scores"][uid] = score
             self.wandb_data["texts"][uid] = self.uid_to_questions[uid]
         return self.wandb_data

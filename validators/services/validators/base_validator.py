@@ -98,7 +98,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     async def score_responses(self, responses):
-        scores = torch.zeros(len(self.available_uids))
         answering_tasks = []
         scoring_tasks = []
         uid_scores_dict = {}
@@ -121,17 +120,15 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
-                scores[uid] = scored_response
                 uid_scores_dict[uid] = scored_response
             else:
-                scores[uid] = 0
                 uid_scores_dict[uid] = 0
 
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
         bt.logging.info("score_responses process completed.")
 
-        return scores, uid_scores_dict, scored_response, responses
+        return uid_scores_dict, scored_response, responses
 
     async def get_and_score(self, available_uids: List[int]):
         bt.logging.info("starting query")

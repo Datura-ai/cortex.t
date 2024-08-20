@@ -87,7 +87,8 @@ class TextValidator(BaseValidator):
 
             query_tasks = []
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
-            for uid, prompt in self.uid_to_questions:
+            for uid, question in self.uid_to_questions.items():
+                prompt = question.get("prompt")
                 messages = [{'role': 'user', 'content': prompt}]
                 syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
                                       temperature=self.temperature, provider=self.provider, top_p=self.top_p,
@@ -149,15 +150,13 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
-    async def build_wandb_data(self, scores, responses):
-        for uid in self.available_uids:
+    async def build_wandb_data(self, uid_to_score, responses):
+        for uid, _ in self.uid_to_questions.items():
             prompt = self.uid_to_questions[uid]
+            self.wandb_data["scores"][uid] = uid_to_score[uid]
             self.wandb_data["prompts"][uid] = prompt
         for uid, response in responses:
             self.wandb_data["responses"][uid] = response
-        for uid, scored_response in zip(self.uid_to_questions.keys(), scores):
-            if scored_response:
-                self.wandb_data["scores"][uid] = scored_response
         return self.wandb_data
 
     async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:

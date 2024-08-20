@@ -29,7 +29,7 @@ class StreamMiner:
         self.metagraph = None
         self.last_epoch_block = None
         self.my_subnet_uid = None
-        self.axon = axon
+        self.axon: bt.axon = axon
         self.wallet = wallet
         self.subtensor = subtensor
 
@@ -201,6 +201,7 @@ class StreamMiner:
         self.run_in_background_thread()
 
     def __exit__(self, exc_type, exc_value, traceback_):
+        self.axon.stop()
         self.stop_run_thread()
 
 

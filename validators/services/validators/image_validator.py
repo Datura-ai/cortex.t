@@ -54,7 +54,7 @@ class ImageValidator(BaseValidator):
             await self.load_questions(available_uids, "images")
 
             # Query all images concurrently
-            for uid, content in self.uid_to_questions:
+            for uid, content in self.uid_to_questions.items():
                 syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
                                     style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
                 bt.logging.info(f"uid = {uid}, syn = {syn}")
@@ -63,7 +63,7 @@ class ImageValidator(BaseValidator):
 
             # Query responses is (uid. syn)
             query_responses = await asyncio.gather(*query_tasks)
-            return query_responses, self.uid_to_questions
+            return query_responses
         except:
             bt.logging.error(f"error in start_query {traceback.format_exc()}")
 
@@ -77,11 +77,11 @@ class ImageValidator(BaseValidator):
         if response.provider == "OpenAI":
             completion = answer.completion
             image_url = completion["url"]
-            score_task = cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
+            score = await cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
                                                     self.weight)
         else:
-            score_task = None  # cortext.reward.deterministic_score(uid, syn, self.weight)
-        return score_task
+            score = None  # cortext.reward.deterministic_score(uid, syn, self.weight)
+        return score
 
     async def get_answer_task(self, uid, synapse=None):
         if not self.should_i_score():

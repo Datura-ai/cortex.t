@@ -46,6 +46,8 @@ def main(test=False) -> None:
     except KeyboardInterrupt:
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
+        bt.logging.info("stopping axon server.")
+        weight_setter.axon.stop()
         bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
         utils.save_state_to_file(state, state_path)

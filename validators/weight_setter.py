@@ -199,8 +199,9 @@ class WeightSetter:
                     bt.logging.info("no available uids. so referesh network and continue.")
                     continue
                 selected_validator = self.select_validator()
-                scores, _ = await self.process_modality(selected_validator, available_uids)
-                self.total_scores += scores
+                uid_to_scores = await self.process_modality(selected_validator, available_uids)
+                for uid, score in uid_to_scores.items():
+                    self.total_scores[uid] += score
 
                 steps_since_last_update = steps_passed % iterations_per_set_weights
 
@@ -228,7 +229,7 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        tasks = {uid: self.check_uid(self.metagraph.axons[uid], uid) for uid in
+        tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
 
@@ -261,13 +262,13 @@ class WeightSetter:
     async def process_modality(self, selected_validator: BaseValidator, available_uids):
         uid_list = self.shuffled(list(available_uids.keys()))
         bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-        scores, uid_scores_dict, scored_responses, responses = \
+        uid_scores_dict, scored_responses, responses = \
             await selected_validator.get_and_score(uid_list)
-        wandb_data = await selected_validator.build_wandb_data(scored_responses, responses)
+        wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
         if self.config.wandb_on:
             wandb.log(wandb_data)
             bt.logging.success("wandb_log successful")
-        return scores, uid_scores_dict
+        return uid_scores_dict
 
     async def update_weights(self, steps_passed):
         """ Update weights based on total scores, using min-max normalization for display. """
