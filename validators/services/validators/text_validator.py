@@ -121,7 +121,7 @@ class TextValidator(BaseValidator):
             self.model = random.choice(models)
 
         elif self.provider == "Gemini":
-            models = ["gemini-pro", "gemini-pro-vision", "gemini-pro-vision-latest"]
+            models = ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
             self.model = random.choice(models)
 
         elif self.provider == "Anthropic":

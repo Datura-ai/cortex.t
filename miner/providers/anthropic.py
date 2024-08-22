@@ -13,7 +13,7 @@ class Anthropic(Provider):
         self.anthropic_client = AsyncAnthropic(timeout=config.ASYNC_TIME_OUT, api_key=config.ANTHROPIC_API_KEY)
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
-        filtered_messages, system_prompt = await self.generate_messages_to_claude(self.messages)
+        filtered_messages, system_prompt = self.generate_messages_to_claude(self.messages)
 
         stream_kwargs = {
             "max_tokens": self.max_tokens,

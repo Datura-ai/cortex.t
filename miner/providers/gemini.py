@@ -29,7 +29,7 @@ class Gemini(Provider):
                 await send(
                     {
                         "type": "http.response.body",
-                        "body": chunk.text.encode("utf-8"),
+                        "body": part.text.encode("utf-8"),
                         "more_body": True,
                     }
                 )
