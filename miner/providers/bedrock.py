@@ -18,7 +18,6 @@ class Bedrock(Provider):
             "region_name": "us-east-1"
         }
         self.aws_session = aioboto3.Session()
-        self.aws_bedrock_client = self.aws_session.client(**self.bedrock_client_parameters)
 
     async def generate_request(self):
         native_request = None
@@ -101,7 +100,7 @@ class Bedrock(Provider):
         self.seed = synapse.seed
         request = await self.generate_request()
 
-        async with self.aws_bedrock_client as client:
+        async with self.aws_session.create_client(**self.bedrock_client_parameters) as client:
             if self.model.startswith("ai21"):
                 response = await client.invoke_model(
                     modelId=self.model, body=request
@@ -149,6 +148,9 @@ class Bedrock(Provider):
                         }
                     )
                     bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                else:
+                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+
 
     def image_service(self, synapse):
         pass
