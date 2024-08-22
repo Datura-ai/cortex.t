@@ -100,7 +100,7 @@ class Bedrock(Provider):
         self.seed = synapse.seed
         request = await self.generate_request()
 
-        async with self.aws_session.create_client(**self.bedrock_client_parameters) as client:
+        async with self.aws_session.client(**self.bedrock_client_parameters) as client:
             if self.model.startswith("ai21"):
                 response = await client.invoke_model(
                     modelId=self.model, body=request
