@@ -40,6 +40,13 @@ class Groq(Provider):
                 )
                 bt.logging.info(f"Streamed tokens: {joined_buffer}")
                 buffer = []
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b'',
+                "more_body": False,
+            }
+        )
 
     def image_service(self, synapse):
         pass

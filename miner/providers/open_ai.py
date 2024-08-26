@@ -73,6 +73,13 @@ class OpenAI(Provider):
                 }
             )
             bt.logging.info(f"Streamed tokens: {joined_buffer}")
+        await send(
+            {
+                "type": "http.response.body",
+                "body": b'',
+                "more_body": False,
+            }
+        )
 
     async def image_service(self, synapse):
         image_data = {}

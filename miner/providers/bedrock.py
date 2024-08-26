@@ -151,6 +151,7 @@ class Bedrock(Provider):
                 else:
                     await send({"type": "http.response.body", "body": b'', "more_body": False})
 
+        await send({"type": "http.response.body", "body": b'', "more_body": False})
 
     def image_service(self, synapse):
         pass
