@@ -94,6 +94,8 @@ class ImageValidator(BaseValidator):
         download_tasks = []
         for uid, syn in responses:
             completion = syn.completion
+            if completion is None:
+                return self.wandb_data
             if syn.provider == "OpenAI":
                 image_url = completion["url"]
                 bt.logging.info(f"UID {uid} response = {image_url}")
