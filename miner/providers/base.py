@@ -8,7 +8,7 @@ from abc import abstractmethod
 from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
 from cortext import ALL_SYNAPSE_TYPE
 from cortext.metaclasses import ProviderRegistryMeta
-
+from miner.error_handler import error_handler
 
 class Provider(metaclass=ProviderRegistryMeta):
     def __init__(self, synapse: ALL_SYNAPSE_TYPE):
@@ -85,6 +85,8 @@ class Provider(metaclass=ProviderRegistryMeta):
                 filtered_messages.append(message_to_append)
         return filtered_messages, system_prompt
 
+
+    @error_handler
     def prompt_service(self, synapse: bt.StreamingSynapse):
         token_streamer = partial(self._prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
