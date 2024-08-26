@@ -12,6 +12,7 @@ class ImageService(BaseService):
 
     async def forward_fn(self, synapse: ImageResponse):
         provider = self.get_instance_of_provider(synapse.provider)(synapse)
+        bt.logging.info(f"selected image provider is {provider}")
         service = provider.image_service if provider is not None else None
         bt.logging.info("image service is executed.")
         try:

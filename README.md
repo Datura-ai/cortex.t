@@ -167,7 +167,7 @@ The higher rate limit your key has the better, and it can be advisable if mining
 Before starting make sure you have pm2, nano and any other useful tools installed.
 
 ```bash
-apt update -y && apt-get install git -y && apt install python3-pip -y && apt install npm -y && npm install pm2@latest -g  && apt install nano
+apt update -y && apt-get install git -y && apt install python3-pip -y && apt install nano
 ```
 
 Download the repository, navigate to the folder and then create virtual env and install the necessary requirements with the following chained command.
@@ -186,10 +186,10 @@ all env vars with values appropriate for your accounts.
 
 ## Mining
 
-You can launch your miners via pm2 using the following command.
+You can launch your miners via python3 using the following command.
 
 ```bash
-python3 -m miner.miner --netuid 18 --subtensor.network <LOCAL/FINNEY/TEST> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
+python3 -m miner.miner --netuid 18 --subtensor.network <local/finney/test> --wallet.name <WALLET NAME> --wallet.hotkey <HOTKEY NAME> --axon.port <PORT>
 ```
 
 
@@ -201,8 +201,7 @@ Login to wandb using
 wand login
 ```
 
-Pls change argument in start_miner.sh and start_validator.sh. and you can run miner using following command.
-you can use <LOCAL/FINNEY/test> for subtensor network in arguments.
+You can launch your miner using following command
 
 ```bash
 sh start_miner.sh
