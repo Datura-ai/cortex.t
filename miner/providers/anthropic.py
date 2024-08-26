@@ -5,13 +5,14 @@ from starlette.types import Send
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-
+from miner.error_handler import error_handler
 
 class Anthropic(Provider):
     def __init__(self, synapse):
         super().__init__(synapse)
         self.anthropic_client = AsyncAnthropic(timeout=config.ASYNC_TIME_OUT, api_key=config.ANTHROPIC_API_KEY)
 
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         filtered_messages, system_prompt = self.generate_messages_to_claude(self.messages)
 

@@ -6,7 +6,7 @@ from starlette.types import Send
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-
+from miner.error_handler import error_handler
 
 class Bedrock(Provider):
     def __init__(self, synapse):
@@ -91,6 +91,7 @@ class Bedrock(Provider):
             token = json.loads(chunk)["completions"][0]["data"]["text"]
         return token
 
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         self.model = synapse.model
         self.messages = synapse.messages

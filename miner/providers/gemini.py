@@ -5,7 +5,7 @@ from starlette.types import Send
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-
+from miner.error_handler import error_handler
 
 class Gemini(Provider):
     def __init__(self, synapse):
@@ -13,6 +13,7 @@ class Gemini(Provider):
         genai.configure(api_key=config.GOOGLE_API_KEY)
         self.genai = genai
 
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         model = self.genai.GenerativeModel(self.model)
         stream = model.generate_content(

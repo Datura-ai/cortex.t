@@ -5,7 +5,7 @@ from starlette.types import Send
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-
+from miner.error_handler import error_handler
 
 class AnthropicBedrock(Provider):
     def __init__(self, synapse):
@@ -20,6 +20,7 @@ class AnthropicBedrock(Provider):
         self.anthropic_bedrock_client = AsyncAnthropicBedrock(timeout=config.ASYNC_TIME_OUT,
                                                               **bedrock_client_parameters)
 
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         stream = await self.anthropic_bedrock_client.completions.create(
             prompt=f"\n\nHuman: {self.messages}\n\nAssistant:",

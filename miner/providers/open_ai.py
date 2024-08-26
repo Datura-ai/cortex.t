@@ -7,13 +7,15 @@ from openai.types.chat.chat_completion_message_param import ChatCompletionMessag
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
-
+from miner.error_handler import error_handler
 
 class OpenAI(Provider):
     def __init__(self, synapse):
         super().__init__(synapse)
         self.openai_client = AsyncOpenAI(timeout=config.ASYNC_TIME_OUT, api_key=config.OPENAI_API_KEY)
 
+
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
 
         message = self.messages[0]
