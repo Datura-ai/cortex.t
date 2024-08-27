@@ -12,7 +12,7 @@ class PromptService(BaseService):
 
     async def forward_fn(self, synapse: StreamPrompting):
         provider = self.get_instance_of_provider(synapse.provider)(synapse)
-        bt.logging.info(f"selected text provider is {provider}")
+        bt.logging.info(f"selected text provider is {synapse.provider}, {synapse.model}")
         service = provider.prompt_service(synapse) if provider is not None else None
         bt.logging.info(f"prompt service is executed. {service}")
         return service
