@@ -42,12 +42,16 @@ class OpenAI(Provider):
                     },
                 }
             )
-        response = await self.openai_client.chat.completions.create(
-            model=self.model, messages=[filtered_message],
-            temperature=self.temperature, stream=True,
-            seed=self.seed,
-            max_tokens=self.max_tokens,
-        )
+        try:
+            response = await self.openai_client.chat.completions.create(
+                model=self.model, messages=[filtered_message],
+                temperature=self.temperature, stream=True,
+                seed=self.seed,
+                max_tokens=self.max_tokens,
+            )
+        except Exception as err:
+            bt.logging.exception(err)
+            response = []
         buffer = []
         n = 1
         async for chunk in response:
