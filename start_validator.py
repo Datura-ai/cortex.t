@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load environment variables from .env file
 env_ = str(os.getenv('ENV')).upper()
 default_address = "wss://test.finney.opentensor.ai:443" if env_ == 'DEV' \
-    else "wss://bittensor-finney.api.onfinality.io/public-ws"
+    else "wss://entrypoint-finney.opentensor.ai:443"
 subtensor_network = 'test' if env_ == 'DEV' else 'local'
 net_uid = '196' if env_ == 'DEV' else '18'
 
