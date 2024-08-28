@@ -18,7 +18,7 @@ axon_port=${axon_port:-8098}
 read -p "Log to wandb? [false]: " wandb_on
 wandb_on=${wandb_on:-false}
 
-read -p "What logging level you want? (info/debug/trace) [debug]: " log
+read -p "What logging level? (info/debug/trace) [debug]: " log
 log=${log:-debug}
 
 read -p "pm2 name? [miner]: " pm2_name
