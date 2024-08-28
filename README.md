@@ -183,7 +183,7 @@ wand login
 You can launch your validator using following command
 
 ```bash
-sh start_validator.sh
+bash start_validator.sh
 ```
 ---
 
