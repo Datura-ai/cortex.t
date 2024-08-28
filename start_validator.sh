@@ -18,7 +18,10 @@ wandb_on=${wandb_on:-true}
 read -p "What logging level you want? [info/debug/trace]: " log
 log=${log:-trace}
 
-command_to_run="pm2 start python3 -- -m validators.validator --subtensor.network $network --netuid $netuid --wallet.name $wallet_name --wallet.hotkey $wallet_hotkey"
+read -p "pm2 nmae? [validator]: " pm2_name
+pm2_name=${pm2_name:-validator}
+
+command_to_run="pm2 start python3 --name $pm2_name -- -m validators.validator --subtensor.network $network --netuid $netuid --wallet.name $wallet_name --wallet.hotkey $wallet_hotkey"
 
 command_to_run="$command_to_run --logging.$log"
 
