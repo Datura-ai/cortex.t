@@ -181,6 +181,7 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
 
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
+        bt.logging.info(f"similarity is {similarity} and threshold is {similarity_threshold}")
         if similarity > similarity_threshold:
             bt.logging.debug(
                 f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. "
@@ -189,7 +190,7 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
             return weight
 
         bt.logging.debug(f"UID {uid} failed similary test with score of: {round(similarity, 5)}. Score = {0}")
-        return 0
+        return similarity
     except Exception as e:
         bt.logging.info(f"Error in image scoring for UID {uid}: {e}")
         return 0

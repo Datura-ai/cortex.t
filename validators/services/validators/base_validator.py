@@ -94,7 +94,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     @abstractmethod
-    def get_scoring_task(self, uid, answer, response):
+    async def get_scoring_task(self, uid, answer, response):
         pass
 
     async def score_responses(self, responses):
@@ -133,5 +133,5 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def get_and_score(self, available_uids: List[int]):
         bt.logging.info("starting query")
         query_responses = await self.start_query(available_uids)
-        bt.logging.info("scoring query")
+        bt.logging.info("scoring query with query responses")
         return await self.score_responses(query_responses)

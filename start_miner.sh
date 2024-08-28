@@ -15,16 +15,15 @@ wallet_hotkey=${wallet_hotkey:-default}
 read -p "axon port [8098]: " axon_port
 axon_port=${axon_port:-8098}
 
-read -p "Log to wandb? [false]: " wandb_on
-wandb_on=${wandb_on:-false}
+read -p "Log to wandb? [true]: " wandb_on
+wandb_on=${wandb_on:-true}
 
-read -p "you want enable tracing [true]: " tracing
-tracing=${tracing:-true}
+read -p "What logging level you want? [info/debug/trace]: " log
+log=${log:-trace}
 
-command_to_run="python3 -m miner.miner --subtensor.network $network --netuid $netuid --wallet.name $wallet_name --wallet.hotkey $wallet_hotkey --axon.port $axon_port"
+command_to_run="pm2 start python3 -- -m miner.miner --subtensor.network $network --netuid $netuid --wallet.name $wallet_name --wallet.hotkey $wallet_hotkey"
 
-if [ "$tracing" = "true" ]; then
-    command_to_run="$command_to_run --logging.trace"
+command_to_run="$command_to_run --logging.$log"
 fi
 
 if [ "$wandb_on" = "false" ]; then
