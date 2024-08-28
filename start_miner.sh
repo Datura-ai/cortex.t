@@ -15,13 +15,13 @@ wallet_hotkey=${wallet_hotkey:-default}
 read -p "axon port [8098]: " axon_port
 axon_port=${axon_port:-8098}
 
-read -p "Log to wandb? [true]: " wandb_on
-wandb_on=${wandb_on:-true}
+read -p "Log to wandb? [false]: " wandb_on
+wandb_on=${wandb_on:-false}
 
-read -p "What logging level you want? [info/debug/trace]: " log
-log=${log:-trace}
+read -p "What logging level you want? (info/debug/trace) [debug]: " log
+log=${log:-debug}
 
-read -p "pm2 nmae? [miner]: " pm2_name
+read -p "pm2 name? [miner]: " pm2_name
 pm2_name=${pm2_name:-miner}
 
 command_to_run="pm2 start python3 --name $pm2_name -- -m miner.miner --subtensor.network $network --netuid $netuid --wallet.name $wallet_name --wallet.hotkey $wallet_hotkey"
