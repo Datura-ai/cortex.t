@@ -8,9 +8,12 @@ default_address = "wss://bittensor-finney.api.onfinality.io/public-ws"
 webhook_url = ""
 current_version = cortext.__version__
 
-def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate):
+
+def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, autoupdate, logging, wandb_on):
     global current_version
-    subprocess.run(["pm2", "start", "--name", pm2_name, "python3 -m validators.validator", "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
+    subprocess.run(["pm2", "start", "--name", pm2_name, "python3 -m validators.validator", "--",
+                    "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", f"{netuid}",
+                    "--subtensor.chain_endpoint", address, f"--logging.{logging}", "" if wandb_on else "--wandb_off"])
     while True:
         latest_version = get_version()
         print(f"Current version: {current_version}")
@@ -18,16 +21,22 @@ def update_and_restart(pm2_name, wallet_name, wallet_hotkey, address, autoupdate
 
         if current_version != latest_version and latest_version != None:
             if not autoupdate:
-                send_discord_alert(f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}", webhook_url)
+                send_discord_alert(
+                    f"Your validator not running the latest code ({current_version}). You will quickly lose vturst if you don't update to version {latest_version}",
+                    webhook_url)
             print("Updating to the latest version...")
             subprocess.run(["pm2", "delete", pm2_name])
             subprocess.run(["git", "reset", "--hard"])
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
-            subprocess.run(["pm2", "start",  "--name", pm2_name, "python3 -m validators.validator", "--name", pm2_name, "--", "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", "18", "--subtensor.network", "local", "--subtensor.chain_endpoint", address])
+            subprocess.run(
+                ["pm2", "start", "--name", pm2_name, "python3 -m validators.validator", "--name", pm2_name, "--",
+                 "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", f"{netuid}",
+                 "--subtensor.chain_endpoint", address, f"--logging.{logging}", "" if wandb_on else "--wandb_off"])
             current_version = latest_version
         print("All up to date!")
         time.sleep(180)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -38,12 +47,18 @@ if __name__ == "__main__":
     parser.add_argument("--pm2_name", required=True, help="Name of the PM2 process.")
     parser.add_argument("--wallet_name", required=True, help="Name of the wallet.")
     parser.add_argument("--wallet_hotkey", required=True, help="Hotkey for the wallet.")
-    parser.add_argument("--address", default=default_address, help="Subtensor chain_endpoint, defaults to 'wss://bittensor-finney.api.onfinality.io/public-ws' if not provided.")
-    parser.add_argument("--no-autoupdate", action='store_false', dest='autoupdate', help="Disable automatic update. Only send a Discord alert. Add your webhook at the top of the script.")
+    parser.add_argument("--netuid", required=True, help="netuid for validator")
+    parser.add_argument("--subtensor.chain_endpoint", default=default_address, dest='address',
+                        help="Subtensor chain_endpoint, defaults to 'wss://bittensor-finney.api.onfinality.io/public-ws' if not provided.")
+    parser.add_argument("--autoupdate", action='store_false', dest='autoupdate',
+                        help="Disable automatic update. Only send a Discord alert. Add your webhook at the top of the script.")
+    parser.add_argument("--logging", required=False, default="debug")
+    parser.add_argument("--wandb_on", action='store_false', required=False, dest='wandb_on')
 
     args = parser.parse_args()
 
     try:
-        update_and_restart(args.pm2_name, args.wallet_name, args.wallet_hotkey, args.address, args.autoupdate)
+        update_and_restart(args.pm2_name, args.netuid, args.wallet_name, args.wallet_hotkey, args.address,
+                           args.autoupdate, args.logging, args.wandb_on)
     except Exception as e:
         parser.error(f"An error occurred: {e}")
