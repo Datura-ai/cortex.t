@@ -34,7 +34,7 @@ class Config:
         self.AXON_PORT = int(os.getenv('AXON_PORT', 8098))
         self.EXTERNAL_IP = os.getenv('EXTERNAL_IP')
 
-        self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
+        self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
         self.WANDB_OFF = False if self.ENV == 'prod' else True
         self.LOGGING_TRACE = False if self.ENV == 'prod' else True
         self.BLACKLIST_AMT = 5000 if self.ENV == 'prod' else 0

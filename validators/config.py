@@ -20,7 +20,7 @@ class Config:
         self.HOT_KEY = os.getenv('HOT_KEY')
         self.NET_UID = int(os.getenv('NET_UID', 0))
         self.AXON_PORT = int(os.getenv('AXON_PORT', 8000))
-        self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
+        self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
 
         # logging config
         self.WANDB_OFF = False if self.ENV == 'prod' else True
