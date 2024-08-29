@@ -83,6 +83,8 @@ class TextValidator(BaseValidator):
         try:
             self.select_random_provider_and_model()
             is_vision_model = self.model in constants.VISION_MODELS
+            if self.num_uids_to_pick < len(available_uids):
+                available_uids = random.sample(available_uids, self.num_uids_to_pick)
             await self.load_questions(available_uids, "text", is_vision_model)
 
             query_tasks = []
@@ -113,7 +115,6 @@ class TextValidator(BaseValidator):
         self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         if self.provider == "AnthropicBedrock":
-            self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK_ANTHROPIC
             self.model = "anthropic.claude-v2:1"
 
         elif self.provider == "OpenAI":
