@@ -11,9 +11,12 @@ current_version = cortext.__version__
 
 def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, autoupdate, logging, wandb_on):
     global current_version
-    subprocess.run(["pm2", "start", "--name", pm2_name, "python3 -m validators.validator", "--",
-                    "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", f"{netuid}",
-                    "--subtensor.chain_endpoint", address, f"--logging.{logging}", "" if wandb_on else "--wandb_off"])
+    wandb = "" if wandb_on else "--wandb_off"
+    subprocess.run(["pm2", "start", "--name", pm2_name, f"python3 -m validators.validator --wallet.name {wallet_name}"
+                                                        f" --wallet.hotkey {wallet_hotkey} "
+                                                        f" --netuid {netuid} "
+                                                        f"--subtensor.chain_endpoint {address} "
+                                                        f"--logging.{logging} {wandb}"])
     while True:
         latest_version = get_version()
         print(f"Current version: {current_version}")
@@ -30,10 +33,13 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(
-                ["pm2", "start", "--name", pm2_name, "python3 -m validators.validator", "--name", pm2_name, "--",
-                 "--wallet.name", wallet_name, "--wallet.hotkey", wallet_hotkey, "--netuid", f"{netuid}",
-                 "--subtensor.chain_endpoint", address, f"--logging.{logging}", "" if wandb_on else "--wandb_off"])
+                ["pm2", "start", "--name", pm2_name, f"python3 -m validators.validator --wallet.name {wallet_name}"
+                                                     f" --wallet.hotkey {wallet_hotkey} "
+                                                     f" --netuid {netuid} "
+                                                     f"--subtensor.chain_endpoint {address} "
+                                                     f"--logging.{logging} {wandb}"])
             current_version = latest_version
+
         print("All up to date!")
         time.sleep(180)
 
