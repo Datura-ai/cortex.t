@@ -31,6 +31,7 @@ from stability_sdk import client as stability_client
 from cortext import IMAGE_PROMPTS
 
 from . import client
+from validators.config import bt_config
 
 list_update_lock = asyncio.Lock()
 
@@ -214,7 +215,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
         f"num_questions_needed: {num_questions_needed}, "
         f"list_type: {list_type}, selected_prompts: {selected_prompts}"
     )
-
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-4o", random.randint(1, 10000))
         for prompt in selected_prompts
@@ -302,6 +302,10 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
                     return items.pop(i)
             return None
 
+    global state
+    if state is None:
+        state_path = os.path.join(bt_config.full_path, "state.json")
+        state = get_state(state_path)
     list_type = f"{category}_{item_type}"
 
     async with list_update_lock:

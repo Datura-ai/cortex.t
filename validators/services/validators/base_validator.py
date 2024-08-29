@@ -41,10 +41,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def load_questions(self, available_uids, item_type: str = "text", vision=False):
         self.uid_to_questions = dict()
 
-        random_texts = self.get_random_texts()
-        num_texts_per_uid = len(random_texts) // len(available_uids)
-
         for index, uid in enumerate(available_uids):
+
             if item_type == "images":
                 messages = await utils.get_question("images", len(available_uids))
                 content = " ".join(messages)
@@ -58,6 +56,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 self.uid_to_questions[uid] = {"prompt": prompt}
                 self.uid_to_questions[uid]["image"] = image_url
             else:
+                random_texts = self.get_random_texts()
+                num_texts_per_uid = len(random_texts) // len(available_uids)
                 start_index = index * num_texts_per_uid
                 end_index = start_index + num_texts_per_uid
                 prompt = random_texts[start_index:end_index]
