@@ -46,8 +46,7 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Automatically update and restart the validator process when a new version is released.",
-        epilog="Example usage: python start_validator.py --pm2_name 'net18vali' --wallet_name 'wallet1' --wallet_hotkey 'key123' [--address 'wss://...'] [--no-autoupdate]"
+        description="Automatically update and restart the validator process when a new version is released."
     )
 
     parser.add_argument("--pm2_name", required=True, help="Name of the PM2 process.")
