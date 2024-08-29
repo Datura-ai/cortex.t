@@ -794,4 +794,4 @@ def send_discord_alert(message, webhook_url):
         else:
             print(f"Failed to send Discord alert. Status code: {response.status_code}")
     except Exception as e:
-        print(f"Failed to send Discord alert: {e}", exc_info=True)
+        print(f"Failed to send Discord alert: {e}")

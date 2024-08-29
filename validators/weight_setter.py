@@ -192,7 +192,7 @@ class WeightSetter:
 
     async def perform_synthetic_scoring_and_update_weights(self):
         while True:
-            bt.logging.info("start validating process.")
+            bt.logging.info("start validating process from now.")
             for steps_passed in itertools.count():
                 await self.refresh_metagraph()
                 available_uids = await self.get_available_uids()

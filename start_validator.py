@@ -56,10 +56,10 @@ if __name__ == "__main__":
     parser.add_argument("--netuid", required=True, help="netuid for validator")
     parser.add_argument("--subtensor.chain_endpoint", default=default_address, dest='address',
                         help="Subtensor chain_endpoint, defaults to 'wss://bittensor-finney.api.onfinality.io/public-ws' if not provided.")
-    parser.add_argument("--autoupdate", action='store_false', dest='autoupdate',
+    parser.add_argument("--autoupdate", action='store_true',  dest='autoupdate',
                         help="Disable automatic update. Only send a Discord alert. Add your webhook at the top of the script.")
     parser.add_argument("--logging", required=False, default="debug")
-    parser.add_argument("--wandb_on", action='store_false', required=False, dest='wandb_on')
+    parser.add_argument("--wandb_on", action='store_true', required=False, dest='wandb_on')
 
     args = parser.parse_args()
 
