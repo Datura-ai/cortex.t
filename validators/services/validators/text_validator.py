@@ -207,6 +207,7 @@ class TextValidator(BaseValidator):
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
+        bt.logging.info(f"processing image url {image_url}")
         return await self.call_api(prompt, image_url, self.provider)
 
     async def get_scoring_task(self, uid, answer, response):
