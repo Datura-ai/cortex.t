@@ -261,7 +261,11 @@ async def get_list(list_type, num_questions_needed, theme=None):
         return None
 
     if list_type == "text_questions":
-        images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+        try:
+            images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+        except Exception as err:
+            bt.logging.exception(err)
+            return extracted_lists
         for image_url in images_from_pixabay:
             extracted_lists.append(
                 {
