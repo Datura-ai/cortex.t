@@ -24,7 +24,7 @@ subtensor_address=${subtensor_address:-wss://entrypoint-finney.opentensor.ai:443
 read -p "Autoupdate? [true]: " autoupdate
 autoupdate=${autoupdate:-true}
 
-command_to_run="pm2 start python3 start_validator.py -- --pm2_name $pm2_name --subtensor.chain_endpoint $subtensor_address --netuid $netuid --wallet_name $wallet_name --wallet_hotkey $wallet_hotkey"
+command_to_run="pm2 start --interpreter=python3 start_validator.py -- --pm2_name $pm2_name --subtensor.chain_endpoint $subtensor_address --netuid $netuid --wallet_name $wallet_name --wallet_hotkey $wallet_hotkey"
 
 
 if [ "$autoupdate" = "true" ]; then
