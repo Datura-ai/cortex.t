@@ -14,29 +14,21 @@ class Config:
 
         self.ENV = os.getenv('ENV')
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
-
-        # bittensor config
-        self.WALLET_NAME = os.getenv('WALLET_NAME')
-        self.HOT_KEY = os.getenv('HOT_KEY')
-        self.NET_UID = int(os.getenv('NET_UID', 0))
-        self.AXON_PORT = int(os.getenv('AXON_PORT', 8000))
         self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
-
-        # logging config
-        self.WANDB_OFF = False if self.ENV == 'prod' else True
-        self.LOGGING_TRACE = False if self.ENV == 'prod' else True
 
 
 def get_config() -> bt.config:
-    default_config = Config()
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--subtensor.network", type=str, default=default_config.BT_SUBTENSOR_NETWORK)
-    parser.add_argument("--wallet.name", type=str, default=default_config.WALLET_NAME)
-    parser.add_argument("--wallet.hotkey", type=str, default=default_config.HOT_KEY)
-    parser.add_argument("--netuid", type=int, default=default_config.NET_UID)
-    parser.add_argument("--wandb_off", action="store_false", dest="wandb_on", default=default_config.WANDB_OFF)
-    parser.add_argument("--axon.port", type=int, default=default_config.AXON_PORT)
+    parser.add_argument("--subtensor.chain_endpoint", type=str)
+    parser.add_argument("--wallet.name", type=str)
+    parser.add_argument("--wallet.hotkey", type=str)
+    parser.add_argument("--netuid", type=int)
+    parser.add_argument("--wandb_off", action="store_true", dest="wandb_off")
+    parser.add_argument("--axon.port", type=int, default=8000)
+    parser.add_argument('--logging.info', action='store_true')
+    parser.add_argument('--logging.debug', action='store_true')
+    parser.add_argument('--logging.trace', action='store_true')
 
     # Activating the parser to read any command-line inputs.
     # To print help message, run python3 template/miner.py --help
@@ -53,7 +45,12 @@ def get_config() -> bt.config:
 
     bt.axon.check_config(bt_config_)
     bt.logging.check_config(bt_config_)
+    if 'test' in bt_config_.subtensor.chain_endpoint:
+        bt_config_.subtensor.network = 'test'
+    else:
+        bt_config_.subtensor.network = 'finney'
 
+    bt.logging.info(bt_config_)
     return bt_config_
 
 
