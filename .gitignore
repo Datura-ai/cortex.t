@@ -12,7 +12,6 @@ wandb/
 .ipynb_checkpoints/
 .venv/
 validators/.ipynb_checkpoints/
-**/organic.py
 **/validator.ipynb
 **/.env
 **/Cortex.t.egg-info
