@@ -203,7 +203,7 @@ class WeightSetter:
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
                 if uid_to_scores is None:
                     bt.logging.info("We don't score this time.")
-                    await asyncio.sleep(300)
+                    await asyncio.sleep(1)
                     continue
 
                 for uid, score in uid_to_scores.items():
