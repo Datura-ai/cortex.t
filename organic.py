@@ -1,11 +1,8 @@
 import bittensor as bt
 import pydantic
-from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional
+from typing import AsyncIterator, Dict, List
 from starlette.responses import StreamingResponse
 import asyncio
-import random
-
 
 class StreamPrompting(bt.StreamingSynapse):
 
@@ -195,8 +192,8 @@ async def main():
 
     synapse = StreamPrompting(
     messages = messages,
-    # get available providers and models from : https://github.com/corcel-api/cortex.t/blob/2807988d66523a432f6159d46262500b060f13dc/cortext/protocol.py#L238
-    provider = "OpenAI",
+    provider = "Gemini",
+    model = "gemini-pro",
     uid = miner_uid,
     )
     timeout = 60
