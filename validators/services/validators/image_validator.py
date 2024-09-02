@@ -90,8 +90,6 @@ class ImageValidator(BaseValidator):
         return score
 
     async def get_answer_task(self, uid, synapse=None):
-        if not self.should_i_score():
-            return None
         return synapse
 
     async def build_wandb_data(self, scores, responses):

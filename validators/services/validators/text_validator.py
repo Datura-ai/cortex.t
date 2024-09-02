@@ -202,9 +202,6 @@ class TextValidator(BaseValidator):
             bt.logging.error(f"provider {provider} not found")
 
     async def get_answer_task(self, uid: int, syn=None):
-        if not self.should_i_score() or not syn:
-            bt.logging.info(f"uid {uid} doesn't need to be scored. so skip this.")
-            return None
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
