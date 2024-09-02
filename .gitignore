@@ -1,6 +1,5 @@
 validators/state.json
-bittensor_subnet_template.egg-info/
-bittensor_subnet_template.egg-info
+Cortex.t.egg-info/
 template/__pycache__/
 __pycache__/
 *.pyc
@@ -9,3 +8,9 @@ wandb/
 .vscode
 .envrc
 .idea/
+.ipynb_checkpoints/
+.venv/
+validators/.ipynb_checkpoints/
+**/validator.ipynb
+**/.env
+**/Cortex.t.egg-info

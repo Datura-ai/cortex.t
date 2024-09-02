@@ -1,16 +1,11 @@
 from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional
-
+from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
 
-# from ..providers.image import DallE, Stability
 
-# from ..providers.text import Anthropic, GeminiPro, OpenAI
-
-
-class IsAlive( bt.Synapse ):
+class IsAlive(bt.Synapse):
     answer: Optional[str] = None
     completion: str = pydantic.Field(
         "",
@@ -18,6 +13,7 @@ class IsAlive( bt.Synapse ):
         description="Completion status of the current StreamPrompting object. "
                     "This attribute is mutable and can be updated.",
     )
+
 
 class ImageResponse(bt.Synapse):
     """ A class to represent the response for an image-related request. """
@@ -59,7 +55,7 @@ class ImageResponse(bt.Synapse):
         description="The cfg_scale to use for image generation"
     )
 
-     # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m, k_dpmpp_sde)
+    # (Available Samplers: ddim, plms, k_euler, k_euler_ancestral, k_heun, k_dpm_2, k_dpm_2_ancestral, k_dpmpp_2s_ancestral, k_lms, k_dpmpp_2m, k_dpmpp_sde)
     sampler: str = pydantic.Field(
         default="",
         title="Sampler",
@@ -107,7 +103,7 @@ class ImageResponse(bt.Synapse):
         title="Quality",
         description="The quality of the image."
     )
-    
+
     uid: int = pydantic.Field(
         default=3,
         title="uid",
@@ -130,8 +126,14 @@ class ImageResponse(bt.Synapse):
         """ Deserialize the completion data of the image response. """
         return self.completion
 
-class Embeddings( bt.Synapse):
+
+class Embeddings(bt.Synapse):
     """ A class to represent the embeddings request and response. """
+    provider: str = pydantic.Field(
+        default="OpenAI",
+        title="text",
+        description="Provider name by which embeddings are to be generated"
+    )
 
     texts: List[str] = pydantic.Field(
         ...,
@@ -150,7 +152,7 @@ class Embeddings( bt.Synapse):
         title="Embeddings",
         description="The resulting list of embeddings, each corresponding to an input text."
     )
-    
+
     uid: int = pydantic.Field(
         default=60,
         title="uid",
@@ -164,10 +166,8 @@ class Embeddings( bt.Synapse):
     )
 
 
-
 class StreamPrompting(bt.StreamingSynapse):
-
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "
@@ -229,7 +229,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Claude",
+                    "Options: OpenAI, Anthropic, Groq, Bedrock"
     )
 
     model: str = pydantic.Field(
@@ -237,8 +237,8 @@ class StreamPrompting(bt.StreamingSynapse):
         title="model",
         description="""
         The model to use when calling provider for your response.
-        "For Provider OpenAI: 
-         text_models = [                   
+        For Provider OpenAI:
+         text_models = [
             "davinci-002",
             "gpt-4-1106-preview",
             "gpt-4-turbo-preview",
@@ -259,8 +259,11 @@ class StreamPrompting(bt.StreamingSynapse):
             "gpt-4o",
             "gpt-4o-2024-05-13"
         ]
-        For Provider Claude: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
-        last_updated = 27 may 2024
+        For Provider Anthropic: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
+        For Provider Groq: gemma-7b-it, llama3-70b-8192, llama3-8b-8192, mixtral-8x7b-32768
+        For Provider Bedrock: anthropic.claude-3-sonnet-20240229-v1:0, cohere.command-r-v1:0, meta.llama2-70b-chat-v1,
+         amazon.titan-text-express-v1, mistral.mistral-7b-instruct-v0:2
+        last_updated = 17 June 2024
         """
     )
 
@@ -321,8 +324,7 @@ class StreamPrompting(bt.StreamingSynapse):
 
 
 class TextPrompting(bt.Synapse):
-
-    messages: List[Dict[str, str]] = pydantic.Field(
+    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
         ...,
         title="Messages",
         description="A list of messages in the StreamPrompting scenario, "
@@ -384,7 +386,7 @@ class TextPrompting(bt.Synapse):
         default="OpenAI",
         title="Provider",
         description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini",
+                    "Options: OpenAI, Anthropic, Gemini, Groq, Bedrock",
     )
 
     model: str = pydantic.Field(

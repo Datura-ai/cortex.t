@@ -4,7 +4,6 @@ from enum import Enum
 from typing import AsyncIterator, Dict, List, Literal, Optional
 from starlette.responses import StreamingResponse
 import asyncio
-import traceback
 import random
 
 
@@ -176,7 +175,8 @@ async def handle_response(responses):
 
 async def main():
     print("synching metagraph, this takes way too long.........")
-    meta = bt.metagraph( netuid=24, network="test" )
+    subtensor = bt.subtensor( network="finney" )
+    meta = subtensor.metagraph( netuid=18 )
     print("metagraph synched!")
 
     # This needs to be your validator wallet that is running your subnet 18 validator
@@ -186,21 +186,18 @@ async def main():
     axon_to_use = meta.axons[vali_uid]
 
     # This is the question to send your validator to send your miner.
-    prompt = "explain bittensor to me like I am 5"
+    prompt = "Give me a long story about a cat"
     messages = [{'role': 'user', 'content': prompt}]
 
     # You can edit this to pick a specific miner uid, just change miner_uid to the uid that you desire.
-    # Currently, it just picks a random miner form the top 100 uids.
-    # top_miners_to_use = 100
-    # top_miner_uids = meta.I.argsort(descending=True)[:top_miners_to_use]
-    # miner_uid = random.choice(top_miner_uids)
-    miner_uid = 3
+    # Currently, it just picks a random miner form the top 100 uids. Or it can be hardcoded to a specific uid.
+    miner_uid = 202
 
     synapse = StreamPrompting(
     messages = messages,
     # get available providers and models from : https://github.com/corcel-api/cortex.t/blob/2807988d66523a432f6159d46262500b060f13dc/cortext/protocol.py#L238
-    provider = "Anthropic", 
-    model = "claude-3-5-sonnet-20240620",
+    provider = "OpenAI", 
+    model = "gpt-3.5-turbo",
     uid = miner_uid,
     )
     timeout = 60

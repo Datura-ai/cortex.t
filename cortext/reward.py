@@ -63,15 +63,17 @@ def calculate_text_similarity(text1: str, text2: str):
 
 async def api_score(api_answer: str, response: str, weight: float, temperature: float, provider: str) -> float:
     try:
+        if api_answer is None or response is None:
+            return 0
         loop = asyncio.get_running_loop()
         similarity = await loop.run_in_executor(None, calculate_text_similarity, api_answer, response)
 
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
-        
-        word_count_over_threshold = words_in_api * 1.20 
-        word_count_under_threshold = words_in_api * 0.87
-        
+
+        word_count_over_threshold = words_in_api * 1.20
+        word_count_under_threshold = words_in_api * 0.60
+
         # Check if the word count of the response is within the thresholds
         if words_in_response <= word_count_over_threshold and words_in_response >= word_count_under_threshold:
             score = weight * similarity
@@ -179,6 +181,7 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
 
     try:
         similarity = await asyncio.to_thread(calculate_image_similarity, image, description)
+        bt.logging.info(f"similarity is {similarity} and threshold is {similarity_threshold}")
         if similarity > similarity_threshold:
             bt.logging.debug(
                 f"UID {uid} passed similarity test with score of: {round(similarity, 5)}. "
