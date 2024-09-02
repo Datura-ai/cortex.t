@@ -20,7 +20,7 @@ from validators.services import BaseValidator, TextValidator
 from validators.config import bt_config
 from validators.services.bittensor import bt_validator as bt
 
-iterations_per_set_weights = 5
+iterations_per_set_weights = 10
 scoring_organic_timeout = 60
 
 
@@ -219,7 +219,7 @@ class WeightSetter:
                     )
 
                 # if we want to slow down the speed of the validator steps
-                await asyncio.sleep(300)
+                await asyncio.sleep(1)
 
     @staticmethod
     def select_validator():
