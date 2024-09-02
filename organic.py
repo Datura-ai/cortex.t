@@ -1,8 +1,11 @@
 import bittensor as bt
 import pydantic
-from typing import AsyncIterator, Dict, List
+from enum import Enum
+from typing import AsyncIterator, Dict, List, Literal, Optional
 from starlette.responses import StreamingResponse
 import asyncio
+import random
+
 
 class StreamPrompting(bt.StreamingSynapse):
 
@@ -141,7 +144,7 @@ class StreamPrompting(bt.StreamingSynapse):
             "timeout": self.timeout,
         }
 
-async def query_miner(dendrite: bt.dendrite, axon_to_use, synapse, timeout, streaming):
+async def query_miner(dendrite, axon_to_use, synapse, timeout, streaming):
     try:
         print(f"calling vali axon {axon_to_use} to miner uid {synapse.uid} for query {synapse.messages}")
         responses = dendrite.query(
@@ -153,7 +156,7 @@ async def query_miner(dendrite: bt.dendrite, axon_to_use, synapse, timeout, stre
         )
         return await handle_response(responses)
     except Exception as e:
-        bt.logging.exception(e)
+        print(f"Exception during query: {traceback.format_exc()}")
         return None
 
 async def handle_response(responses):
@@ -172,28 +175,29 @@ async def handle_response(responses):
 
 async def main():
     print("synching metagraph, this takes way too long.........")
-    subtensor = bt.subtensor( network="test" )
-    meta = subtensor.metagraph( netuid=196 )
+    subtensor = bt.subtensor( network="finney" )
+    meta = subtensor.metagraph( netuid=18 )
     print("metagraph synched!")
 
     # This needs to be your validator wallet that is running your subnet 18 validator
-    wallet = bt.wallet( name="miner", hotkey="default-1" )
+    wallet = bt.wallet( name="validator", hotkey="default" )
     dendrite = bt.dendrite( wallet=wallet )
     vali_uid = meta.hotkeys.index( wallet.hotkey.ss58_address)
     axon_to_use = meta.axons[vali_uid]
 
     # This is the question to send your validator to send your miner.
-    prompt = "explain bittensor to me like I am 5"
+    prompt = "Give me a long story about a cat"
     messages = [{'role': 'user', 'content': prompt}]
 
     # You can edit this to pick a specific miner uid, just change miner_uid to the uid that you desire.
-    # Currently, it just picks a random miner form the top 100 uids.
-    miner_uid = 2
+    # Currently, it just picks a random miner form the top 100 uids. Or it can be hardcoded to a specific uid.
+    miner_uid = 202
 
     synapse = StreamPrompting(
     messages = messages,
-    provider = "Gemini",
-    model = "gemini-pro",
+    # get available providers and models from : https://github.com/corcel-api/cortex.t/blob/2807988d66523a432f6159d46262500b060f13dc/cortext/protocol.py#L238
+    provider = "OpenAI", 
+    model = "gpt-3.5-turbo",
     uid = miner_uid,
     )
     timeout = 60
