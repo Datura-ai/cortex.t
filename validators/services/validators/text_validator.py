@@ -109,8 +109,9 @@ class TextValidator(BaseValidator):
             bt.logging.exception(err)
 
     def select_random_provider_and_model(self):
-        providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
-            "Groq"] * 20 + ["Bedrock"] * 15
+        # AnthropicBedrock should only be used if a validators' anthropic account doesn't work
+        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 20 + [
+            "Groq"] * 30 + ["Bedrock"] * 0
         self.provider = random.choice(providers)
         self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
@@ -147,7 +148,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 4
+        will_score_all = random_number < 1 / 1
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
