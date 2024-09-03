@@ -34,7 +34,7 @@ class Config:
         self.AXON_PORT = int(os.getenv('AXON_PORT', 8098))
         self.EXTERNAL_IP = os.getenv('EXTERNAL_IP')
 
-        self.BT_SUBTENSOR_NETWORK = 'finney' if self.ENV == 'prod' else 'test'
+        self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
         self.WANDB_OFF = False if self.ENV == 'prod' else True
         self.LOGGING_TRACE = False if self.ENV == 'prod' else True
         self.BLACKLIST_AMT = 5000 if self.ENV == 'prod' else 0
@@ -61,13 +61,6 @@ def get_config() -> (bt.config, Config):
     # remove_argument(parser, "--axon.external_ip")
     parser.add_argument(
         "--axon.external_ip", type=str, default=bt.utils.networking.get_external_ip(), help="IP for the metagraph"
-    )
-
-    # remove_argument(parser, "--subtensor.network")
-    parser.add_argument(
-        "--subtensor.network",
-        default=default_config.BT_SUBTENSOR_NETWORK,
-        help="Bittensor network to connect to."
     )
 
     # remove_argument(parser, "--wallet.name")
@@ -159,6 +152,20 @@ def get_config() -> (bt.config, Config):
         default=default_config.LOGGING_TRACE,
     )
 
+    parser.add_argument(
+        "--logging.debug",
+        action="store_true",
+        help="If True, logging tracing is turned on.",
+        default=default_config.LOGGING_TRACE,
+    )
+
+    parser.add_argument(
+        "--logging.info",
+        action="store_true",
+        help="If True, logging tracing is turned on.",
+        default=default_config.LOGGING_TRACE,
+    )
+
     # Activating the parser to read any command-line inputs.
     # To print help message, run python3 template/miner.py --help
     bt_config = bt.config(parser)
@@ -174,6 +181,11 @@ def get_config() -> (bt.config, Config):
 
     bt.axon.check_config(bt_config)
     bt.logging.check_config(bt_config)
+
+    if 'test' in bt_config.subtensor.chain_endpoint:
+        bt_config.subtensor.network = 'test'
+    else:
+        bt_config.subtensor.network = 'finney'
 
     return bt_config, default_config
 

@@ -773,7 +773,7 @@ async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples,
 
 # Github unauthorized rate limit of requests per hour is 60. Authorized is 5000.
 def get_version(line_number: int = 22) -> Optional[str]:
-    url = "https://api.github.com/repos/corcel-api/cortex.t/contents/cortext/__init__.py"
+    url = "https://api.github.com/repos/Datura-ai/cortex.t/contents/cortext/__init__.py"
     response = requests.get(url, timeout=10)
     if not response.ok:
         bt.logging.error("github api call failed")
@@ -802,4 +802,4 @@ def send_discord_alert(message, webhook_url):
         else:
             print(f"Failed to send Discord alert. Status code: {response.status_code}")
     except Exception as e:
-        print(f"Failed to send Discord alert: {e}", exc_info=True)
+        print(f"Failed to send Discord alert: {e}")

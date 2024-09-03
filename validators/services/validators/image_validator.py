@@ -13,6 +13,7 @@ from validators import utils
 class ImageValidator(BaseValidator):
     def __init__(self):
         super().__init__()
+        self.num_uids_to_pick = 30
         self.streaming = False
         self.query_type = "images"
         self.model = "dall-e-3"
@@ -38,6 +39,7 @@ class ImageValidator(BaseValidator):
         # Randomly choose the provider based on specified probabilities
         providers = ["OpenAI"] * 100 + ["Stability"] * 0
         self.provider = random.choice(providers)
+        self.num_uids_to_pick = 30
 
         if self.provider == "Stability":
             self.seed = random.randint(1000, 1000000)
@@ -51,6 +53,8 @@ class ImageValidator(BaseValidator):
             query_tasks = []
 
             self.select_random_provider_and_model()
+            if self.num_uids_to_pick < len(available_uids):
+                available_uids = random.sample(available_uids, self.num_uids_to_pick)
             await self.load_questions(available_uids, "images")
 
             # Query all images concurrently
@@ -86,8 +90,6 @@ class ImageValidator(BaseValidator):
         return score
 
     async def get_answer_task(self, uid, synapse=None):
-        if not self.should_i_score():
-            return None
         return synapse
 
     async def build_wandb_data(self, scores, responses):

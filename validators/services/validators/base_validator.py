@@ -103,6 +103,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         uid_scores_dict = {}
         scored_response = []
 
+        if not self.should_i_score():
+            return None, None, None
+
+
         for uid, syn in responses:
             task = self.get_answer_task(uid, syn)
             answering_tasks.append((uid, task))

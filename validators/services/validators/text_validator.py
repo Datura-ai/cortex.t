@@ -83,6 +83,8 @@ class TextValidator(BaseValidator):
         try:
             self.select_random_provider_and_model()
             is_vision_model = self.model in constants.VISION_MODELS
+            if self.num_uids_to_pick < len(available_uids):
+                available_uids = random.sample(available_uids, self.num_uids_to_pick)
             await self.load_questions(available_uids, "text", is_vision_model)
 
             query_tasks = []
@@ -107,13 +109,13 @@ class TextValidator(BaseValidator):
             bt.logging.exception(err)
 
     def select_random_provider_and_model(self):
-        providers = ["OpenAI"] * 45 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 18 + [
-            "Groq"] * 20 + ["Bedrock"] * 15
+        # AnthropicBedrock should only be used if a validators' anthropic account doesn't work
+        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 20 + [
+            "Groq"] * 30 + ["Bedrock"] * 0
         self.provider = random.choice(providers)
         self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         if self.provider == "AnthropicBedrock":
-            self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK_ANTHROPIC
             self.model = "anthropic.claude-v2:1"
 
         elif self.provider == "OpenAI":
@@ -146,7 +148,7 @@ class TextValidator(BaseValidator):
 
     def should_i_score(self):
         random_number = random.random()
-        will_score_all = random_number < 1 / 1
+        will_score_all = random_number < 1 / 5
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
@@ -201,9 +203,6 @@ class TextValidator(BaseValidator):
             bt.logging.error(f"provider {provider} not found")
 
     async def get_answer_task(self, uid: int, syn=None):
-        if not self.should_i_score() or not syn:
-            bt.logging.info(f"uid {uid} doesn't need to be scored. so skip this.")
-            return None
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
