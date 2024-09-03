@@ -80,7 +80,7 @@ Go to the [AWS Management Console](https://aws.amazon.com/console/) and sign in 
 
 ### 5. Alternative - create dedicated user (more secure)
 - Navigate to IAM
-- Create New User
+- Create New User - name the user `sn-18` or similar
 - Attach `AmazonBedrockFullAccess` policy to user or apply the following permissions
 ```json
 {
