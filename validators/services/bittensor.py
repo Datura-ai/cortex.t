@@ -18,6 +18,14 @@ class BittensorValidator:
         self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         self.check_wallet_registered_in_network()
 
+    def refresh(self):
+        self.wallet = bt.wallet(config=self.config)
+        self.subtensor = bt.subtensor(config=self.config, network=self.config.subtensor.network)
+        self.metagraph = self.subtensor.metagraph(netuid=self.config.netuid)
+        self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
+        self.dendrite = bt.dendrite(wallet=self.wallet)
+        self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+
     def check_wallet_registered_in_network(self):
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(
