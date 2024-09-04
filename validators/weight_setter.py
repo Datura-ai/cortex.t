@@ -231,9 +231,19 @@ class WeightSetter:
         else:
             bt.logging.info("image_validator is selected.")
             return image_validator
+    def refresh(self):
+        bt.refresh()
+        self.dendrite = bt.dendrite
+        self.subtensor = bt.subtensor
+        self.wallet = bt.wallet
+        self.moving_average_scores = None
+        self.axon = bt.axon
+        self.metagraph = bt.metagraph
+        self.my_uid = bt.my_uid
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
+        self.refresh()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
@@ -246,8 +256,8 @@ class WeightSetter:
     async def check_uid(self, axon, uid):
         """Asynchronously check if a UID is available."""
         try:
-            response = await self.dendrite(axon, IsAlive(), deserialize=False, timeout=4)
-            if response.is_success:
+            response = await self.dendrite(axon, IsAlive(), timeout=4)
+            if response.completion == 'True':
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
 
