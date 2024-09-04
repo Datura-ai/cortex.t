@@ -26,12 +26,9 @@ import wandb
 from anthropic import AI_PROMPT, HUMAN_PROMPT, Anthropic, AsyncAnthropic
 from anthropic_bedrock import AsyncAnthropicBedrock
 from groq import AsyncGroq
-from PIL import Image
-from stability_sdk import client as stability_client
 from cortext import IMAGE_PROMPTS
 
 from . import client
-from validators.config import bt_config
 
 list_update_lock = asyncio.Lock()
 
@@ -306,10 +303,6 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
                     return items.pop(i)
             return None
 
-    global state
-    if state is None:
-        state_path = os.path.join(bt_config.full_path, "state.json")
-        state = get_state(state_path)
     list_type = f"{category}_{item_type}"
 
     async with list_update_lock:
