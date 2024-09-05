@@ -251,6 +251,7 @@ class WeightSetter:
         # Create a dictionary of UID to axon info for active UIDs
         available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
 
+        await self.dendrite.aclose_session()
         return available_uids
 
     async def check_uid(self, axon, uid):
