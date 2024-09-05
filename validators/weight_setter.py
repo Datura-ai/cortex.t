@@ -231,19 +231,9 @@ class WeightSetter:
         else:
             bt.logging.info("image_validator is selected.")
             return image_validator
-    def refresh(self):
-        bt.refresh()
-        self.dendrite = bt.dendrite
-        self.subtensor = bt.subtensor
-        self.wallet = bt.wallet
-        self.moving_average_scores = None
-        self.axon = bt.axon
-        self.metagraph = bt.metagraph
-        self.my_uid = bt.my_uid
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        self.refresh()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
