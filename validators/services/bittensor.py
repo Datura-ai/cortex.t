@@ -18,6 +18,7 @@ class BittensorValidator:
         self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         self.check_wallet_registered_in_network()
 
+
     def check_wallet_registered_in_network(self):
         if self.wallet.hotkey.ss58_address not in self.metagraph.hotkeys:
             bt.logging.error(

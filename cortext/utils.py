@@ -26,8 +26,6 @@ import wandb
 from anthropic import AI_PROMPT, HUMAN_PROMPT, Anthropic, AsyncAnthropic
 from anthropic_bedrock import AsyncAnthropicBedrock
 from groq import AsyncGroq
-from PIL import Image
-from stability_sdk import client as stability_client
 from cortext import IMAGE_PROMPTS
 
 from . import client
@@ -214,7 +212,6 @@ async def get_list(list_type, num_questions_needed, theme=None):
         f"num_questions_needed: {num_questions_needed}, "
         f"list_type: {list_type}, selected_prompts: {selected_prompts}"
     )
-
     tasks = [
         call_openai([{'role': "user", 'content': prompt}], 0.65, "gpt-4o", random.randint(1, 10000))
         for prompt in selected_prompts
@@ -261,7 +258,11 @@ async def get_list(list_type, num_questions_needed, theme=None):
         return None
 
     if list_type == "text_questions":
-        images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+        try:
+            images_from_pixabay = fetch_random_image_urls(prompts_in_question[list_type])
+        except Exception as err:
+            bt.logging.exception(err)
+            return extracted_lists
         for image_url in images_from_pixabay:
             extracted_lists.append(
                 {

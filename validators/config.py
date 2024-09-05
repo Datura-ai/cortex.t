@@ -16,8 +16,19 @@ class Config:
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
         self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
 
+    @staticmethod
+    def check_required_env_vars():
+        AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
+        AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
+        if all([AWS_SECRET_KEY, AWS_ACCESS_KEY]):
+            pass
+        else:
+            bt.logging.info("AWS_KEY is not provided correctly. so exit system")
+            exit(0)
+
 
 def get_config() -> bt.config:
+    Config.check_required_env_vars()
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--subtensor.chain_endpoint", type=str)

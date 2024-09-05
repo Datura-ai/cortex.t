@@ -42,6 +42,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.uid_to_questions = dict()
 
         for index, uid in enumerate(available_uids):
+
             if item_type == "images":
                 messages = await utils.get_question("images", len(available_uids))
                 content = " ".join(messages)
