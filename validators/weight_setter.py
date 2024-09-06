@@ -206,8 +206,9 @@ class WeightSetter:
                     bt.logging.info("no available uids. so referesh network and continue.")
                     await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
                     continue
+                bt.logging.info(f"available uids: {available_uids.keys()}")
                 if bt_config.max_miners_cnt < len(available_uids):
-                    available_uids = random.sample(available_uids.keys(), bt_config.max_miners_cnt)
+                    available_uids = random.sample(list(available_uids.keys()), bt_config.max_miners_cnt)
 
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
 
