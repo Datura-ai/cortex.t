@@ -58,6 +58,8 @@ def get_config() -> bt.config:
     bt.logging.check_config(bt_config_)
     if 'test' in bt_config_.subtensor.chain_endpoint:
         bt_config_.subtensor.network = 'test'
+    elif 'local' in bt_config_.subtensor.chain_endpoint:
+        bt_config_.subtensor.network = 'local'
     else:
         bt_config_.subtensor.network = 'finney'
 
