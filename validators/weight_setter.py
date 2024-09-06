@@ -1,5 +1,4 @@
 import asyncio
-import bittensor
 import concurrent
 import itertools
 import random
@@ -17,7 +16,7 @@ from starlette.types import Send
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import BaseValidator, TextValidator
-from validators.config import bt_config
+from validators.config import bt_config, app_config
 from validators.services.bittensor import bt_validator as bt
 
 iterations_per_set_weights = 10
@@ -42,8 +41,8 @@ class WeightSetter:
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
-        self.loop.create_task(self.consume_organic_scoring())
-        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        # self.loop.create_task(self.consume_organic_scoring())
+        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -191,22 +190,30 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def perform_synthetic_scoring_and_update_weights(self):
+        cur_block = self.subtensor.block
         while True:
             bt.logging.info("start validating process.")
             for steps_passed in itertools.count():
-                await self.refresh_metagraph()
-                available_uids = await self.get_available_uids()
-                if not len(available_uids):
-                    bt.logging.info("no available uids. so referesh network and continue.")
-                    continue
+
                 selected_validator = self.select_validator()
                 if not selected_validator.should_i_score():
                     bt.logging.info("We don't score this time.")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
                     continue
+
+                available_uids = await self.get_available_uids()
+                if not len(available_uids):
+                    bt.logging.info("no available uids. so referesh network and continue.")
+                    await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
+                    continue
+
+                if bt_config.max_miners_cnt < len(available_uids):
+                    available_uids = random.sample(available_uids, bt_config.max_miners_cnt)
+
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
+
                 if uid_to_scores is None:
-                    bt.logging.info("We don't score this time.")
+                    bt.logging.info("uid_to_scores is None.")
                     continue
 
                 for uid, score in uid_to_scores.items():
@@ -222,7 +229,12 @@ class WeightSetter:
                     )
 
                 # if we want to slow down the speed of the validator steps
-                await asyncio.sleep(1)
+                await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
+
+                if (self.subtensor.block - cur_block) >= 360:
+                    print("refreshing metagraph...")
+                    cur_block = self.subtensor.block
+                    await self.refresh_metagraph()
 
     @staticmethod
     def select_validator():

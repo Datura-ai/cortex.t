@@ -54,8 +54,6 @@ class ImageValidator(BaseValidator):
             query_tasks = []
 
             self.select_random_provider_and_model()
-            if self.num_uids_to_pick < len(available_uids):
-                available_uids = random.sample(available_uids, self.num_uids_to_pick)
             await self.load_questions(available_uids, "images")
 
             # Query all images concurrently

@@ -5,6 +5,8 @@ import cortext
 import time
 import traceback
 from collections import deque
+
+from cortext import IsAlive
 from miner.config import config
 from miner.providers.base import Provider
 from cortext.metaclasses import ProviderRegistryMeta, ServiceRegistryMeta
@@ -41,6 +43,8 @@ class BaseService(metaclass=ServiceRegistryMeta):
         try:
             hotkey = synapse.dendrite.hotkey
             synapse_type = type(synapse).__name__
+            if synapse_type == IsAlive.__name__:
+                return False, "Don't blacklist for IsAlive checking Synapse"
 
             uid = None
             for _uid, _axon in enumerate(self.metagraph.axons):  # noqa: B007

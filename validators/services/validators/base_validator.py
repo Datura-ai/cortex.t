@@ -10,7 +10,6 @@ from cortext.metaclasses import ValidatorRegistryMeta
 from cortext import utils
 from validators.services.bittensor import bt_validator as bt
 from validators.config import app_config
-import torch
 
 dataset = None
 
