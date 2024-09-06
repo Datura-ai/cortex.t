@@ -239,8 +239,10 @@ async def get_list(list_type, num_questions_needed, theme=None):
                         new_answer = new_answer.replace("\n", " ") if new_answer else ""
                         new_extracted_list = extract_python_list(new_answer)
                         if new_extracted_list:
-                            extracted_lists += {"prompt": new_extracted_list}
-                            break
+                            if list_type == "text_questions":
+                                extracted_lists += [{"prompt": s} for s in new_extracted_list]
+                            else:
+                                extracted_lists += new_extracted_list
                         bt.logging.error(f"no list found in {new_answer}")
                     except Exception as e:
                         bt.logging.error(
