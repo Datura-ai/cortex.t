@@ -200,6 +200,10 @@ class WeightSetter:
                     bt.logging.info("no available uids. so referesh network and continue.")
                     continue
                 selected_validator = self.select_validator()
+                if not selected_validator.should_i_score():
+                    bt.logging.info("We don't score this time.")
+                    await asyncio.sleep(1)
+                    continue
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
                 if uid_to_scores is None:
                     bt.logging.info("We don't score this time.")
@@ -270,8 +274,6 @@ class WeightSetter:
         bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
         uid_scores_dict, scored_responses, responses = \
             await selected_validator.get_and_score(uid_list)
-        if uid_scores_dict is None:
-            return None
         wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
         if self.config.wandb_on and not wandb_data:
             wandb.log(wandb_data)
