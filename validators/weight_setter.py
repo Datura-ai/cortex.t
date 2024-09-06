@@ -206,9 +206,8 @@ class WeightSetter:
                     bt.logging.info("no available uids. so referesh network and continue.")
                     await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
                     continue
-
                 if bt_config.max_miners_cnt < len(available_uids):
-                    available_uids = random.sample(available_uids, bt_config.max_miners_cnt)
+                    available_uids = random.sample(available_uids.keys(), bt_config.max_miners_cnt)
 
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
 
@@ -282,7 +281,7 @@ class WeightSetter:
         return list_
 
     async def process_modality(self, selected_validator: BaseValidator, available_uids):
-        uid_list = self.shuffled(list(available_uids.keys()))
+        uid_list = self.shuffled(available_uids)
         bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
         uid_scores_dict, scored_responses, responses = \
             await selected_validator.get_and_score(uid_list)
