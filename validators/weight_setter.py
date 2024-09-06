@@ -41,8 +41,8 @@ class WeightSetter:
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
         self.organic_scoring_tasks = set()
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
-        # self.loop.create_task(self.consume_organic_scoring())
-        # self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        self.loop.create_task(self.consume_organic_scoring())
+        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
