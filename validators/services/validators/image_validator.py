@@ -8,6 +8,7 @@ from cortext.protocol import ImageResponse
 from validators.services.bittensor import bt_validator as bt
 from validators.services.validators.base_validator import BaseValidator
 from validators import utils
+from validators.utils import error_handler
 
 
 class ImageValidator(BaseValidator):
@@ -92,6 +93,7 @@ class ImageValidator(BaseValidator):
     async def get_answer_task(self, uid, synapse=None):
         return synapse
 
+    @error_handler
     async def build_wandb_data(self, scores, responses):
         download_tasks = []
         for uid, syn in responses:
@@ -110,6 +112,6 @@ class ImageValidator(BaseValidator):
 
         download_results = await asyncio.gather(*download_tasks)
         for image, uid in zip(download_results, self.uid_to_questions.keys()):
-            self.wandb_data["images"][uid] = wandb.Image(image)
+            self.wandb_data["images"][uid] = wandb.Image(image) if image is not None else ''
             self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
         return self.wandb_data

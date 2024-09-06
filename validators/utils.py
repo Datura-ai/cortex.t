@@ -5,6 +5,8 @@ import bittensor as bt
 
 from PIL import Image
 from io import BytesIO
+from functools import wraps
+import logging
 
 
 async def download_image(url):
@@ -20,3 +22,17 @@ async def download_image(url):
 async def b64_to_image(b64):
     image_data = base64.b64decode(b64)
     return await asyncio.to_thread(Image.open, BytesIO(image_data))
+
+
+def error_handler(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            result = await func(*args, **kwargs)
+        except Exception as err:
+            logging.exception(err)
+            return None
+
+        return result
+
+    return wrapper

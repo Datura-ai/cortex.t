@@ -273,7 +273,7 @@ class WeightSetter:
         if uid_scores_dict is None:
             return None
         wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
-        if self.config.wandb_on:
+        if self.config.wandb_on and not wandb_data:
             wandb.log(wandb_data)
             bt.logging.success("wandb_log successful")
         return uid_scores_dict
