@@ -219,22 +219,15 @@ class WeightSetter:
                 for uid, score in uid_to_scores.items():
                     self.total_scores[uid] += score
 
-                steps_since_last_update = steps_passed % iterations_per_set_weights
-
-                if steps_since_last_update == iterations_per_set_weights - 1:
-                    await self.update_weights(steps_passed)
-                else:
-                    bt.logging.info(
-                        f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                    )
-
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
 
                 if (self.subtensor.block - cur_block) >= 360:
-                    print("refreshing metagraph...")
+                    bt.logging.info("refreshing metagraph...")
                     cur_block = self.subtensor.block
                     await self.refresh_metagraph()
+                    bt.logging.info("updating weights...")
+                    await self.update_weights(steps_passed)
 
     @staticmethod
     def select_validator():
@@ -326,7 +319,7 @@ class WeightSetter:
                 wallet=self.wallet,
                 uids=self.metagraph.uids,
                 weights=self.moving_average_scores,
-                wait_for_inclusion=False,
+                wait_for_inclusion=True,
                 version_key=cortext.__weights_version__,
             )
         )
