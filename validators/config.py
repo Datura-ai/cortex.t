@@ -15,6 +15,7 @@ class Config:
         self.ENV = os.getenv('ENV')
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
         self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
+        self.SLEEP_PER_ITERATION = 1
 
     @staticmethod
     def check_required_env_vars():
@@ -36,6 +37,7 @@ def get_config() -> bt.config:
     parser.add_argument("--wallet.hotkey", type=str)
     parser.add_argument("--netuid", type=int)
     parser.add_argument("--wandb_off", action="store_true", dest="wandb_off")
+    parser.add_argument("--max_miners_cnt", type=int, default=30)
     parser.add_argument("--axon.port", type=int, default=8000)
     parser.add_argument('--logging.info', action='store_true')
     parser.add_argument('--logging.debug', action='store_true')
@@ -58,6 +60,8 @@ def get_config() -> bt.config:
     bt.logging.check_config(bt_config_)
     if 'test' in bt_config_.subtensor.chain_endpoint:
         bt_config_.subtensor.network = 'test'
+    elif 'local' in bt_config_.subtensor.chain_endpoint:
+        bt_config_.subtensor.network = 'local'
     else:
         bt_config_.subtensor.network = 'finney'
 

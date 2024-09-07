@@ -6,6 +6,7 @@ from validators.services.bittensor import bt_validator as bt
 from . import constants
 import cortext.reward
 from validators.services.validators.base_validator import BaseValidator
+from validators.utils import error_handler
 from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
@@ -83,15 +84,18 @@ class TextValidator(BaseValidator):
         try:
             self.select_random_provider_and_model()
             is_vision_model = self.model in constants.VISION_MODELS
-            if self.num_uids_to_pick < len(available_uids):
-                available_uids = random.sample(available_uids, self.num_uids_to_pick)
             await self.load_questions(available_uids, "text", is_vision_model)
 
             query_tasks = []
             bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
             for uid, question in self.uid_to_questions.items():
                 prompt = question.get("prompt")
-                messages = [{'role': 'user', 'content': prompt}]
+                image = question.get("image")
+                if image:
+                    messages = [{'role': 'user', 'content': prompt, "image": image}]
+                else:
+                    messages = [{'role': 'user', 'content': prompt}]
+
                 syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
                                       temperature=self.temperature, provider=self.provider, top_p=self.top_p,
                                       top_k=self.top_k)
@@ -152,6 +156,7 @@ class TextValidator(BaseValidator):
         bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
         return will_score_all
 
+    @error_handler
     async def build_wandb_data(self, uid_to_score, responses):
         for uid, _ in self.uid_to_questions.items():
             prompt = self.uid_to_questions[uid]

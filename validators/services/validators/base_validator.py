@@ -10,7 +10,6 @@ from cortext.metaclasses import ValidatorRegistryMeta
 from cortext import utils
 from validators.services.bittensor import bt_validator as bt
 from validators.config import app_config
-import torch
 
 dataset = None
 
@@ -103,9 +102,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         uid_scores_dict = {}
         scored_response = []
 
-        if not self.should_i_score():
-            return None, None, None
-
 
         for uid, syn in responses:
             task = self.get_answer_task(uid, syn)
@@ -124,7 +120,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
-                uid_scores_dict[uid] = scored_response
+                uid_scores_dict[uid] = float(scored_response)
             else:
                 uid_scores_dict[uid] = 0
 
