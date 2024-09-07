@@ -16,6 +16,7 @@ class Config:
         self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
         self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
         self.SLEEP_PER_ITERATION = 1
+        self.IMAGE_VALIDATOR_CHOOSE_PROBABILITY = 0.03
 
     @staticmethod
     def check_required_env_vars():
@@ -58,9 +59,11 @@ def get_config() -> bt.config:
 
     bt.axon.check_config(bt_config_)
     bt.logging.check_config(bt_config_)
+
+    local_host_str = ['local', '127.0.0.1', '0.0.0.0']
     if 'test' in bt_config_.subtensor.chain_endpoint:
         bt_config_.subtensor.network = 'test'
-    elif 'local' in bt_config_.subtensor.chain_endpoint:
+    elif any(word in bt_config_.subtensor.chain_endpoint for word in local_host_str):
         bt_config_.subtensor.network = 'local'
     else:
         bt_config_.subtensor.network = 'finney'
