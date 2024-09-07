@@ -234,7 +234,7 @@ class WeightSetter:
         rand = random.random()
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')()
         image_validator = ValidatorRegistryMeta.get_class('ImageValidator')()
-        if rand < 0.9:
+        if rand > app_config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
             bt.logging.info("text_validator is selected.")
             return text_validator
         else:
