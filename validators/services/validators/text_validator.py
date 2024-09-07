@@ -99,9 +99,11 @@ class TextValidator(BaseValidator):
                 syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
                                       temperature=self.temperature, provider=self.provider, top_p=self.top_p,
                                       top_k=self.top_k)
+
+                image = image if image else ''
                 bt.logging.info(
                     f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                    f"timeout {self.timeout}: {syn.messages[0]['content']}"
+                    f"timeout {self.timeout}: {syn.messages[0]['content']} {image}"
                 )
                 task = self.query_miner(self.metagraph, uid, syn)
                 query_tasks.append(task)
