@@ -78,6 +78,59 @@ Go to the [AWS Management Console](https://aws.amazon.com/console/) and sign in 
 - Download the `.csv` file containing these credentials or copy them to a secure location.
   - **Important**: This is the only time you will be able to view the secret access key. If you lose it, you will need to create new credentials.
 
+### 5. Alternative - create dedicated user (more secure)
+- Navigate to IAM
+- Create New User - name the user `sn-18` or similar
+- Attach `AmazonBedrockFullAccess` policy to user or apply the following permissions
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BedrockAll",
+            "Effect": "Allow",
+            "Action": [
+                "bedrock:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DescribeKey",
+            "Effect": "Allow",
+            "Action": [
+                "kms:DescribeKey"
+            ],
+            "Resource": "arn:*:kms:*:::*"
+        },
+        {
+            "Sid": "APIsWithAllResourceAccess",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListRoles",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "PassRoleToBedrock",
+            "Effect": "Allow",
+            "Action": [
+                "iam:PassRole"
+            ],
+            "Resource": "arn:aws:iam::*:role/*AmazonBedrock*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": [
+                        "bedrock.amazonaws.com"
+                    ]
+                }
+            }
+        }
+    ]
+}
+```
 
 ### Obtaining API Key from OpenAI
 
