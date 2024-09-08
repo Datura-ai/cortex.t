@@ -2,6 +2,7 @@ import asyncio
 import random
 from typing import AsyncIterator
 
+from cortext.reward import model
 from validators.services.bittensor import bt_validator as bt
 from . import constants
 import cortext.reward
@@ -121,35 +122,10 @@ class TextValidator(BaseValidator):
         self.provider = random.choice(providers)
         self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
-        if self.provider == "AnthropicBedrock":
-            self.model = "anthropic.claude-v2:1"
+        model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
+        self.model = random.choices(list(model_to_weights.keys()),
+                                    weights=list(model_to_weights.values()), k=1)[0]
 
-        elif self.provider == "OpenAI":
-            models = ["gpt-4o", "gpt-4-1106-preview", "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-3.5-turbo-0125"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Gemini":
-            models = ["gemini-pro", "gemini-1.5-flash", "gemini-1.5-pro"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Anthropic":
-            models = ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-sonnet-20240229",
-                      "claude-3-haiku-20240307"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Groq":
-            models = ["gemma-7b-it", "llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"]
-            self.model = random.choice(models)
-
-        elif self.provider == "Bedrock":
-            models = [
-                "anthropic.claude-3-sonnet-20240229-v1:0", "cohere.command-r-v1:0",
-                "meta.llama2-70b-chat-v1", "amazon.titan-text-express-v1",
-                "mistral.mistral-7b-instruct-v0:2", "ai21.j2-mid-v1", "anthropic.claude-3-5-sonnet-20240620-v1:0"
-                                                                      "anthropic.claude-3-opus-20240229-v1:0",
-                "anthropic.claude-3-haiku-20240307-v1:0"
-            ]
-            self.model = random.choice(models)
         return self.num_uids_to_pick
 
     def should_i_score(self):
