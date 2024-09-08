@@ -243,6 +243,7 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
+        await self.dendrite.aclose_session()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
@@ -250,7 +251,6 @@ class WeightSetter:
         # Create a dictionary of UID to axon info for active UIDs
         available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
 
-        await self.dendrite.aclose_session()
         return available_uids
 
     async def check_uid(self, axon, uid):
