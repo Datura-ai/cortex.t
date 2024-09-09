@@ -43,8 +43,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         for index, uid in enumerate(available_uids):
 
             if item_type == "images":
-                messages = await utils.get_question("images", len(available_uids))
-                content = " ".join(messages)
+                content  = await utils.get_question("images", len(available_uids))
                 self.uid_to_questions[uid] = content  # Store messages for each UID
             elif item_type == "text":
                 question = await utils.get_question("text", len(available_uids), vision)

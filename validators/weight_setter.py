@@ -219,29 +219,22 @@ class WeightSetter:
                 for uid, score in uid_to_scores.items():
                     self.total_scores[uid] += score
 
-                steps_since_last_update = steps_passed % iterations_per_set_weights
-
-                if steps_since_last_update == iterations_per_set_weights - 1:
-                    await self.update_weights(steps_passed)
-                else:
-                    bt.logging.info(
-                        f"Updating weights in {iterations_per_set_weights - steps_since_last_update - 1} iterations."
-                    )
-
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
 
                 if (self.subtensor.block - cur_block) >= 360:
-                    print("refreshing metagraph...")
+                    bt.logging.info("refreshing metagraph...")
                     cur_block = self.subtensor.block
                     await self.refresh_metagraph()
+                    bt.logging.info("updating weights...")
+                    await self.update_weights(steps_passed)
 
     @staticmethod
     def select_validator():
         rand = random.random()
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')()
         image_validator = ValidatorRegistryMeta.get_class('ImageValidator')()
-        if rand < 0.9:
+        if rand > app_config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
             bt.logging.info("text_validator is selected.")
             return text_validator
         else:
@@ -250,6 +243,7 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
+        await self.dendrite.aclose_session()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
@@ -257,7 +251,6 @@ class WeightSetter:
         # Create a dictionary of UID to axon info for active UIDs
         available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
 
-        await self.dendrite.aclose_session()
         return available_uids
 
     async def check_uid(self, axon, uid):
@@ -326,7 +319,7 @@ class WeightSetter:
                 wallet=self.wallet,
                 uids=self.metagraph.uids,
                 weights=self.moving_average_scores,
-                wait_for_inclusion=False,
+                wait_for_inclusion=True,
                 version_key=cortext.__weights_version__,
             )
         )
