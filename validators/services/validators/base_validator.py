@@ -4,24 +4,21 @@ from datasets import load_dataset
 import random
 from typing import List, Tuple
 
-import bittensor
+import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
 from cortext import utils
-from validators.services.bittensor import bt_validator as bt
-from validators.config import app_config
 
 dataset = None
 
 
 class BaseValidator(metaclass=ValidatorRegistryMeta):
-    def __init__(self):
-        self.dendrite = bt.dendrite
-        self.config = bt.config
-        self.subtensor = bt.subtensor
-        self.wallet = bt.wallet
-        self.metagraph = bt.metagraph
-        self.timeout = app_config.ASYNC_TIME_OUT
+    def __init__(self, config, metagraph):
+        self.config = config
+        self.metagraph = metagraph
+        self.dendrite = config.dendrite
+        self.wallet = config.wallet
+        self.timeout = config.ASYNC_TIME_OUT
         self.streaming = False
         self.provider = None
         self.model = None
@@ -71,13 +68,13 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 
-    async def handle_response(self, uid, response) -> Tuple[int, bittensor.Synapse]:
+    async def handle_response(self, uid, response) -> Tuple[int, bt.Synapse]:
         if type(response) == list and response:
             response = response[0]
         return uid, response
 
     @abstractmethod
-    async def start_query(self, available_uids: List[int]) -> bittensor.Synapse:
+    async def start_query(self, available_uids: List[int]) -> bt.Synapse:
         pass
 
     @abstractmethod

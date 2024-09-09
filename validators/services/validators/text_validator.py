@@ -1,9 +1,9 @@
 import asyncio
 import random
+import bittensor as bt
 from typing import AsyncIterator
 
 from cortext.reward import model
-from validators.services.bittensor import bt_validator as bt
 from . import constants
 import cortext.reward
 from validators.services.validators.base_validator import BaseValidator
@@ -15,10 +15,11 @@ from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic,
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, provider: str = None, model: str = None):
-        super().__init__()
+    def __init__(self, config, provider: str = None, model: str = None, metagraph=None):
+        super().__init__(config, metagraph)
         self.streaming = True
         self.query_type = "text"
+        self.metagraph = metagraph
         self.model = model or constants.TEXT_MODEL
         self.max_tokens = constants.TEXT_MAX_TOKENS
         self.temperature = constants.TEXT_TEMPERATURE
@@ -77,7 +78,7 @@ class TextValidator(BaseValidator):
                 if isinstance(chunk, str):
                     bt.logging.trace(chunk)
                     full_response += chunk
-            bt.logging.debug(f"full_response for uid {uid}: {full_response}")
+            bt.logging.trace(f"full_response for uid {uid}: {full_response}")
             break
         return uid, full_response
 
@@ -125,8 +126,6 @@ class TextValidator(BaseValidator):
         model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
         self.model = random.choices(list(model_to_weights.keys()),
                                     weights=list(model_to_weights.values()), k=1)[0]
-
-        return self.num_uids_to_pick
 
     def should_i_score(self):
         random_number = random.random()
@@ -189,7 +188,6 @@ class TextValidator(BaseValidator):
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
-        bt.logging.info(f"processing image url {image_url}")
         return await self.call_api(prompt, image_url, self.provider)
 
     async def get_scoring_task(self, uid, answer, response):

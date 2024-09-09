@@ -4,9 +4,11 @@ import itertools
 import random
 import torch
 import traceback
+from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple
 import wandb
+import bittensor as bt
 
 import cortext
 from cortext.protocol import TextPrompting
@@ -16,36 +18,73 @@ from starlette.types import Send
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import BaseValidator, TextValidator
-from validators.config import bt_config, app_config
-from validators.services.bittensor import bt_validator as bt
 
 iterations_per_set_weights = 10
 scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, loop: asyncio.AbstractEventLoop):
-        bt.logging.info("starting weight setter")
-        self.config = bt_config
-        bt.logging.info(f"config:\n{self.config}")
-        self.prompt_cache: dict[str, Tuple[str, int]] = {}
-        self.request_timestamps = {}
-        self.loop = loop
-        self.dendrite = bt.dendrite
-        self.subtensor = bt.subtensor
-        self.wallet = bt.wallet
+    def __init__(self, config):
+        bt.logging.info("Initializing WeightSetter")
+        self.config = config
+        self.wallet = config.wallet
+        self.subtensor = bt.subtensor(config=config)
+        self.node = SubstrateInterface(url=config.subtensor.chain_endpoint)
+        self.netuid = self.config.netuid
+        self.metagraph = self.subtensor.metagraph(netuid=self.netuid)
+        self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
+        bt.logging.info(f"Running validator on subnet: {self.netuid} with uid: {self.my_uid}")
+
+        # Initialize scores
         self.moving_average_scores = None
-        self.axon = bt.axon
-        self.metagraph = bt.metagraph
-        self.my_uid = bt.my_uid
         self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
+
+        # Set up axon and dendrite
+        self.axon = bt.axon(wallet=self.wallet, config=self.config)
+        self.axon.start()
+        bt.logging.info(f"Axon server started on port {self.config.axon.port}")
+        self.dendrite = config.dendrite
+
+        # Set up async-related attributes
+        self.loop = asyncio.get_event_loop()
+        self.request_timestamps = {}
         self.organic_scoring_tasks = set()
+
+        # Initialize prompt cache
+        self.prompt_cache = {}
+
+        # Get network tempo
+        self.tempo = self.subtensor.tempo(self.netuid)
+        self.weights_rate_limit = self.get_weights_rate_limit()
+
+        # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_scoring())
         self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
+    
+
+    def get_current_block(self):
+        return self.node.query("System", "Number", []).value
+
+    def get_weights_rate_limit(self):
+        return self.node.query("SubtensorModule", "WeightsSetRateLimit", [self.netuid]).value
+
+    def get_last_update(self, block):
+        try:
+            last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[self.my_uid]
+        except Exception as e:
+            bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
+            # means that the validator is not registered yet. The validator should break if this is the case anyways
+            last_update_blocks = 1000
+
+        bt.logging.info(f"last set weights successfully {last_update_blocks} blocks ago")
+        return last_update_blocks
+
+    def get_blocks_til_epoch(self, block):
+        return self.tempo - (block + 19) % (self.tempo + 1)
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
@@ -160,7 +199,7 @@ class WeightSetter:
         ).attach(
             forward_fn=self.text,
         )
-        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
+        self.axon.serve(netuid=self.netuid)
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
         while True:
@@ -190,7 +229,6 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def perform_synthetic_scoring_and_update_weights(self):
-        cur_block = self.subtensor.block
         while True:
             bt.logging.info("start validating process.")
             for steps_passed in itertools.count():
@@ -198,17 +236,17 @@ class WeightSetter:
                 selected_validator = self.select_validator()
                 if not selected_validator.should_i_score():
                     bt.logging.info("We don't score this time.")
-                    await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
+                    await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
                     continue
 
                 available_uids = await self.get_available_uids()
                 if not len(available_uids):
                     bt.logging.info("no available uids. so referesh network and continue.")
-                    await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
+                    await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
                     continue
                 bt.logging.info(f"available uids: {available_uids.keys()}")
-                if bt_config.max_miners_cnt < len(available_uids):
-                    available_uids = random.sample(list(available_uids.keys()), bt_config.max_miners_cnt)
+                if self.config.max_miners_cnt < len(available_uids):
+                    available_uids = random.sample(list(available_uids.keys()), self.config.max_miners_cnt)
 
                 uid_to_scores = await self.process_modality(selected_validator, available_uids)
 
@@ -219,22 +257,22 @@ class WeightSetter:
                 for uid, score in uid_to_scores.items():
                     self.total_scores[uid] += score
 
-                # if we want to slow down the speed of the validator steps
-                await asyncio.sleep(app_config.SLEEP_PER_ITERATION)
-
-                if (self.subtensor.block - cur_block) >= 360:
-                    bt.logging.info("refreshing metagraph...")
-                    cur_block = self.subtensor.block
-                    await self.refresh_metagraph()
+                current_block = self.get_current_block()
+                last_update = self.get_last_update(current_block)
+                if last_update >= self.tempo * 2 or (self.get_blocks_til_epoch(current_block) < 20 and last_update >= self.weights_rate_limit):
                     bt.logging.info("updating weights...")
                     await self.update_weights(steps_passed)
+                    bt.logging.info("refreshing metagraph...")
+                    await self.refresh_metagraph()
+                    
+                # if we want to slow down the speed of the validator steps
+                await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
 
-    @staticmethod
-    def select_validator():
+    def select_validator(self):
         rand = random.random()
-        text_validator = ValidatorRegistryMeta.get_class('TextValidator')()
-        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')()
-        if rand > app_config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
+        text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
+        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config, metagraph=self.metagraph)
+        if rand > self.config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
             bt.logging.info("text_validator is selected.")
             return text_validator
         else:
@@ -323,4 +361,4 @@ class WeightSetter:
                 version_key=cortext.__weights_version__,
             )
         )
-        bt.logging.success("Successfully set weights.")
+        bt.logging.success("Successfully included weights in block.")
