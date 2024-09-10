@@ -28,7 +28,6 @@ class TextValidator(BaseValidator):
         self.top_p = constants.TEXT_TOP_P
         self.top_k = constants.TEXT_TOP_K
         self.provider = provider or constants.TEXT_PROVIDER
-        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         self.wandb_data = {
             "modality": "text",
@@ -121,7 +120,6 @@ class TextValidator(BaseValidator):
         providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 20 + [
             "Groq"] * 30 + ["Bedrock"] * 0
         self.provider = random.choice(providers)
-        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
         self.model = random.choices(list(model_to_weights.keys()),
