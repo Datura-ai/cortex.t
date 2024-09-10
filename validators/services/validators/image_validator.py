@@ -26,7 +26,6 @@ class ImageValidator(BaseValidator):
         self.quality = "standard"
         self.style = "vivid"
         self.steps = 30
-        self.seed = 123456
         self.wandb_data = {
             "modality": "images",
             "prompts": {},

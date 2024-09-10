@@ -22,6 +22,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.streaming = False
         self.provider = None
         self.model = None
+        self.seed = random.randint(1111, 9999)
         self.uid_to_questions = dict()
         self.available_uids = []
         self.num_samples = 100

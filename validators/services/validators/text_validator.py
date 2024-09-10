@@ -24,7 +24,6 @@ class TextValidator(BaseValidator):
         self.max_tokens = constants.TEXT_MAX_TOKENS
         self.temperature = constants.TEXT_TEMPERATURE
         self.weight = constants.TEXT_WEIGHT
-        self.seed = constants.TEXT_SEED
         self.top_p = constants.TEXT_TOP_P
         self.top_k = constants.TEXT_TOP_K
         self.provider = provider or constants.TEXT_PROVIDER

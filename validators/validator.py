@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import argparse
 import asyncio
@@ -12,7 +13,7 @@ from validators.weight_setter import WeightSetter
 
 # Load environment variables from .env file
 load_dotenv()
-
+random.seed(time.time())
 
 class NestedNamespace(argparse.Namespace):
     def __setattr__(self, name, value):
