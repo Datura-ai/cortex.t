@@ -64,7 +64,6 @@ class WeightSetter:
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
-    
 
     def get_current_block(self):
         return self.node.query("System", "Number", []).value
@@ -74,7 +73,8 @@ class WeightSetter:
 
     def get_last_update(self, block):
         try:
-            last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[self.my_uid]
+            last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[
+                self.my_uid]
         except Exception as e:
             bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
             # means that the validator is not registered yet. The validator should break if this is the case anyways
@@ -234,11 +234,6 @@ class WeightSetter:
             for steps_passed in itertools.count():
 
                 selected_validator = self.select_validator()
-                if not selected_validator.should_i_score():
-                    bt.logging.info("We don't score this time.")
-                    await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
-                    continue
-
                 available_uids = await self.get_available_uids()
                 if not len(available_uids):
                     bt.logging.info("no available uids. so referesh network and continue.")
@@ -259,19 +254,21 @@ class WeightSetter:
 
                 current_block = self.get_current_block()
                 last_update = self.get_last_update(current_block)
-                if last_update >= self.tempo * 2 or (self.get_blocks_til_epoch(current_block) < 20 and last_update >= self.weights_rate_limit):
+                if last_update >= self.tempo * 2 or (
+                        self.get_blocks_til_epoch(current_block) < 20 and last_update >= self.weights_rate_limit):
                     bt.logging.info("updating weights...")
                     await self.update_weights(steps_passed)
                     bt.logging.info("refreshing metagraph...")
                     await self.refresh_metagraph()
-                    
+
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
 
     def select_validator(self):
         rand = random.random()
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
-        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config, metagraph=self.metagraph)
+        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+                                                                            metagraph=self.metagraph)
         if rand > self.config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
             bt.logging.info("text_validator is selected.")
             return text_validator
@@ -314,9 +311,13 @@ class WeightSetter:
 
     async def process_modality(self, selected_validator: BaseValidator, available_uids):
         uid_list = self.shuffled(available_uids)
-        bt.logging.info(f"starting {selected_validator.__class__.__name__} get_and_score for {uid_list}")
-        uid_scores_dict, scored_responses, responses = \
-            await selected_validator.get_and_score(uid_list)
+        bt.logging.info(f"starting query {selected_validator.__class__.__name__} for miners {uid_list}")
+        query_responses = await selected_validator.start_query(available_uids)
+        if not selected_validator.should_i_score():
+            bt.logging.info("should_i_score is false. so skipping score process.")
+            return None
+        bt.logging.info("scoring query with query responses")
+        uid_scores_dict, scored_responses, responses = await selected_validator.score_responses(query_responses)
         wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
         if self.config.wandb_on and not wandb_data:
             wandb.log(wandb_data)
