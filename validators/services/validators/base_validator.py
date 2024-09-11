@@ -41,7 +41,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         for index, uid in enumerate(available_uids):
 
             if item_type == "images":
-                content  = await utils.get_question("images", len(available_uids))
+                content = await utils.get_question("images", len(available_uids))
                 self.uid_to_questions[uid] = content  # Store messages for each UID
             elif item_type == "text":
                 question = await utils.get_question("text", len(available_uids), vision)
@@ -99,7 +99,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         uid_scores_dict = {}
         scored_response = []
 
-
         for uid, syn in responses:
             task = self.get_answer_task(uid, syn)
             answering_tasks.append((uid, task))
@@ -112,7 +111,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         # Await all scoring tasks
         scored_responses = await asyncio.gather(*[task for _, task in scoring_tasks])
-        average_score = sum(scored_responses) / len(scored_responses) if scored_responses else 0
+        average_score = sum(0 if score is None else score for score in scored_responses) / len(
+            scored_responses) if scored_responses else 0
         bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
 
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
