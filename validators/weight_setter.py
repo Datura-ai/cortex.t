@@ -25,6 +25,7 @@ scoring_organic_timeout = 60
 
 class WeightSetter:
     def __init__(self, config):
+        self.available_uids = []
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
@@ -229,21 +230,15 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def perform_synthetic_scoring_and_update_weights(self):
+        self.available_uids = await self.get_available_uids()
+
         while True:
             bt.logging.info("start validating process.")
             for steps_passed in itertools.count():
 
                 selected_validator = self.select_validator()
-                available_uids = await self.get_available_uids()
-                if not len(available_uids):
-                    bt.logging.info("no available uids. so referesh network and continue.")
-                    await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
-                    continue
-                bt.logging.info(f"available uids: {available_uids.keys()}")
-                if self.config.max_miners_cnt < len(available_uids):
-                    available_uids = random.sample(list(available_uids.keys()), self.config.max_miners_cnt)
 
-                uid_to_scores = await self.process_modality(selected_validator, available_uids)
+                uid_to_scores = await self.process_modality(selected_validator, self.available_uids)
 
                 if uid_to_scores is None:
                     bt.logging.info("uid_to_scores is None.")
@@ -260,6 +255,8 @@ class WeightSetter:
                     await self.update_weights(steps_passed)
                     bt.logging.info("refreshing metagraph...")
                     await self.refresh_metagraph()
+                    bt.logging.info("refreshing available uids...")
+                    self.available_uids = await self.get_available_uids()
 
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
@@ -286,6 +283,10 @@ class WeightSetter:
         # Create a dictionary of UID to axon info for active UIDs
         available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
 
+        bt.logging.info(f"available uids: {available_uids.keys()}")
+        if self.config.max_miners_cnt < len(available_uids):
+            available_uids = random.sample(list(available_uids.keys()), self.config.max_miners_cnt)
+
         return available_uids
 
     async def check_uid(self, axon, uid):
@@ -310,6 +311,9 @@ class WeightSetter:
         return list_
 
     async def process_modality(self, selected_validator: BaseValidator, available_uids):
+        if not available_uids:
+            bt.logging.info("No available uids.")
+            return None
         uid_list = self.shuffled(available_uids)
         bt.logging.info(f"starting query {selected_validator.__class__.__name__} for miners {uid_list}")
         query_responses = await selected_validator.start_query(available_uids)
