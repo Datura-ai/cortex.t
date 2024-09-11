@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import base64
+import itertools
 import bittensor as bt
 
 from PIL import Image
@@ -36,3 +37,13 @@ def error_handler(func):
         return result
 
     return wrapper
+
+
+def get_should_i_score_arr_for_text():
+    for i in itertools.count():
+        yield (i % 5) != 0
+
+
+def get_should_i_score_arr_for_image():
+    for i in itertools.count():
+        yield (i % 1) != 0

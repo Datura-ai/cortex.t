@@ -76,8 +76,9 @@ class WeightSetter:
         try:
             last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[
                 self.my_uid]
-        except Exception as e:
+        except Exception as err:
             bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
+            bt.logging.exception(err)
             # means that the validator is not registered yet. The validator should break if this is the case anyways
             last_update_blocks = 1000
 
@@ -314,13 +315,15 @@ class WeightSetter:
         if not available_uids:
             bt.logging.info("No available uids.")
             return None
-        uid_list = self.shuffled(available_uids)
-        bt.logging.info(f"starting query {selected_validator.__class__.__name__} for miners {uid_list}")
+        bt.logging.info(f"starting query {selected_validator.__class__.__name__} for miners {available_uids}")
         query_responses = await selected_validator.start_query(available_uids)
+
         if not selected_validator.should_i_score():
-            bt.logging.info("should_i_score is false. so skipping score process.")
+            bt.logging.info("we don't score this time.")
             return None
-        bt.logging.info("scoring query with query responses")
+
+        bt.logging.info(f"scoring query with query responses for "
+                        f"these uids: {available_uids}")
         uid_scores_dict, scored_responses, responses = await selected_validator.score_responses(query_responses)
         wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
         if self.config.wandb_on and not wandb_data:

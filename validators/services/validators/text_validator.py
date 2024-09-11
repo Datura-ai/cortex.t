@@ -12,9 +12,11 @@ from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
+from validators.utils import get_should_i_score_arr_for_text
 
 
 class TextValidator(BaseValidator):
+    gen_should_i_score = get_should_i_score_arr_for_text()
     def __init__(self, config, provider: str = None, model: str = None, metagraph=None):
         super().__init__(config, metagraph)
         self.streaming = True
@@ -124,11 +126,9 @@ class TextValidator(BaseValidator):
         self.model = random.choices(list(model_to_weights.keys()),
                                     weights=list(model_to_weights.values()), k=1)[0]
 
-    def should_i_score(self):
-        random_number = random.random()
-        will_score_all = random_number < 1 / 5
-        bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
-        return will_score_all
+    @classmethod
+    def should_i_score(cls):
+        return next(cls.gen_should_i_score)
 
     @error_handler
     async def build_wandb_data(self, uid_to_score, responses):
