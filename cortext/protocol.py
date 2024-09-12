@@ -1,8 +1,8 @@
-from enum import Enum
 from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
+from .enum import BandWidth
 
 
 class IsAlive(bt.Synapse):
@@ -13,6 +13,11 @@ class IsAlive(bt.Synapse):
         description="Completion status of the current StreamPrompting object. "
                     "This attribute is mutable and can be updated.",
     )
+
+
+class NodeInfo(bt.Synapse):
+    bandwidth_compute: Optional[Dict[BandWidth, int]] = None
+    bandwidth_io: Optional[Dict[BandWidth, int]] = None
 
 
 class ImageResponse(bt.Synapse):
