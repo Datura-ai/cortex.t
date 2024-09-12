@@ -17,7 +17,7 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import BaseValidator, TextValidator
+from validators.services import BaseValidator, TextValidator, CapacityService
 
 iterations_per_set_weights = 10
 scoring_organic_timeout = 60
@@ -25,6 +25,7 @@ scoring_organic_timeout = 60
 
 class WeightSetter:
     def __init__(self, config):
+        self.uid_to_capacity = {}
         self.available_uids = []
         bt.logging.info("Initializing WeightSetter")
         self.config = config
@@ -232,6 +233,8 @@ class WeightSetter:
 
     async def perform_synthetic_scoring_and_update_weights(self):
         self.available_uids = await self.get_available_uids()
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        bt.logging.info(f"capacities for miners: {self.uid_to_capacity}")
 
         while True:
             bt.logging.info("start validating process.")
@@ -258,6 +261,8 @@ class WeightSetter:
                     await self.refresh_metagraph()
                     bt.logging.info("refreshing available uids...")
                     self.available_uids = await self.get_available_uids()
+                    bt.logging.info("refreshing capacities...")
+                    self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
 
                 # if we want to slow down the speed of the validator steps
                 await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
@@ -273,6 +278,11 @@ class WeightSetter:
         else:
             bt.logging.info("image_validator is selected.")
             return image_validator
+
+    async def get_capacities_for_uids(self, uids):
+        capacity_service = CapacityService(metagraph=self.metagraph, dendrite=self.dendrite)
+        uid_to_capacity = await capacity_service.query_capacity_to_miners(uids)
+        return uid_to_capacity
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""

@@ -1,5 +1,5 @@
 from cortext import ImageResponse, TextPrompting, StreamPrompting
-from providers import OpenAI, Anthropic, AnthropicBedrock, Groq, Gemini, Bedrock
+from miner.providers import OpenAI, Anthropic, AnthropicBedrock, Groq, Gemini, Bedrock
 
 task_image = ImageResponse.__name__
 task_text = TextPrompting.__name__

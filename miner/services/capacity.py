@@ -5,7 +5,7 @@ from typing import Tuple
 
 from .base import BaseService
 from cortext import ISALIVE_BLACKLIST_STAKE
-from miner.capacity import capacity_to_task_and_provider
+from miner.constants import capacity_to_task_and_provider
 
 
 class CapacityService(BaseService):

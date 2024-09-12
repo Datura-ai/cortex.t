@@ -4,6 +4,7 @@ from .image import ImageService
 from .embedding import EmbeddingService
 from .text import TextService
 from .check_status import IsAliveService
+from .capacity import CapacityService
 
-ALL_SERVICE_TYPE = Union[PromptService, ImageService, EmbeddingService, TextService, IsAliveService]
-__all__ = [PromptService, ImageService, EmbeddingService, ALL_SERVICE_TYPE]
+ALL_SERVICE_TYPE = Union[PromptService, ImageService, EmbeddingService, TextService, IsAliveService, CapacityService]
+__all__ = [PromptService, ImageService, EmbeddingService, CapacityService, ALL_SERVICE_TYPE]
