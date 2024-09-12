@@ -2,7 +2,6 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
-from .enum import BandWidth
 
 
 class IsAlive(bt.Synapse):
@@ -16,8 +15,8 @@ class IsAlive(bt.Synapse):
 
 
 class NodeInfo(bt.Synapse):
-    bandwidth_compute: Optional[Dict[BandWidth, int]] = None
-    bandwidth_io: Optional[Dict[BandWidth, int]] = None
+    bandwidth_compute: Optional[Dict[str, int]] = None
+    bandwidth_io: Optional[Dict[str, int]] = None
 
 
 class ImageResponse(bt.Synapse):

@@ -1,12 +1,11 @@
 import bittensor as bt
 
-from cortext.enum import BandWidth
 from cortext.protocol import NodeInfo
 from typing import Tuple
 
 from .base import BaseService
 from cortext import ISALIVE_BLACKLIST_STAKE
-from miner.config import config
+from miner.capacity import capacity_to_task_and_provider
 
 
 class CapacityService(BaseService):
@@ -15,8 +14,7 @@ class CapacityService(BaseService):
 
     async def forward_fn(self, synapse: NodeInfo):
         bt.logging.debug("capacity request is being processed")
-        synapse.bandwidth_compute[BandWidth.TASKS_PER_SEC] = config.TASKS_PER_SEC
-        synapse.bandwidth_compute[BandWidth.CHARS_PER_SEC] = config.CHARS_PER_SEC_IN_AVG
+        synapse.bandwidth_compute = capacity_to_task_and_provider
         bt.logging.info("check status is executed.")
         return synapse
 

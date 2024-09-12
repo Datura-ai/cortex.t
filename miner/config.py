@@ -44,10 +44,6 @@ class Config:
         self.NO_SERVE = os.getenv('NO_SERVE', False)
 
 
-        #CAPACITY
-        self.TASKS_PER_SEC = os.getenv("TASKS_PER_SEC", 1)
-        self.CHARS_PER_SEC_IN_AVG = os.getenv("CHARS_PER_SEC", 5)
-
     def __repr__(self):
         return (
             f"Config(BT_SUBTENSOR_NETWORK={self.BT_SUBTENSOR_NETWORK}, WALLET_NAME={self.WALLET_NAME}, HOT_KEY={self.HOT_KEY}"
