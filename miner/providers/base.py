@@ -5,7 +5,7 @@ import httpx
 from starlette.types import Send
 from abc import abstractmethod
 
-from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
+from cortext.protocol import StreamPrompting, Embeddings, ImageResponse, IsAlive
 from cortext import ALL_SYNAPSE_TYPE
 from cortext.metaclasses import ProviderRegistryMeta
 from miner.error_handler import error_handler
@@ -15,7 +15,7 @@ class Provider(metaclass=ProviderRegistryMeta):
         self.model = synapse.model
         self.uid = synapse.uid
         self.timeout = synapse.timeout
-        if type(synapse) in [StreamPrompting, TextPrompting]:
+        if type(synapse) in [StreamPrompting]:
             self.messages = synapse.messages
             self.required_hash_fields = synapse.required_hash_fields
             self.seed = synapse.seed

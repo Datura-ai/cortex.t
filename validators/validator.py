@@ -34,10 +34,6 @@ class NestedNamespace(argparse.Namespace):
 
 class Config:
     def __init__(self, args):
-        self.ENV = os.getenv('ENV')
-        self.ASYNC_TIME_OUT = int(os.getenv('ASYNC_TIME_OUT', 60))
-        self.SLEEP_PER_ITERATION = 1
-        self.IMAGE_VALIDATOR_CHOOSE_PROBABILITY = 0.01
 
         # Add command-line arguments to the Config object
         for key, value in vars(args).items():
@@ -66,6 +62,8 @@ def parse_arguments():
     parser.add_argument("--axon.port", type=int, default=8000)
     parser.add_argument("--logging.level", choices=['info', 'debug', 'trace'], default='info')
     parser.add_argument("--autoupdate", action="store_true", help="Enable auto-updates")
+    parser.add_argument("--image_validator_probability", type=float, default=0.001)
+    parser.add_argument("--async_time_out", type=int, default=60)
     return parser.parse_args(namespace=NestedNamespace())
 
 

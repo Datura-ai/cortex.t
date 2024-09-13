@@ -1,6 +1,5 @@
 import asyncio
 import concurrent
-import itertools
 import random
 import torch
 import traceback
@@ -11,7 +10,6 @@ import wandb
 import bittensor as bt
 
 import cortext
-from cortext.protocol import TextPrompting
 
 from starlette.types import Send
 
@@ -19,7 +17,6 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import BaseValidator, TextValidator, CapacityService
 
-iterations_per_set_weights = 10
 scoring_organic_timeout = 60
 
 
@@ -29,29 +26,28 @@ class WeightSetter:
         self.available_uids = None
         self.NUM_QUERIES_PER_UID = 10
         self.remaining_queries = []
-        self.total_scores = None
-        self.score_counts = None
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
         self.subtensor = bt.subtensor(config=config)
         self.node = SubstrateInterface(url=config.subtensor.chain_endpoint)
         self.netuid = self.config.netuid
-        self.metagraph = self.subtensor.metagraph(netuid=self.netuid)
+        self.metagraph = bt.metagraph(netuid=self.netuid, network=config.subtensor.chain_endpoint)
         self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         bt.logging.info(f"Running validator on subnet: {self.netuid} with uid: {self.my_uid}")
 
         # Initialize scores
+        self.total_scores = {}
+        self.score_counts = {}
         self.moving_average_scores = None
-        self.total_scores = torch.zeros(len(self.metagraph.hotkeys))
-
+        
         # Set up axon and dendrite
         self.axon = bt.axon(wallet=self.wallet, config=self.config)
-        self.axon.start()
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
         self.dendrite = config.dendrite
 
         # Set up async-related attributes
+        self.lock = asyncio.Lock()
         self.loop = asyncio.get_event_loop()
         self.request_timestamps = {}
         self.organic_scoring_tasks = set()
@@ -96,49 +92,54 @@ class WeightSetter:
     async def refresh_metagraph(self):
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
-    async def perform_synthetic_scoring_and_update_weights(self):
-        if self.available_uids is None:
-            self.available_uids = await self.get_available_uids()
-            bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
-            self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
-            bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
-            self.total_scores = {uid: 0.0 for uid in self.available_uids.keys()}
-            self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
-
-            # Initialize total_scores after obtaining available_uids
-            self.total_scores = {uid: 0 for uid in self.available_uids.keys()}
-
-        # Create a list of UIDs to query, each appearing NUM_QUERIES_PER_UID times
+    async def initialize_uids_and_capacities(self):
+        self.available_uids = await self.get_available_uids()
+        bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
+        self.total_scores = {uid: 0.0 for uid in self.available_uids.keys()}
+        self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
         self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
-        steps_passed = 0
 
+    async def update_and_refresh(self, last_update):
+        bt.logging.info(f"setting weights, last update {last_update} blocks ago")
+        await self.update_weights()
+
+        bt.logging.info("Refreshing metagraph...")
+        await self.refresh_metagraph()
+
+        bt.logging.info("Refreshing available UIDs...")
+        self.available_uids = await self.get_available_uids()
+        bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
+
+        bt.logging.info("Refreshing capacities...")
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        
+        self.total_scores = {uid: 0 for uid in self.available_uids.keys()}
+        self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
+        self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
+
+
+    async def perform_synthetic_scoring_and_update_weights(self):        
         while True:
-            current_block = self.get_current_block()
-            if not self.remaining_queries:
-                bt.logging.info("No more queries to perform until next epoch.")
-                last_update = self.get_last_update(current_block)
+            if self.available_uids is None:
+                await self.initialize_uids_and_capacities()
 
+            current_block = self.get_current_block()
             last_update = self.get_last_update(current_block)
+
             if last_update >= self.tempo * 2 or (
                     self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
                 
-                bt.logging.info(f"setting weights, last update {last_update} blocks ago")
-                await self.update_weights(steps_passed)
-
-                bt.logging.info("Refreshing metagraph...")
-                await self.refresh_metagraph()
-
-                bt.logging.info("Refreshing available UIDs...")
-                self.available_uids = await self.get_available_uids()
-                bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
-
-                bt.logging.info("Refreshing capacities...")
-                self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+                await self.update_and_refresh(last_update)
                 
-                self.total_scores = {uid: 0 for uid in self.available_uids.keys()}
-                self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
+            if not self.remaining_queries:
+                bt.logging.info("No more queries to perform until next epoch.")
+                continue
 
-            bt.logging.info(f"not setting weights, set weights {last_update} blocks ago")
+            bt.logging.debug(f"not setting weights, last update {last_update} blocks ago, "
+                             f"{self.get_blocks_til_epoch(current_block)} blocks til epoch")
+            
             selected_validator = self.select_validator()
             num_uids_to_query = min(self.config.max_miners_cnt, len(self.remaining_queries))
 
@@ -146,25 +147,26 @@ class WeightSetter:
             uids_to_query = [self.remaining_queries.pop() for _ in range(num_uids_to_query)]
             uid_to_scores = await self.process_modality(selected_validator, uids_to_query)
 
+            bt.logging.info(f"Remaining queries: {len(self.remaining_queries)}")
+
             if uid_to_scores is None:
                 bt.logging.trace("uid_to_scores is None.")
-                bt.logging.info(f"Remaining queries: {len(self.remaining_queries)}")
                 continue
 
             for uid, score in uid_to_scores.items():
-                self.total_scores[uid] += score
-                self.score_counts[uid] += 1
-
+                async with self.lock:
+                    self.total_scores[uid] += score
+                    self.score_counts[uid] += 1
 
             # Slow down the validator steps if necessary
-            await asyncio.sleep(self.config.SLEEP_PER_ITERATION)
+            await asyncio.sleep(1)
 
     def select_validator(self):
         rand = random.random()
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
         image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
                                                                             metagraph=self.metagraph)
-        if rand > self.config.IMAGE_VALIDATOR_CHOOSE_PROBABILITY:
+        if rand > self.config.image_validator_probability:
             return text_validator
         else:
             return image_validator
@@ -240,7 +242,7 @@ class WeightSetter:
             if count > 0:
                 avg_scores[uid] = self.total_scores[uid] / count
             else:
-                avg_scores[uid] = 0.0  # Handle division by zero if needed
+                avg_scores[uid] = 0.0
 
         bt.logging.info(f"Average scores = {avg_scores}")
 
@@ -274,22 +276,17 @@ class WeightSetter:
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
-        return blacklist
-
-    def blacklist_is_alive(self, synapse: IsAlive) -> Tuple[bool, str]:
-        blacklist = self.base_blacklist(synapse, cortext.ISALIVE_BLACKLIST_STAKE)
         bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_images(self, synapse: ImageResponse) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.IMAGE_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
+        bt.logging.debug(blacklist[1])
         return blacklist
 
     def blacklist_embeddings(self, synapse: Embeddings) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.EMBEDDING_BLACKLIST_STAKE)
-        bt.logging.info(blacklist[1])
+        bt.logging.debug(blacklist[1])
         return blacklist
 
     def base_blacklist(self, synapse, blacklist_amt=20000) -> Tuple[bool, str]:
@@ -311,7 +308,7 @@ class WeightSetter:
     async def images(self, synapse: ImageResponse) -> ImageResponse:
         bt.logging.info(f"received {synapse}")
 
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
+        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
                                       timeout=synapse.timeout)
 
         bt.logging.info(f"new synapse = {synapse}")
@@ -329,27 +326,24 @@ class WeightSetter:
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
         bt.logging.info(f"received {synapse}")
 
+        # Return the streaming response as before
         async def _prompt(synapse, send: Send):
-            bt.logging.info(
-                f"Sending {synapse} request to uid: {synapse.uid}, "
-            )
+            bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
 
             async def handle_response(responses):
                 for resp in responses:
                     async for chunk in resp:
                         if isinstance(chunk, str):
-                            await send(
-                                {
-                                    "type": "http.response.body",
-                                    "body": chunk.encode("utf-8"),
-                                    "more_body": True,
-                                }
-                            )
+                            await send({
+                                "type": "http.response.body",
+                                "body": chunk.encode("utf-8"),
+                                "more_body": True,
+                            })
                             bt.logging.info(f"Streamed text: {chunk}")
-                    await send({"type": "http.response.body", "body": b'', "more_body": False})
+                await send({"type": "http.response.body", "body": b'', "more_body": False})
 
             axon = self.metagraph.axons[synapse.uid]
-            responses = self.dendrite.query(
+            responses = await self.dendrite(
                 axons=[axon],
                 synapse=synapse,
                 deserialize=False,
@@ -360,16 +354,6 @@ class WeightSetter:
 
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
-
-    def text(self, synapse: TextPrompting) -> TextPrompting:
-        synapse.completion = "completed"
-        bt.logging.info("completed")
-
-        synapse = self.dendrite.query(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
-                                      timeout=synapse.timeout)
-
-        bt.logging.info(f"synapse = {synapse}")
-        return synapse
 
     async def consume_organic_scoring(self):
         bt.logging.info("Attaching forward function to axon.")
@@ -382,31 +366,14 @@ class WeightSetter:
         ).attach(
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
-        ).attach(
-            forward_fn=self.text,
         )
         self.axon.serve(netuid=self.netuid)
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
         while True:
             try:
-                if self.organic_scoring_tasks:
-                    completed, _ = await asyncio.wait(self.organic_scoring_tasks, timeout=1,
-                                                      return_when=asyncio.FIRST_COMPLETED)
-                    for task in completed:
-                        if task.exception():
-                            bt.logging.error(
-                                f'Encountered in {TextValidator.score_responses.__name__} task:\n'
-                                f'{"".join(traceback.format_exception(task.exception()))}'
-                            )
-                        else:
-                            success, data = task.result()
-                            if not success:
-                                continue
-                            self.total_scores += data[0]
-                    self.organic_scoring_tasks.difference_update(completed)
-                else:
-                    await asyncio.sleep(60)
+                # Check for organic scoring tasks here
+                await asyncio.sleep(60)
             except Exception as err:
                 bt.logging.exception(err)
                 await asyncio.sleep(10)

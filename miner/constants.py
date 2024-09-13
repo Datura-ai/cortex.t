@@ -1,4 +1,4 @@
-from cortext import ImageResponse, TextPrompting, StreamPrompting
+from cortext import ImageResponse, StreamPrompting
 from miner.providers import OpenAI, Anthropic, AnthropicBedrock, Groq, Gemini, Bedrock
 
 task_image = ImageResponse.__name__

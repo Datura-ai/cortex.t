@@ -322,95 +322,14 @@ class StreamPrompting(bt.StreamingSynapse):
             "axon": extract_info("bt_header_axon"),
             "messages": self.messages,
             "completion": self.completion,
+            "provider": self.provider,
+            "model": self.model,
+            "seed": self.seed,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "top_k": self.top_k,
+            "timeout": self.timeout,
+            "streaming": self.streaming,
+            "uid": self.uid,
         }
-
-
-class TextPrompting(bt.Synapse):
-    messages: List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]] = pydantic.Field(
-        ...,
-        title="Messages",
-        description="A list of messages in the StreamPrompting scenario, "
-                    "each containing a role and content. Immutable.",
-        allow_mutation=False,
-    )
-
-    required_hash_fields: List[str] = pydantic.Field(
-        ["messages"],
-        title="Required Hash Fields",
-        description="A list of required fields for the hash.",
-        allow_mutation=False,
-    )
-
-    seed: int = pydantic.Field(
-        default="1234",
-        title="Seed",
-        description="Seed for text generation. This attribute is immutable and cannot be updated.",
-    )
-
-    temperature: float = pydantic.Field(
-        default=0.0001,
-        title="Temperature",
-        description="Temperature for text generation. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    max_tokens: int = pydantic.Field(
-        default=2048,
-        title="Max Tokens",
-        description="Max tokens for text generation. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    top_p: float = pydantic.Field(
-        default=0.001,
-        title="Top_p",
-        description="Top_p for text generation. The sampler will pick one of "
-                    "the top p percent tokens in the logit distirbution. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    top_k: int = pydantic.Field(
-        default=1,
-        title="Top_k",
-        description="Top_k for text generation. Sampler will pick one of  "
-                    "the k most probablistic tokens in the logit distribtion. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    completion: str = pydantic.Field(
-        None,
-        title="Completion",
-        description="Completion status of the current StreamPrompting object. "
-                    "This attribute is mutable and can be updated.",
-    )
-
-    provider: str = pydantic.Field(
-        default="OpenAI",
-        title="Provider",
-        description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini, Groq, Bedrock",
-    )
-
-    model: str = pydantic.Field(
-        default="gpt-3.5-turbo",
-        title="model",
-        description="The model to use when calling provider for your response.",
-    )
-
-    uid: int = pydantic.Field(
-        default=3,
-        title="uid",
-        description="The UID to send the streaming synapse to",
-    )
-
-    timeout: int = pydantic.Field(
-        default=60,
-        title="timeout",
-        description="The timeout for the dendrite of the streaming synapse",
-    )
-
-    streaming: bool = pydantic.Field(
-        default=True,
-        title="streaming",
-        description="whether to stream the output",
-    )

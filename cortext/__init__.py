@@ -36,7 +36,7 @@ from typing import Union
 
 from openai import AsyncOpenAI
 
-from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
+from cortext.protocol import StreamPrompting, Embeddings, ImageResponse, IsAlive
 
 load_dotenv()
 try:
@@ -3768,4 +3768,4 @@ IMAGE_THEMES = [
 ]
 
 
-ALL_SYNAPSE_TYPE = Union[StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive]
+ALL_SYNAPSE_TYPE = Union[StreamPrompting, Embeddings, ImageResponse, IsAlive]
