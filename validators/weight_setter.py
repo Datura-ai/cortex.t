@@ -3,6 +3,8 @@ import concurrent
 import random
 import torch
 import traceback
+
+from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple
@@ -14,7 +16,7 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService, BaseValidator
+from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.utils import handle_response
 
 scoring_organic_timeout = 60
@@ -209,19 +211,18 @@ class WeightSetter:
 
     async def perform_queries(self, selected_validator, uids_to_query):
         query_responses = []
-        tasks = []
-        async def query_miner_per_uid(uid):
-            try:
-                query_syn = await selected_validator.create_query(uid)
-                response = await self.query_miner(uid, query_syn)
-                query_responses.append((uid, {'query': query_syn, 'response': response}))
-            except Exception as e:
-                bt.logging.error(f"Exception during query for uid {uid}: {e}")
-
+        response_tasks = []
+        query_tasks = []
         for uid in uids_to_query:
-            task = query_miner_per_uid(uid)
-            tasks.append(task)
-        await asyncio.gather(*tasks)
+            query_task = selected_validator.create_query(uid)
+            query_tasks.append(query_task)
+        queries = await asyncio.gather(*query_tasks)
+        for uid, query in zip(uids_to_query, queries):
+            response_tasks.append(self.query_miner(uid, query))
+
+        responses = await asyncio.gather(*response_tasks)
+        for uid, query_syn, response in zip(uids_to_query, queries, responses):
+            query_responses.append((uid, {'query': query_syn, 'response': response}))
         return query_responses
 
     @handle_response
@@ -483,25 +484,28 @@ class WeightSetter:
                 queries_to_process = self.query_database.copy()
                 self.query_database.clear()
 
+            validator_to_query_resps = defaultdict(list)
+            type_to_validator = {}
             # Process queries outside the lock to prevent blocking
             for query_data in queries_to_process:
                 uid = query_data['uid']
                 synapse = query_data['synapse']
                 response = query_data['response']
                 validator = query_data['validator']
+                type_to_validator[type(validator)] = validator
+                validator_to_query_resps[type(validator)].append((uid, {'query': synapse, 'response': response}))
 
-                # Prepare query response data in the format expected by the validator
-                query_responses = [(uid, {'query': synapse, 'response': response})]
+            score_tasks = []
+            for vali_type in type_to_validator:
+                validator = type_to_validator[vali_type]
+                text_score_task = validator.score_responses(validator_to_query_resps[vali_type])
+                score_tasks.append(text_score_task)
 
-                # Score the response using the validator
-                try:
-                    uid_scores_dict, _, _ = await validator.score_responses(query_responses)
-                except Exception as e:
-                    bt.logging.error(f"Error scoring response for UID {uid}: {e}")
-                    continue
-
-                # Update total_scores and score_counts
-                async with self.lock:
+            resps = await asyncio.gather(*score_tasks)
+            resps = [item for item in resps if item is not None]
+            # Update total_scores and score_counts
+            async with self.lock:
+                for uid_scores_dict, _, _ in resps:
                     for uid, score in uid_scores_dict.items():
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1

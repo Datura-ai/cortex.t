@@ -7,6 +7,7 @@ from typing import List, Tuple
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
+from validators.utils import error_handler
 
 dataset = None
 
@@ -65,6 +66,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def get_scoring_task(self, uid, answer, response):
         pass
 
+    @error_handler
     async def score_responses(self, responses):
         answering_tasks = []
         scoring_tasks = []
@@ -89,12 +91,14 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
+                bt.logging.trace(f"scored response is None for uid {uid}")
                 uid_scores_dict[uid] = float(scored_response)
             else:
                 uid_scores_dict[uid] = 0
 
         if uid_scores_dict != {}:
-            bt.logging.info(f"text_scores is {uid_scores_dict}")
+            validator_type = self.__class__.__name__
+            bt.logging.info(f"{validator_type} scores is {uid_scores_dict}")
         bt.logging.trace("score_responses process completed.")
 
         return uid_scores_dict, scored_response, responses

@@ -72,9 +72,9 @@ class TextValidator(BaseValidator):
                 bt.logging.trace(resp)
                 yield uid, resp
 
-    async def get_question(self):
+    async def get_question(self, miner_cnt=1):
         is_vision_model = self.model in constants.VISION_MODELS
-        question = await get_question("text", 1, is_vision_model)
+        question = await get_question("text", miner_cnt, is_vision_model)
         return question
 
     async def create_query(self, uid) -> bt.Synapse:
