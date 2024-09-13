@@ -14,7 +14,8 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService
+from validators.services import CapacityService, BaseValidator
+from validators.utils import handle_response
 
 scoring_organic_timeout = 60
 
@@ -34,15 +35,15 @@ class WeightSetter:
 
         # Scoring and querying parameters
         self.MIN_SCORED_QUERIES = 10  # Minimum number of times each UID should be scored per epoch
-        self.scoring_percent = 0.1    # Percentage of total queries that will be scored
+        self.scoring_percent = 0.1  # Percentage of total queries that will be scored
         self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
         bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
                         f"with {self.MIN_SCORED_QUERIES} of them being scored.")
 
         # Initialize scores and counts
         self.total_scores = {}
-        self.score_counts = {}         # Number of times a UID has been scored
-        self.total_queries_sent = {}   # Total queries sent to each UID
+        self.score_counts = {}  # Number of times a UID has been scored
+        self.total_queries_sent = {}  # Total queries sent to each UID
         self.moving_average_scores = None
 
         # Set up axon and dendrite
@@ -173,8 +174,10 @@ class WeightSetter:
             uids_to_query = uids_to_query[:num_uids_to_query]
 
             selected_validator = self.select_validator()
+            selected_validator.select_random_provider_and_model()
 
             # Perform synthetic queries
+            bt.logging.info("start querying to miners")
             query_responses = await self.perform_queries(selected_validator, uids_to_query)
 
             # Store queries and responses in the shared database
@@ -216,23 +219,25 @@ class WeightSetter:
                 continue
         return query_responses
 
+    @handle_response
     async def query_miner(self, uid, synapse):
-        try:
-            axon = self.metagraph.axons[uid]
-            responses = await self.dendrite(
-                axons=[axon],
-                synapse=synapse,
-                deserialize=False,
-                timeout=synapse.timeout,
-                streaming=False,
-            )
-            # Handle the response appropriately
-            return responses[0]  # Assuming responses is a list
-        except Exception as e:
-            bt.logging.error(f"Exception during query for uid {uid}: {e}")
-            return None
+        axon = self.metagraph.axons[uid]
 
-    def select_validator(self):
+        streaming = False
+        if isinstance(synapse, bt.StreamingSynapse):
+            streaming = True
+
+        responses = await self.dendrite(
+            axons=[axon],
+            synapse=synapse,
+            deserialize=False,
+            timeout=synapse.timeout,
+            streaming=streaming,
+        )
+        # Handle the response appropriately
+        return responses[0]  # Assuming responses is a list
+
+    def select_validator(self) -> BaseValidator:
         rand = random.random()
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
         image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
@@ -367,7 +372,8 @@ class WeightSetter:
                 'response': synapse_response,
                 'query_type': 'organic',
                 'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config, metagraph=self.metagraph)
+                'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+                                                                               metagraph=self.metagraph)
             })
             # Update total_queries_sent
             self.total_queries_sent[synapse.uid] += 1
@@ -390,7 +396,8 @@ class WeightSetter:
                 'response': synapse_response,
                 'query_type': 'organic',
                 'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config, metagraph=self.metagraph)
+                'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config,
+                                                                                    metagraph=self.metagraph)
             })
             # Update total_queries_sent
             self.total_queries_sent[synapse.uid] += 1
@@ -436,7 +443,8 @@ class WeightSetter:
                     'response': response_text,
                     'query_type': 'organic',
                     'timestamp': asyncio.get_event_loop().time(),
-                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                  metagraph=self.metagraph)
                 })
                 # Update total_queries_sent
                 self.total_queries_sent[synapse.uid] += 1

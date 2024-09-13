@@ -37,6 +37,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 
+    @abstractmethod
+    def select_random_provider_and_model(self):
+        pass
+
     async def handle_response(self, uid, response) -> Tuple[int, bt.Synapse]:
         if type(response) == list and response:
             response = response[0]

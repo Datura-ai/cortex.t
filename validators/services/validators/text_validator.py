@@ -72,17 +72,6 @@ class TextValidator(BaseValidator):
                 bt.logging.trace(resp)
                 yield uid, resp
 
-    async def handle_response(self, uid: str, responses) -> tuple[str, str]:
-        full_response = ""
-        for resp in responses:
-            async for chunk in resp:
-                if isinstance(chunk, str):
-                    bt.logging.trace(chunk)
-                    full_response += chunk
-            bt.logging.trace(f"full_response for uid {uid}: {full_response}")
-            break
-        return uid, full_response
-
     async def get_question(self):
         is_vision_model = self.model in constants.VISION_MODELS
         question = await get_question("text", 1, is_vision_model)

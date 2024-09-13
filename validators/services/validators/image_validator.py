@@ -50,7 +50,7 @@ class ImageValidator(BaseValidator):
             self.model = "dall-e-3"
 
     async def get_question(self):
-        question = await get_question("image", 1)
+        question = await get_question("images", 1)
         return question
 
     async def create_query(self, uid) -> bt.Synapse:

@@ -15,6 +15,7 @@ from validators.weight_setter import WeightSetter
 load_dotenv()
 random.seed(time.time())
 
+
 class NestedNamespace(argparse.Namespace):
     def __setattr__(self, name, value):
         if '.' in name:
@@ -115,9 +116,11 @@ def main():
     Config.check_required_env_vars()
     args = parse_arguments()
     config = Config(args)
+
+    setup_logging(config)
+
     config.wallet = bt.wallet(name=config.wallet.name, hotkey=config.wallet.hotkey)
     config.dendrite = bt.dendrite(wallet=config.wallet)
-    setup_logging(config)
 
     bt.logging.info(f"Config: {vars(config)}")
 

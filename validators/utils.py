@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import base64
 import itertools
+import inspect
 import bittensor as bt
 
 from PIL import Image
@@ -35,6 +36,31 @@ def error_handler(func):
             return None
 
         return result
+
+    return wrapper
+
+
+async def handle_response_stream(responses) -> tuple[str, str]:
+    full_response = ""
+    async for chunk in responses:
+        if isinstance(chunk, str):
+            bt.logging.trace(chunk)
+            full_response += chunk
+    return full_response
+
+
+def handle_response(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            response = await func(*args, **kwargs)
+            if inspect.isasyncgen(response):
+                return await handle_response_stream(response)
+            else:
+                return response
+        except Exception as err:
+            bt.logging.exception(f"Exception during query for uid {args[1]}, {err}")
+            return None
 
     return wrapper
 
