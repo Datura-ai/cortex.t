@@ -14,3 +14,4 @@ validators/.ipynb_checkpoints/
 **/validator.ipynb
 **/.env
 **/Cortex.t.egg-info
+**/test.ipynb

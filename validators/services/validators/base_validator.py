@@ -7,7 +7,6 @@ from typing import List, Tuple
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
-from cortext import utils
 
 dataset = None
 
@@ -28,37 +27,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.num_samples = 100
         self.wandb_data = {}
 
-    def get_random_texts(self) -> list[str]:
-        global dataset
-        if dataset is None:
-            dataset = load_dataset('wikitext', 'wikitext-2-v1')
-        texts = [item['text'] for item in dataset['train']]
-        return random.sample(texts, self.num_samples)
-
-    async def load_questions(self, available_uids, item_type: str = "text", vision=False):
-        self.uid_to_questions = dict()
-
-        for index, uid in enumerate(available_uids):
-
-            if item_type == "images":
-                content = await utils.get_question("images", len(available_uids))
-                self.uid_to_questions[uid] = content  # Store messages for each UID
-            elif item_type == "text":
-                question = await utils.get_question("text", len(available_uids), vision)
-                if isinstance(question, str):
-                    bt.logging.info(f"Question is str, dict expected: {question}")
-                prompt = question.get("prompt")
-                image_url = question.get("image")
-                self.uid_to_questions[uid] = {"prompt": prompt}
-                self.uid_to_questions[uid]["image"] = image_url
-            else:
-                random_texts = self.get_random_texts()
-                num_texts_per_uid = len(random_texts) // len(available_uids)
-                start_index = index * num_texts_per_uid
-                end_index = start_index + num_texts_per_uid
-                prompt = random_texts[start_index:end_index]
-                self.uid_to_questions[uid] = prompt
-
     async def query_miner(self, metagraph, uid, syn):
         try:
             responses = await self.dendrite([metagraph.axons[uid]], syn, deserialize=False, timeout=self.timeout,
@@ -75,7 +43,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         return uid, response
 
     @abstractmethod
-    async def start_query(self, available_uids: List[int]) -> bt.Synapse:
+    async def create_query(self, uid):
         pass
 
     @abstractmethod

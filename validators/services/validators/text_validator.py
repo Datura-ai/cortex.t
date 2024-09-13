@@ -17,6 +17,7 @@ from validators.utils import get_should_i_score_arr_for_text
 
 class TextValidator(BaseValidator):
     gen_should_i_score = get_should_i_score_arr_for_text()
+
     def __init__(self, config, provider: str = None, model: str = None, metagraph=None):
         super().__init__(config, metagraph)
         self.streaming = True
@@ -82,39 +83,24 @@ class TextValidator(BaseValidator):
             break
         return uid, full_response
 
-    async def start_query(self, available_uids):
-        try:
-            self.select_random_provider_and_model()
-            is_vision_model = self.model in constants.VISION_MODELS
-            await self.load_questions(available_uids, "text", is_vision_model)
+    async def get_question(self):
+        is_vision_model = self.model in constants.VISION_MODELS
+        question = await get_question("text", 1, is_vision_model)
+        return question
 
-            query_tasks = []
-            bt.logging.trace(f"provider = {self.provider} model = {self.model}")
-            for uid, question in self.uid_to_questions.items():
-                prompt = question.get("prompt")
-                image = question.get("image")
-                if image:
-                    messages = [{'role': 'user', 'content': prompt, "image": image}]
-                else:
-                    messages = [{'role': 'user', 'content': prompt}]
+    async def create_query(self, uid) -> bt.Synapse:
+        question = await self.get_question()
+        prompt = question.get("prompt")
+        image = question.get("image")
+        if image:
+            messages = [{'role': 'user', 'content': prompt, "image": image}]
+        else:
+            messages = [{'role': 'user', 'content': prompt}]
 
-                syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
-                                      temperature=self.temperature, provider=self.provider, top_p=self.top_p,
-                                      top_k=self.top_k)
-
-                image = image if image else ''
-                bt.logging.info(
-                    f"Sending {syn.model} {self.query_type} request to uid: {uid}, "
-                    f"timeout {self.timeout}: {syn.messages[0]['content']} {image}"
-                )
-                task = self.query_miner(self.metagraph, uid, syn)
-                query_tasks.append(task)
-
-            query_responses = await asyncio.gather(*query_tasks)
-
-            return query_responses
-        except Exception as err:
-            bt.logging.exception(err)
+        syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
+                              temperature=self.temperature, provider=self.provider, top_p=self.top_p,
+                              top_k=self.top_k)
+        return syn
 
     def select_random_provider_and_model(self):
         # AnthropicBedrock should only be used if a validators' anthropic account doesn't work

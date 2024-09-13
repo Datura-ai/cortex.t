@@ -6,7 +6,6 @@ import traceback
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple
-import wandb
 import bittensor as bt
 
 import cortext
@@ -15,17 +14,14 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import BaseValidator, TextValidator, CapacityService
+from validators.services import CapacityService
 
 scoring_organic_timeout = 60
 
 
 class WeightSetter:
     def __init__(self, config):
-        self.uid_to_capacity = {}
         self.available_uids = None
-        self.NUM_QUERIES_PER_UID = 10
-        self.remaining_queries = []
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
@@ -36,11 +32,19 @@ class WeightSetter:
         self.my_uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
         bt.logging.info(f"Running validator on subnet: {self.netuid} with uid: {self.my_uid}")
 
-        # Initialize scores
+        # Scoring and querying parameters
+        self.MIN_SCORED_QUERIES = 10  # Minimum number of times each UID should be scored per epoch
+        self.scoring_percent = 0.1    # Percentage of total queries that will be scored
+        self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
+        bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
+                        f"with {self.MIN_SCORED_QUERIES} of them being scored.")
+
+        # Initialize scores and counts
         self.total_scores = {}
-        self.score_counts = {}
+        self.score_counts = {}         # Number of times a UID has been scored
+        self.total_queries_sent = {}   # Total queries sent to each UID
         self.moving_average_scores = None
-        
+
         # Set up axon and dendrite
         self.axon = bt.axon(wallet=self.wallet, config=self.config)
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
@@ -49,11 +53,9 @@ class WeightSetter:
         # Set up async-related attributes
         self.lock = asyncio.Lock()
         self.loop = asyncio.get_event_loop()
-        self.request_timestamps = {}
-        self.organic_scoring_tasks = set()
 
-        # Initialize prompt cache
-        self.prompt_cache = {}
+        # Initialize shared query database
+        self.query_database = []
 
         # Get network tempo
         self.tempo = self.subtensor.tempo(self.netuid)
@@ -61,8 +63,9 @@ class WeightSetter:
 
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
-        self.loop.create_task(self.consume_organic_scoring())
-        self.loop.create_task(self.perform_synthetic_scoring_and_update_weights())
+        self.loop.create_task(self.consume_organic_queries())
+        self.loop.create_task(self.perform_synthetic_queries())
+        self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -80,10 +83,10 @@ class WeightSetter:
         except Exception as err:
             bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
             bt.logging.exception(err)
-            # means that the validator is not registered yet. The validator should break if this is the case anyways
+            # Means that the validator is not registered yet.
             last_update_blocks = 1000
 
-        bt.logging.trace(f"last set weights successfully {last_update_blocks} blocks ago")
+        bt.logging.trace(f"Last set weights successfully {last_update_blocks} blocks ago")
         return last_update_blocks
 
     def get_blocks_til_epoch(self, block):
@@ -95,32 +98,51 @@ class WeightSetter:
     async def initialize_uids_and_capacities(self):
         self.available_uids = await self.get_available_uids()
         bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
-        # self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
-        # bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
+        # Initialize total_scores, score_counts, and total_queries_sent
         self.total_scores = {uid: 0.0 for uid in self.available_uids.keys()}
         self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
-        self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
+        self.total_queries_sent = {uid: 0 for uid in self.available_uids.keys()}
 
     async def update_and_refresh(self, last_update):
-        bt.logging.info(f"setting weights, last update {last_update} blocks ago")
+        bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
         await self.update_weights()
 
         bt.logging.info("Refreshing metagraph...")
         await self.refresh_metagraph()
 
         bt.logging.info("Refreshing available UIDs...")
-        self.available_uids = await self.get_available_uids()
-        bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
+        new_available_uids = await self.get_available_uids()
+        bt.logging.info(f"Available UIDs: {list(new_available_uids.keys())}")
 
-        # bt.logging.info("Refreshing capacities...")
-        # self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
-        
-        self.total_scores = {uid: 0 for uid in self.available_uids.keys()}
-        self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
-        self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
+        bt.logging.info("Refreshing capacities...")
+        self.uid_to_capacity = await self.get_capacities_for_uids(new_available_uids)
 
+        # Update total_scores, score_counts, and total_queries_sent
+        # Remove UIDs that are no longer available
+        for uid in list(self.total_scores.keys()):
+            if uid not in new_available_uids:
+                del self.total_scores[uid]
+                del self.score_counts[uid]
+                del self.total_queries_sent[uid]
 
-    async def perform_synthetic_scoring_and_update_weights(self):        
+        # Add new UIDs
+        for uid in new_available_uids:
+            if uid not in self.total_scores:
+                self.total_scores[uid] = 0.0
+                self.score_counts[uid] = 0
+                self.total_queries_sent[uid] = 0
+
+        # Reset counts for new epoch
+        for uid in self.total_scores.keys():
+            self.total_scores[uid] = 0.0
+            self.score_counts[uid] = 0
+            self.total_queries_sent[uid] = 0
+
+        self.available_uids = new_available_uids
+
+    async def perform_synthetic_queries(self):
         while True:
             if self.available_uids is None:
                 await self.initialize_uids_and_capacities()
@@ -130,36 +152,85 @@ class WeightSetter:
 
             if last_update >= self.tempo * 2 or (
                     self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
-                
                 await self.update_and_refresh(last_update)
-                
-            if not self.remaining_queries:
-                bt.logging.info("No more queries to perform until next epoch.")
-                continue
 
-            bt.logging.debug(f"not setting weights, last update {last_update} blocks ago, "
-                             f"{self.get_blocks_til_epoch(current_block)} blocks til epoch")
-            
+            # Decide which UIDs to query, considering total queries sent
+            async with self.lock:
+                # Select UIDs that have not reached TOTAL_QUERIES_PER_UID
+                uids_to_query = [uid for uid in self.available_uids
+                                 if self.total_queries_sent[uid] < self.TOTAL_QUERIES_PER_UID]
+
+                if not uids_to_query:
+                    bt.logging.info("All UIDs have received the maximum number of total queries.")
+                    await asyncio.sleep(1)
+                    continue
+
+                # Prioritize UIDs with least total_queries_sent
+                uids_to_query.sort(key=lambda uid: self.total_queries_sent[uid])
+
+            # Limit the number of UIDs to query based on configuration
+            num_uids_to_query = min(self.config.max_miners_cnt, len(uids_to_query))
+            uids_to_query = uids_to_query[:num_uids_to_query]
+
             selected_validator = self.select_validator()
-            num_uids_to_query = min(self.config.max_miners_cnt, len(self.remaining_queries))
 
-            # Pop UIDs to query from the remaining_queries list
-            uids_to_query = [self.remaining_queries.pop() for _ in range(num_uids_to_query)]
-            uid_to_scores = await self.process_modality(selected_validator, uids_to_query)
+            # Perform synthetic queries
+            query_responses = await self.perform_queries(selected_validator, uids_to_query)
 
-            bt.logging.info(f"Remaining queries: {len(self.remaining_queries)}")
+            # Store queries and responses in the shared database
+            async with self.lock:
+                for uid, response_data in query_responses:
+                    # Update total_queries_sent
+                    self.total_queries_sent[uid] += 1
 
-            if uid_to_scores is None:
-                bt.logging.trace("uid_to_scores is None.")
-                continue
+                    # Decide whether to score this query
+                    if self.should_i_score():
+                        self.query_database.append({
+                            'uid': uid,
+                            'synapse': response_data['query'],
+                            'response': response_data['response'],
+                            'query_type': 'synthetic',
+                            'timestamp': asyncio.get_event_loop().time(),
+                            'validator': selected_validator
+                        })
+                    # If not scoring, we can still log the query if needed
 
-            for uid, score in uid_to_scores.items():
-                async with self.lock:
-                    self.total_scores[uid] += score
-                    self.score_counts[uid] += 1
+            bt.logging.info(f"Performed synthetic queries for UIDs: {uids_to_query}")
 
             # Slow down the validator steps if necessary
             await asyncio.sleep(1)
+
+    def should_i_score(self):
+        # Randomly decide whether to score this query based on scoring_percent
+        return random.random() < self.scoring_percent
+
+    async def perform_queries(self, selected_validator, uids_to_query):
+        query_responses = []
+        for uid in uids_to_query:
+            try:
+                query_syn = await selected_validator.create_query(uid)
+                response = await self.query_miner(uid, query_syn)
+                query_responses.append((uid, {'query': query_syn, 'response': response}))
+            except Exception as e:
+                bt.logging.error(f"Exception during query for uid {uid}: {e}")
+                continue
+        return query_responses
+
+    async def query_miner(self, uid, synapse):
+        try:
+            axon = self.metagraph.axons[uid]
+            responses = await self.dendrite(
+                axons=[axon],
+                synapse=synapse,
+                deserialize=False,
+                timeout=synapse.timeout,
+                streaming=False,
+            )
+            # Handle the response appropriately
+            return responses[0]  # Assuming responses is a list
+        except Exception as e:
+            bt.logging.error(f"Exception during query for uid {uid}: {e}")
+            return None
 
     def select_validator(self):
         rand = random.random()
@@ -205,44 +276,19 @@ class WeightSetter:
             bt.logging.error(f"Error checking UID {uid}: {err}")
             return None
 
-    @staticmethod
-    def shuffled(list_: list) -> list:
-        list_ = list_.copy()
-        random.shuffle(list_)
-        return list_
-
-    async def process_modality(self, selected_validator: BaseValidator, available_uids):
-        if not available_uids:
-            bt.logging.info("No available uids.")
-            return None
-        bt.logging.info(f"starting query {selected_validator.__class__.__name__} for miners {available_uids}")
-        query_responses = await selected_validator.start_query(available_uids)
-
-        if not selected_validator.should_i_score():
-            bt.logging.info("we don't score this time.")
-            return None
-
-        bt.logging.debug(f"scoring query with query responses for "
-                        f"these uids: {available_uids}")
-        uid_scores_dict, scored_responses, responses = await selected_validator.score_responses(query_responses)
-        wandb_data = await selected_validator.build_wandb_data(uid_scores_dict, responses)
-        if self.config.wandb_on and not wandb_data:
-            wandb.log(wandb_data)
-            bt.logging.success("wandb_log successful")
-        return uid_scores_dict
-
     async def update_weights(self):
-        """Update weights based on average scores, using min-max normalization."""
+        """Update weights based on average scores."""
         bt.logging.info("Updating weights...")
         avg_scores = {}
 
         # Compute average scores per UID
-        for uid in self.total_scores:
-            count = self.score_counts[uid]
-            if count > 0:
-                avg_scores[uid] = self.total_scores[uid] / count
-            else:
-                avg_scores[uid] = 0.0
+        async with self.lock:
+            for uid in self.total_scores:
+                count = self.score_counts[uid]
+                if count > 0:
+                    avg_scores[uid] = self.total_scores[uid] / count
+                else:
+                    avg_scores[uid] = 0.0
 
         bt.logging.info(f"Average scores = {avg_scores}")
 
@@ -254,7 +300,7 @@ class WeightSetter:
         await self.set_weights(weights)
 
     async def set_weights(self, scores):
-        # alpha of .3 means that each new score replaces 30% of the weight of the previous weights
+        # Alpha of .3 means that each new score replaces 30% of the weight of the previous weights
         alpha = .3
         if self.moving_average_scores is None:
             self.moving_average_scores = scores.clone()
@@ -306,41 +352,57 @@ class WeightSetter:
             bt.logging.exception(err)
 
     async def images(self, synapse: ImageResponse) -> ImageResponse:
-        bt.logging.info(f"received {synapse}")
+        bt.logging.info(f"Received {synapse}")
 
-        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
-                                      timeout=synapse.timeout)
+        axon = self.metagraph.axons[synapse.uid]
+        synapse_response = await self.dendrite(axon, synapse, deserialize=False,
+                                               timeout=synapse.timeout)
 
-        bt.logging.info(f"new synapse = {synapse}")
-        return synapse
+        bt.logging.info(f"New synapse = {synapse_response}")
+        # Store the query and response in the shared database
+        async with self.lock:
+            self.query_database.append({
+                'uid': synapse.uid,
+                'synapse': synapse,
+                'response': synapse_response,
+                'query_type': 'organic',
+                'timestamp': asyncio.get_event_loop().time(),
+                'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config, metagraph=self.metagraph)
+            })
+            # Update total_queries_sent
+            self.total_queries_sent[synapse.uid] += 1
+
+        return synapse_response
 
     async def embeddings(self, synapse: Embeddings) -> Embeddings:
-        bt.logging.info(f"received {synapse}")
+        bt.logging.info(f"Received {synapse}")
 
-        synapse = await self.dendrite(self.metagraph.axons[synapse.uid], synapse, deserialize=False,
-                                      timeout=synapse.timeout)
+        axon = self.metagraph.axons[synapse.uid]
+        synapse_response = await self.dendrite(axon, synapse, deserialize=False,
+                                               timeout=synapse.timeout)
 
-        bt.logging.info(f"new synapse = {synapse}")
-        return synapse
+        bt.logging.info(f"New synapse = {synapse_response}")
+        # Store the query and response in the shared database
+        async with self.lock:
+            self.query_database.append({
+                'uid': synapse.uid,
+                'synapse': synapse,
+                'response': synapse_response,
+                'query_type': 'organic',
+                'timestamp': asyncio.get_event_loop().time(),
+                'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config, metagraph=self.metagraph)
+            })
+            # Update total_queries_sent
+            self.total_queries_sent[synapse.uid] += 1
+
+        return synapse_response
 
     async def prompt(self, synapse: StreamPrompting) -> StreamPrompting:
-        bt.logging.info(f"received {synapse}")
+        bt.logging.info(f"Received {synapse}")
 
-        # Return the streaming response as before
+        # Return the streaming response
         async def _prompt(synapse, send: Send):
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
-
-            async def handle_response(responses):
-                for resp in responses:
-                    async for chunk in resp:
-                        if isinstance(chunk, str):
-                            await send({
-                                "type": "http.response.body",
-                                "body": chunk.encode("utf-8"),
-                                "more_body": True,
-                            })
-                            bt.logging.info(f"Streamed text: {chunk}")
-                await send({"type": "http.response.body", "body": b'', "more_body": False})
 
             axon = self.metagraph.axons[synapse.uid]
             responses = await self.dendrite(
@@ -350,12 +412,39 @@ class WeightSetter:
                 timeout=synapse.timeout,
                 streaming=True,
             )
-            return await handle_response(responses)
+
+            response_text = ''
+
+            for resp in responses:
+                async for chunk in resp:
+                    if isinstance(chunk, str):
+                        await send({
+                            "type": "http.response.body",
+                            "body": chunk.encode("utf-8"),
+                            "more_body": True,
+                        })
+                        bt.logging.info(f"Streamed text: {chunk}")
+                        response_text += chunk
+
+            await send({"type": "http.response.body", "body": b'', "more_body": False})
+
+            # Store the query and response in the shared database
+            async with self.lock:
+                self.query_database.append({
+                    'uid': synapse.uid,
+                    'synapse': synapse,
+                    'response': response_text,
+                    'query_type': 'organic',
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
+                })
+                # Update total_queries_sent
+                self.total_queries_sent[synapse.uid] += 1
 
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
 
-    async def consume_organic_scoring(self):
+    async def consume_organic_queries(self):
         bt.logging.info("Attaching forward function to axon.")
         self.axon.attach(
             forward_fn=self.prompt,
@@ -370,10 +459,40 @@ class WeightSetter:
         self.axon.serve(netuid=self.netuid)
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
+
+    async def process_queries_from_database(self):
         while True:
-            try:
-                # Check for organic scoring tasks here
-                await asyncio.sleep(60)
-            except Exception as err:
-                bt.logging.exception(err)
-                await asyncio.sleep(10)
+            await asyncio.sleep(1)  # Adjust the sleep time as needed
+            async with self.lock:
+                if not self.query_database:
+                    continue
+                # Copy queries to process and clear the database
+                queries_to_process = self.query_database.copy()
+                self.query_database.clear()
+
+            # Process queries outside the lock to prevent blocking
+            for query_data in queries_to_process:
+                uid = query_data['uid']
+                synapse = query_data['synapse']
+                response = query_data['response']
+                validator = query_data['validator']
+
+                # Prepare query response data in the format expected by the validator
+                query_responses = [(uid, {'query': synapse, 'response': response})]
+
+                # Score the response using the validator
+                try:
+                    uid_scores_dict, _, _ = await validator.score_responses(query_responses)
+                except Exception as e:
+                    bt.logging.error(f"Error scoring response for UID {uid}: {e}")
+                    continue
+
+                # Update total_scores and score_counts
+                async with self.lock:
+                    for uid, score in uid_scores_dict.items():
+                        self.total_scores[uid] += score
+                        self.score_counts[uid] += 1
+
+                        # Stop scoring if MIN_SCORED_QUERIES reached
+                        if self.score_counts[uid] >= self.MIN_SCORED_QUERIES:
+                            bt.logging.info(f"UID {uid} has reached the minimum number of scored queries.")

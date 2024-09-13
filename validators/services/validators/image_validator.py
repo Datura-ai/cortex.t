@@ -8,6 +8,7 @@ from cortext.protocol import ImageResponse
 from validators.services.validators.base_validator import BaseValidator
 from validators import utils
 from validators.utils import error_handler
+from cortext.utils import get_question
 import bittensor as bt
 
 
@@ -48,26 +49,16 @@ class ImageValidator(BaseValidator):
         elif self.provider == "OpenAI":
             self.model = "dall-e-3"
 
-    async def start_query(self, available_uids):
-        try:
-            query_tasks = []
+    async def get_question(self):
+        question = await get_question("image", 1)
+        return question
 
-            self.select_random_provider_and_model()
-            await self.load_questions(available_uids, "images")
-
-            # Query all images concurrently
-            for uid, content in self.uid_to_questions.items():
-                syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
-                                    style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
-                bt.logging.info(f"uid = {uid}, syn = {syn}")
-                task = self.query_miner(self.metagraph, uid, syn)
-                query_tasks.append(task)
-
-            # Query responses is (uid. syn)
-            query_responses = await asyncio.gather(*query_tasks)
-            return query_responses
-        except:
-            bt.logging.error(f"error in start_query {traceback.format_exc()}")
+    async def create_query(self, uid) -> bt.Synapse:
+        question = await self.get_question()
+        syn = ImageResponse(messages=question, model=self.model, size=self.size, quality=self.quality,
+                            style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
+        bt.logging.info(f"uid = {uid}, syn = {syn}")
+        return syn
 
     def should_i_score(self):
         rand = random.random()
@@ -82,7 +73,7 @@ class ImageValidator(BaseValidator):
                 return 0
             image_url = completion["url"]
             score = await cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
-                                                    self.weight)
+                                                     self.weight)
         else:
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
