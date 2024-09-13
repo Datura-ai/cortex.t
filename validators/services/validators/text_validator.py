@@ -156,10 +156,9 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
-    async def get_answer_task(self, uid: int, syn=None):
-        question = self.uid_to_questions[uid]
-        prompt = question.get("prompt")
-        image_url = question.get("image")
+    async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
+        prompt = query_syn.messages[0].get("content")
+        image_url = query_syn.messages[0].get("image")
         return await self.call_api(prompt, image_url, self.provider)
 
     async def get_scoring_task(self, uid, answer, response):

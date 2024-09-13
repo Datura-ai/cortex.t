@@ -58,7 +58,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         return True
 
     @abstractmethod
-    async def get_answer_task(self, uid, synapse=None):
+    async def get_answer_task(self, uid, synapse, response):
         pass
 
     @abstractmethod
@@ -71,14 +71,14 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         uid_scores_dict = {}
         scored_response = []
 
-        for uid, syn in responses:
-            task = self.get_answer_task(uid, syn)
+        for uid, query_resp in responses:
+            task = self.get_answer_task(uid, query_resp.get("query"), query_resp.get("response"))
             answering_tasks.append((uid, task))
 
         answers_results = await asyncio.gather(*[task for _, task in answering_tasks])
 
-        for (uid, response), answer in zip(responses, answers_results):
-            task = self.get_scoring_task(uid, answer, response)
+        for (uid, query_resp), answer in zip(responses, answers_results):
+            task = self.get_scoring_task(uid, answer, query_resp.get("response"))
             scoring_tasks.append((uid, task))
 
         # Await all scoring tasks

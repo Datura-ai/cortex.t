@@ -78,7 +78,7 @@ class ImageValidator(BaseValidator):
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 
-    async def get_answer_task(self, uid, synapse=None):
+    async def get_answer_task(self, uid, synapse: ImageResponse, response):
         return synapse
 
     @error_handler
