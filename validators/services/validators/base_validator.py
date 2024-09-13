@@ -123,12 +123,12 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         if uid_scores_dict != {}:
             bt.logging.info(f"text_scores is {uid_scores_dict}")
-        bt.logging.info("score_responses process completed.")
+        bt.logging.trace("score_responses process completed.")
 
         return uid_scores_dict, scored_response, responses
 
     async def get_and_score(self, available_uids: List[int]):
-        bt.logging.info("starting query")
+        bt.logging.trace("starting query")
         query_responses = await self.start_query(available_uids)
-        bt.logging.info("scoring query with query responses")
+        bt.logging.trace("scoring query with query responses")
         return await self.score_responses(query_responses)

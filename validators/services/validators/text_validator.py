@@ -89,7 +89,7 @@ class TextValidator(BaseValidator):
             await self.load_questions(available_uids, "text", is_vision_model)
 
             query_tasks = []
-            bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
+            bt.logging.trace(f"provider = {self.provider} model = {self.model}")
             for uid, question in self.uid_to_questions.items():
                 prompt = question.get("prompt")
                 image = question.get("image")
@@ -118,7 +118,7 @@ class TextValidator(BaseValidator):
 
     def select_random_provider_and_model(self):
         # AnthropicBedrock should only be used if a validators' anthropic account doesn't work
-        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 20 + [
+        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 1 + ["Anthropic"] * 20 + [
             "Groq"] * 30 + ["Bedrock"] * 0
         self.provider = random.choice(providers)
 

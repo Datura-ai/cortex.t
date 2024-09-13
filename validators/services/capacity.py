@@ -1,6 +1,6 @@
 import asyncio
 
-from cortext.protocol import NodeInfo
+from cortext.protocol import Bandwidth
 import bittensor as bt
 
 
@@ -15,7 +15,7 @@ class CapacityService:
 
         # Query all images concurrently
         for uid in available_uids:
-            syn = NodeInfo()
+            syn = Bandwidth()
             bt.logging.info(f"querying capacity to uid = {uid}")
             task = self.dendrite.call(self.metagraph.axons[uid], syn,
                                       timeout=self.timeout)

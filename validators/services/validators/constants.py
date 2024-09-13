@@ -17,6 +17,8 @@ TEXT_VALI_MODELS_WEIGHTS = {
         "gpt-3.5-turbo": 1000,
         "gpt-3.5-turbo-16k": 1,
         "gpt-3.5-turbo-0125": 1,
+        "o1-preview": 1,
+        "o1-mini": 1,
     },
     "Gemini": {
         "gemini-pro": 1,
@@ -30,9 +32,9 @@ TEXT_VALI_MODELS_WEIGHTS = {
         "claude-3-haiku-20240307": 1000,
     },
     "Groq": {
-        "gemma-7b-it": 1000,
+        "gemma-7b-it": 500,
         "llama3-70b-8192": 1,
-        "llama3-8b-8192": 1,
+        "llama3-8b-8192": 500,
         "mixtral-8x7b-32768": 1,
     },
     "Bedrock": {

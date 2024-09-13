@@ -2,7 +2,6 @@ from cortext import ImageResponse, TextPrompting, StreamPrompting
 from miner.providers import OpenAI, Anthropic, AnthropicBedrock, Groq, Gemini, Bedrock
 
 task_image = ImageResponse.__name__
-task_text = TextPrompting.__name__
 task_stream = StreamPrompting.__name__
 
 openai_provider = OpenAI.__name__
@@ -19,13 +18,6 @@ capacity_to_task_and_provider = {
     f"{task_image}_{groq_provider}": 1,
     f"{task_image}_{gemini_provider}": 1,
     f"{task_image}_{bedrock_provider}": 1,
-
-    f"{task_text}_{openai_provider}": 1,
-    f"{task_text}_{anthropic_provider}": 1,
-    f"{task_text}_{anthropic_bedrock_provider}": 1,
-    f"{task_text}_{groq_provider}": 1,
-    f"{task_text}_{gemini_provider}": 1,
-    f"{task_text}_{bedrock_provider}": 1,
 
     f"{task_stream}_{openai_provider}": 1,
     f"{task_stream}_{anthropic_provider}": 1,

@@ -14,10 +14,8 @@ class IsAlive(bt.Synapse):
     )
 
 
-class NodeInfo(bt.Synapse):
-    bandwidth_compute: Optional[Dict[str, int]] = None
-    bandwidth_io: Optional[Dict[str, int]] = None
-
+class Bandwidth(bt.Synapse):
+    bandwidth_rpm: Optional[Dict[str, int]] = None
 
 class ImageResponse(bt.Synapse):
     """ A class to represent the response for an image-related request. """

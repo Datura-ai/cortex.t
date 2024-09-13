@@ -59,6 +59,7 @@ if __name__ == "__main__":
                         help="Disable automatic update. Only send a Discord alert. Add your webhook at the top of the script.")
     parser.add_argument("--logging", required=False, default="debug")
     parser.add_argument("--wandb_on", action='store_true', required=False, dest='wandb_on')
+    parser.add_argument("--max_miners_cnt", type=int, default=30)
 
     args = parser.parse_args()
 
