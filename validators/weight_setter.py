@@ -95,8 +95,8 @@ class WeightSetter:
     async def initialize_uids_and_capacities(self):
         self.available_uids = await self.get_available_uids()
         bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
-        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
-        bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
+        # self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        # bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
         self.total_scores = {uid: 0.0 for uid in self.available_uids.keys()}
         self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
         self.remaining_queries = self.shuffled(list(self.available_uids.keys()) * self.NUM_QUERIES_PER_UID)
@@ -112,8 +112,8 @@ class WeightSetter:
         self.available_uids = await self.get_available_uids()
         bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
 
-        bt.logging.info("Refreshing capacities...")
-        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        # bt.logging.info("Refreshing capacities...")
+        # self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
         
         self.total_scores = {uid: 0 for uid in self.available_uids.keys()}
         self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
