@@ -57,7 +57,7 @@ class WeightSetter:
 
         # Get network tempo
         self.tempo = self.subtensor.tempo(self.netuid)
-        self.weights_rate_limit = self.get_weights_rate_limit()
+        self.weights_rate_limit = self.node_query('SubtensorModule', 'WeightsSetRateLimit', [self.netuid])
 
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
@@ -66,25 +66,18 @@ class WeightSetter:
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
+    
 
-    def get_current_block(self):
-        return self.node.query("System", "Number", []).value
-
-    def get_weights_rate_limit(self):
-        return self.node.query("SubtensorModule", "WeightsSetRateLimit", [self.netuid]).value
-
-    def get_last_update(self, block):
+    def node_query(self, module, method, params):
         try:
-            last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[
-                self.my_uid]
-        except Exception as err:
-            bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
-            bt.logging.exception(err)
-            # means that the validator is not registered yet. The validator should break if this is the case anyways
-            last_update_blocks = 1000
+            result = self.node.query(module, method, params).value
 
-        bt.logging.trace(f"last set weights successfully {last_update_blocks} blocks ago")
-        return last_update_blocks
+        except Exception as err:
+            # reinitilize node
+            self.node = SubstrateInterface(url=self.config.subtensor.chain_endpoint)
+            result = self.node.query(module, method, params).value
+        
+        return result
 
     def get_blocks_til_epoch(self, block):
         return self.tempo - (block + 19) % (self.tempo + 1)
@@ -125,8 +118,9 @@ class WeightSetter:
             if self.available_uids is None:
                 await self.initialize_uids_and_capacities()
 
-            current_block = self.get_current_block()
-            last_update = self.get_last_update(current_block)
+            current_block = self.node_query('System', 'Number', [])
+            last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
+            bt.logging.info(f"last update: {last_update} blocks ago")
 
             if last_update >= self.tempo * 2 or (
                     self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
