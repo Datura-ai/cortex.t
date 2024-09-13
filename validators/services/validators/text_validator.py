@@ -1,9 +1,9 @@
 import asyncio
 import random
+import bittensor as bt
 from typing import AsyncIterator
 
 from cortext.reward import model
-from validators.services.bittensor import bt_validator as bt
 from . import constants
 import cortext.reward
 from validators.services.validators.base_validator import BaseValidator
@@ -12,22 +12,23 @@ from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
+from validators.utils import get_should_i_score_arr_for_text
 
 
 class TextValidator(BaseValidator):
-    def __init__(self, provider: str = None, model: str = None):
-        super().__init__()
+    gen_should_i_score = get_should_i_score_arr_for_text()
+    def __init__(self, config, provider: str = None, model: str = None, metagraph=None):
+        super().__init__(config, metagraph)
         self.streaming = True
         self.query_type = "text"
+        self.metagraph = metagraph
         self.model = model or constants.TEXT_MODEL
         self.max_tokens = constants.TEXT_MAX_TOKENS
         self.temperature = constants.TEXT_TEMPERATURE
         self.weight = constants.TEXT_WEIGHT
-        self.seed = constants.TEXT_SEED
         self.top_p = constants.TEXT_TOP_P
         self.top_k = constants.TEXT_TOP_K
         self.provider = provider or constants.TEXT_PROVIDER
-        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         self.wandb_data = {
             "modality": "text",
@@ -77,7 +78,7 @@ class TextValidator(BaseValidator):
                 if isinstance(chunk, str):
                     bt.logging.trace(chunk)
                     full_response += chunk
-            bt.logging.debug(f"full_response for uid {uid}: {full_response}")
+            bt.logging.trace(f"full_response for uid {uid}: {full_response}")
             break
         return uid, full_response
 
@@ -88,7 +89,7 @@ class TextValidator(BaseValidator):
             await self.load_questions(available_uids, "text", is_vision_model)
 
             query_tasks = []
-            bt.logging.info(f"provider = {self.provider}\nmodel = {self.model}")
+            bt.logging.trace(f"provider = {self.provider} model = {self.model}")
             for uid, question in self.uid_to_questions.items():
                 prompt = question.get("prompt")
                 image = question.get("image")
@@ -117,22 +118,17 @@ class TextValidator(BaseValidator):
 
     def select_random_provider_and_model(self):
         # AnthropicBedrock should only be used if a validators' anthropic account doesn't work
-        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 20 + [
+        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 1 + ["Anthropic"] * 20 + [
             "Groq"] * 30 + ["Bedrock"] * 0
         self.provider = random.choice(providers)
-        self.num_uids_to_pick = constants.DEFAULT_NUM_UID_PICK
 
         model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
         self.model = random.choices(list(model_to_weights.keys()),
                                     weights=list(model_to_weights.values()), k=1)[0]
 
-        return self.num_uids_to_pick
-
-    def should_i_score(self):
-        random_number = random.random()
-        will_score_all = random_number < 1 / 5
-        bt.logging.info(f"Random Number: {random_number}, Will score text responses: {will_score_all}")
-        return will_score_all
+    @classmethod
+    def should_i_score(cls):
+        return next(cls.gen_should_i_score)
 
     @error_handler
     async def build_wandb_data(self, uid_to_score, responses):
@@ -189,7 +185,6 @@ class TextValidator(BaseValidator):
         question = self.uid_to_questions[uid]
         prompt = question.get("prompt")
         image_url = question.get("image")
-        bt.logging.info(f"processing image url {image_url}")
         return await self.call_api(prompt, image_url, self.provider)
 
     async def get_scoring_task(self, uid, answer, response):

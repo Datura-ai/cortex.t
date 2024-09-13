@@ -19,7 +19,7 @@
 
 
 # version must stay on line 22
-__version__ = "4.0.5"
+__version__ = "4.0.6"
 version_split = __version__.split(".")
 __spec_version__ = (
         (1000 * int(version_split[0]))
@@ -27,7 +27,7 @@ __spec_version__ = (
         + (1 * int(version_split[2]))
 )
 
-u64_max = 2 ** 64 - 10
+u64_max = 2 ** 64 - 9
 __weights_version__ = u64_max
 
 import os
@@ -36,7 +36,7 @@ from typing import Union
 
 from openai import AsyncOpenAI
 
-from cortext.protocol import StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive
+from cortext.protocol import StreamPrompting, Embeddings, ImageResponse, IsAlive
 
 load_dotenv()
 try:
@@ -3768,4 +3768,4 @@ IMAGE_THEMES = [
 ]
 
 
-ALL_SYNAPSE_TYPE = Union[StreamPrompting, TextPrompting, Embeddings, ImageResponse, IsAlive]
+ALL_SYNAPSE_TYPE = Union[StreamPrompting, Embeddings, ImageResponse, IsAlive]

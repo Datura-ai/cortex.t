@@ -43,6 +43,7 @@ class Config:
         self.NO_SET_WEIGHTS = os.getenv('NO_SET_WEIGHTS', False)
         self.NO_SERVE = os.getenv('NO_SERVE', False)
 
+
     def __repr__(self):
         return (
             f"Config(BT_SUBTENSOR_NETWORK={self.BT_SUBTENSOR_NETWORK}, WALLET_NAME={self.WALLET_NAME}, HOT_KEY={self.HOT_KEY}"

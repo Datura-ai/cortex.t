@@ -163,7 +163,7 @@ def fetch_random_image_urls(num_images):
         images = response.json().get('hits', [])
         return [image['webformatURL'] for image in images]
     except Exception as e:
-        print(f"Error fetching random images: {e}")
+        bt.logging.error(f"Error fetching random images: {e}")
         return []
 
 
@@ -315,9 +315,9 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
         item = await get_item_from_list(items, vision)
 
         if not item:
-            bt.logging.info(f"Item not founded in items: {items}. Calling get_items!")
+            bt.logging.trace(f"Item not founded in items: {items}. Calling get_items!")
             items = await get_items(category, item_type, theme)
-            bt.logging.info(f"Items generated: {items}")
+            bt.logging.trace(f"Items generated: {items}")
             state[category][item_type] = items
             bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
 
@@ -503,7 +503,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
 
 
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
-    print(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
+    bt.logging.debug(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
     try:
         model = genai.GenerativeModel(model)
         response = model.generate_content(
@@ -520,10 +520,10 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
             ),
         )
 
-        print(f"validator response is {response.text}")
+        bt.logging.trace(f"validator response is {response.text}")
         return response.text
     except:
-        print(f"error in call_gemini {traceback.format_exc()}")
+        bt.logging.error(f"error in call_gemini {traceback.format_exc()}")
 
 
 # anthropic = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -625,7 +625,7 @@ async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k)
             kwargs["system"] = system_prompt
 
         message = await anthropic_client.messages.create(**kwargs)
-        bt.logging.debug(f"validator response is {message.content[0].text}")
+        bt.logging.trace(f"validator response is {message.content[0].text}")
         return message.content[0].text
     except:
         bt.logging.error(f"error in call_anthropic {traceback.format_exc()}")
@@ -647,7 +647,7 @@ async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
         }
 
         message = await groq_client.chat.completions.create(**kwargs)
-        bt.logging.debug(f"validator response is {message.choices[0].message.content}")
+        bt.logging.trace(f"validator response is {message.choices[0].message.content}")
         return message.choices[0].message.content
     except:
         bt.logging.error(f"error in call_groq {traceback.format_exc()}")
@@ -738,7 +738,7 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
             message = await response['body'].read()
             message = await extract_message(message)
 
-        bt.logging.debug(f"validator response is {message}")
+        bt.logging.trace(f"validator response is {message}")
         return message
     except:
         bt.logging.error(f"error in call_bedrock {traceback.format_exc()}")

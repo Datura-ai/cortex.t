@@ -5,15 +5,15 @@ import wandb
 
 import cortext.reward
 from cortext.protocol import ImageResponse
-from validators.services.bittensor import bt_validator as bt
 from validators.services.validators.base_validator import BaseValidator
 from validators import utils
 from validators.utils import error_handler
+import bittensor as bt
 
 
 class ImageValidator(BaseValidator):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config, metagraph=None):
+        super().__init__(config, metagraph)
         self.num_uids_to_pick = 30
         self.streaming = False
         self.query_type = "images"
@@ -26,7 +26,6 @@ class ImageValidator(BaseValidator):
         self.quality = "standard"
         self.style = "vivid"
         self.steps = 30
-        self.seed = 123456
         self.wandb_data = {
             "modality": "images",
             "prompts": {},

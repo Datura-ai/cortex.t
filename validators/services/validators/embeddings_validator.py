@@ -1,8 +1,7 @@
 from __future__ import annotations
-from bittensor import Synapse
 import random
 import asyncio
-from validators.services.bittensor import bt_validator as bt
+import bittensor as bt
 import cortext.reward
 from cortext import client
 from cortext.protocol import Embeddings
@@ -10,9 +9,10 @@ from validators.services.validators.base_validator import BaseValidator
 
 
 class EmbeddingsValidator(BaseValidator):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config):
+        super().__init__(config)
         self.streaming = False
+        self.config = config
         self.query_type = "embeddings"
         self.model = "text-embedding-ada-002"
         self.weight = 1
@@ -63,7 +63,7 @@ class EmbeddingsValidator(BaseValidator):
         #         bt.logging.error(f"Error in processing batch: {e}")
         return all_embeddings
 
-    async def start_query(self, available_uids) -> tuple[(int, Synapse)] | None:
+    async def start_query(self, available_uids) -> tuple[(int, bt.Synapse)] | None:
         if not available_uids:
             return None
 

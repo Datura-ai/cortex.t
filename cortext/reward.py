@@ -24,13 +24,8 @@ hf_logging.set_verbosity_error()
 import re
 import io
 import torch
-import openai
-import typing
-import difflib
 import asyncio
-import logging
 import aiohttp
-import requests
 import traceback
 import numpy as np
 from numpy.linalg import norm
@@ -71,8 +66,8 @@ async def api_score(api_answer: str, response: str, weight: float, temperature: 
         words_in_response = len(response.split())
         words_in_api = len(api_answer.split())
 
-        word_count_over_threshold = words_in_api * 1.20
-        word_count_under_threshold = words_in_api * 0.60
+        word_count_over_threshold = words_in_api * 1.4
+        word_count_under_threshold = words_in_api * 0.50
 
         # Check if the word count of the response is within the thresholds
         if words_in_response <= word_count_over_threshold and words_in_response >= word_count_under_threshold:
@@ -158,7 +153,7 @@ def calculate_image_similarity(image, description, max_length: int = 77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
-async def dalle_score(uid, url, desired_size, description, weight, similarity_threshold=0.23) -> float:
+async def dalle_score(uid, url, desired_size, description, weight, similarity_threshold=0.21) -> float:
     """Calculate the image score based on similarity and size asynchronously."""
 
     if not re.match(url_regex, url):
