@@ -236,7 +236,7 @@ wand login
 You can launch your validator using following command
 
 ```python
-pm2 start start_validator.py --interpreter python3 -- --wallet.name default --wallet.hotkey defualt --subtensor.chain_endpoint <URL here> --autoupdate --wandb_on
+pm2 start start_validator.py --interpreter python3 -- --wallet_name "default" --wallet_hotkey "default" --subtensor.chain_endpoint <URL here> --autoupdate --wandb_on
 ```
 ---
 

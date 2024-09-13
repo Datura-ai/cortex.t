@@ -48,7 +48,7 @@ if __name__ == "__main__":
         description="Automatically update and restart the validator process when a new version is released."
     )
 
-    parser.add_argument("--pm2_name", required=False, default="autoupdater", help="Name of the PM2 process.")
+    parser.add_argument("--pm2_name", required=False, default="main-process", help="Name of the PM2 process.")
     parser.add_argument("--wallet_name", required=False, default="default", help="Name of the wallet.")
     parser.add_argument("--wallet_hotkey", required=False, default="default", help="Hotkey for the wallet.")
     parser.add_argument("--netuid", required=False, default=18, help="netuid for validator")
