@@ -118,8 +118,8 @@ class TextValidator(BaseValidator):
 
     def select_random_provider_and_model(self):
         # AnthropicBedrock should only be used if a validators' anthropic account doesn't work
-        providers = ["OpenAI"] * 55 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 1 + ["Anthropic"] * 20 + [
-            "Groq"] * 30 + ["Bedrock"] * 0
+        providers = ["OpenAI"] * 60 + ["AnthropicBedrock"] * 0 + ["Gemini"] * 2 + ["Anthropic"] * 25 + [
+            "Groq"] * 20 + ["Bedrock"] * 2
         self.provider = random.choice(providers)
 
         model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
