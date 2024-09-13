@@ -13,10 +13,7 @@ TEXT_VALI_MODELS_WEIGHTS = {
     },
     "OpenAI": {
         "gpt-4o": 1,
-        "gpt-4-1106-preview": 1,
         "gpt-3.5-turbo": 1000,
-        "gpt-3.5-turbo-16k": 1,
-        "gpt-3.5-turbo-0125": 1,
         "o1-preview": 1,
         "o1-mini": 1,
     },

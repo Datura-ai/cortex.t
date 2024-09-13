@@ -68,4 +68,3 @@ if __name__ == "__main__":
                            args.autoupdate, args.logging, args.wandb_on)
     except Exception as e:
         parser.error(f"An error occurred: {e}")
-
