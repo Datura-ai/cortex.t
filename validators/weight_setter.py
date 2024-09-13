@@ -209,14 +209,19 @@ class WeightSetter:
 
     async def perform_queries(self, selected_validator, uids_to_query):
         query_responses = []
-        for uid in uids_to_query:
+        tasks = []
+        async def query_miner_per_uid(uid):
             try:
                 query_syn = await selected_validator.create_query(uid)
                 response = await self.query_miner(uid, query_syn)
                 query_responses.append((uid, {'query': query_syn, 'response': response}))
             except Exception as e:
                 bt.logging.error(f"Exception during query for uid {uid}: {e}")
-                continue
+
+        for uid in uids_to_query:
+            task = query_miner_per_uid(uid)
+            tasks.append(task)
+        await asyncio.gather(*tasks)
         return query_responses
 
     @handle_response
