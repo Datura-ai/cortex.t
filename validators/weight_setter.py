@@ -128,8 +128,8 @@ class WeightSetter:
             current_block = self.get_current_block()
             last_update = self.get_last_update(current_block)
 
-            if last_update >= self.tempo * 2 or (
-                    self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
+            if last_update >= 1: #self.tempo * 2 or (
+                    # self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
                 
                 await self.update_and_refresh(last_update)
                 
@@ -236,7 +236,6 @@ class WeightSetter:
         bt.logging.info("Updating weights...")
         avg_scores = {}
 
-        # Compute average scores per UID
         for uid in self.total_scores:
             count = self.score_counts[uid]
             if count > 0:
@@ -250,6 +249,11 @@ class WeightSetter:
         weights = torch.zeros(len(self.metagraph.uids))
         for uid, score in avg_scores.items():
             weights[uid] = score
+
+        # Check if all weights are zero
+        if torch.all(weights == 0):
+            bt.logging.warning("All weights are zero. Setting all weights to 1 to prevent error.")
+            weights = torch.ones(len(self.metagraph.uids))
 
         await self.set_weights(weights)
 
