@@ -67,7 +67,7 @@ def handle_response(func):
 
 def get_should_i_score_arr_for_text():
     for i in itertools.count():
-        yield (i % 5) != 0
+        yield (i % 3) == 0
 
 
 def get_should_i_score_arr_for_image():
