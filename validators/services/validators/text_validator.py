@@ -162,4 +162,5 @@ class TextValidator(BaseValidator):
         return await self.call_api(prompt, image_url, self.provider)
 
     async def get_scoring_task(self, uid, answer, response):
-        return await cortext.reward.api_score(answer, response, self.weight, self.temperature, self.provider)
+        response_str, _ = response
+        return await cortext.reward.api_score(answer, response_str, self.weight, self.temperature, self.provider)
