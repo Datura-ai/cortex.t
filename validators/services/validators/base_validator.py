@@ -42,6 +42,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     def select_random_provider_and_model(self):
         pass
 
+
+    def get_provider_to_models(self):
+        pass
+
     async def handle_response(self, uid, response) -> Tuple[int, bt.Synapse]:
         if type(response) == list and response:
             response = response[0]
@@ -67,7 +71,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     @error_handler
-    @apply_for_time_penalty_to_uid_scores
     async def score_responses(self, responses):
         answering_tasks = []
         scoring_tasks = []

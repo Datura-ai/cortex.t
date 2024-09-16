@@ -49,14 +49,17 @@ class ImageValidator(BaseValidator):
         elif self.provider == "OpenAI":
             self.model = "dall-e-3"
 
+    def get_provider_to_models(self):
+        return "OpenAI", "dall-e-3"
+
     async def get_question(self):
         question = await get_question("images", 1)
         return question
 
-    async def create_query(self, uid) -> bt.Synapse:
+    async def create_query(self, uid, provider=None, model=None) -> bt.Synapse:
         question = await self.get_question()
-        syn = ImageResponse(messages=question, model=self.model, size=self.size, quality=self.quality,
-                            style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
+        syn = ImageResponse(messages=question, model=model, size=self.size, quality=self.quality,
+                            style=self.style, provider=provider, seed=self.seed, steps=self.steps)
         bt.logging.info(f"uid = {uid}, syn = {syn}")
         return syn
 

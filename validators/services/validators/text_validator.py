@@ -77,7 +77,7 @@ class TextValidator(BaseValidator):
         question = await get_question("text", miner_cnt, is_vision_model)
         return question
 
-    async def create_query(self, uid) -> bt.Synapse:
+    async def create_query(self, uid, provider=None, model=None) -> bt.Synapse:
         question = await self.get_question()
         prompt = question.get("prompt")
         image = question.get("image")
@@ -86,8 +86,8 @@ class TextValidator(BaseValidator):
         else:
             messages = [{'role': 'user', 'content': prompt}]
 
-        syn = StreamPrompting(messages=messages, model=self.model, seed=self.seed, max_tokens=self.max_tokens,
-                              temperature=self.temperature, provider=self.provider, top_p=self.top_p,
+        syn = StreamPrompting(messages=messages, model=model, seed=self.seed, max_tokens=self.max_tokens,
+                              temperature=self.temperature, provider=provider, top_p=self.top_p,
                               top_k=self.top_k)
         return syn
 
@@ -100,6 +100,14 @@ class TextValidator(BaseValidator):
         model_to_weights = constants.TEXT_VALI_MODELS_WEIGHTS[self.provider]
         self.model = random.choices(list(model_to_weights.keys()),
                                     weights=list(model_to_weights.values()), k=1)[0]
+
+    def get_provider_to_models(self):
+        provider_models = []
+        for provider in constants.TEXT_VALI_MODELS_WEIGHTS:
+            models = constants.TEXT_VALI_MODELS_WEIGHTS.get(provider).keys()
+            for model_ in models:
+                provider_models.append((provider, model_))
+        return provider_models
 
     @classmethod
     def should_i_score(cls):

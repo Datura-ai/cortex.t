@@ -36,9 +36,10 @@ class WeightSetter:
         bt.logging.info(f"Running validator on subnet: {self.netuid} with uid: {self.my_uid}")
 
         # Scoring and querying parameters
-        self.MIN_SCORED_QUERIES = 10  # Minimum number of times each UID should be scored per epoch
-        self.scoring_percent = 0.1  # Percentage of total queries that will be scored
+        self.MIN_SCORED_QUERIES = 1  # Minimum number of times each UID should be scored per epoch
+        self.scoring_percent = 1  # Percentage of total queries that will be scored
         self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
+        self.max_score_cnt_per_model = 1
         bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
                         f"with {self.MIN_SCORED_QUERIES} of them being scored.")
 
@@ -176,7 +177,6 @@ class WeightSetter:
             uids_to_query = uids_to_query[:num_uids_to_query]
 
             selected_validator = self.select_validator()
-            selected_validator.select_random_provider_and_model()
 
             # Perform synthetic queries
             bt.logging.info("start querying to miners")
@@ -189,16 +189,14 @@ class WeightSetter:
                     self.total_queries_sent[uid] += 1
 
                     # Decide whether to score this query
-                    if self.should_i_score():
-                        self.query_database.append({
-                            'uid': uid,
-                            'synapse': response_data['query'],
-                            'response': response_data['response'],
-                            'query_type': 'synthetic',
-                            'timestamp': asyncio.get_event_loop().time(),
-                            'validator': selected_validator
-                        })
-                    # If not scoring, we can still log the query if needed
+                    self.query_database.append({
+                        'uid': uid,
+                        'synapse': response_data['query'],
+                        'response': response_data['response'],
+                        'query_type': 'synthetic',
+                        'timestamp': asyncio.get_event_loop().time(),
+                        'validator': selected_validator
+                    })
 
             bt.logging.info(f"Performed synthetic queries for UIDs: {uids_to_query}")
 
@@ -213,16 +211,23 @@ class WeightSetter:
         query_responses = []
         response_tasks = []
         query_tasks = []
-        for uid in uids_to_query:
-            query_task = selected_validator.create_query(uid)
-            query_tasks.append(query_task)
-        queries = await asyncio.gather(*query_tasks)
-        for uid, query in zip(uids_to_query, queries):
-            response_tasks.append(self.query_miner(uid, query))
+        provider_to_models = selected_validator.get_provider_to_models()
+        uids_to_query_expand = []
+        for provider, model in provider_to_models:
+            for uid in uids_to_query:
+                band_width = self.uid_to_capacity.get(provider).get(model)
+                for _ in range(band_width):
+                    query_task = selected_validator.create_query(uid, provider, model)
+                    query_tasks.append(query_task)
+                    uids_to_query_expand.append(uid)
 
-        responses = await asyncio.gather(*response_tasks)
-        for uid, query_syn, response in zip(uids_to_query, queries, responses):
-            query_responses.append((uid, {'query': query_syn, 'response': response}))
+            queries = await asyncio.gather(*query_tasks)
+            for uid, query in zip(uids_to_query_expand, queries):
+                response_tasks.append(self.query_miner(uid, query))
+
+            responses = await asyncio.gather(*response_tasks)
+            for uid, query_syn, response in zip(uids_to_query_expand, queries, responses):
+                query_responses.append((uid, {'query': query_syn, 'response': response}))
         return query_responses
 
     @handle_response
@@ -484,6 +489,7 @@ class WeightSetter:
                 queries_to_process = self.query_database.copy()
                 self.query_database.clear()
 
+            grouped_query_resps = defaultdict(list)
             validator_to_query_resps = defaultdict(list)
             type_to_validator = {}
             # Process queries outside the lock to prevent blocking
@@ -493,7 +499,16 @@ class WeightSetter:
                 response = query_data['response']
                 validator = query_data['validator']
                 type_to_validator[type(validator)] = validator
-                validator_to_query_resps[type(validator)].append((uid, {'query': synapse, 'response': response}))
+                provider = synapse.provider
+                model = synapse.model
+
+                grouped_key = f"{type(validator)}:{uid}:{provider}:{model}"
+                if len(grouped_query_resps[grouped_key]) < self.max_score_cnt_per_model:
+                    grouped_query_resps[grouped_key].append(
+                        (uid, {'query': synapse, 'response': response}))
+                    validator_to_query_resps[type(validator)].append(
+                        (uid, {'query': synapse, 'response': response})
+                    )
 
             score_tasks = []
             for vali_type in type_to_validator:
