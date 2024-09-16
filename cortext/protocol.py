@@ -124,6 +124,12 @@ class ImageResponse(bt.Synapse):
         description="A list of fields required for the hash."
     )
 
+    process_time: int = pydantic.Field(
+        default=9999,
+        title="process time",
+        description="processed time of querying dendrite.",
+    )
+
     def deserialize(self) -> Optional[Dict]:
         """ Deserialize the completion data of the image response. """
         return self.completion

@@ -65,16 +65,19 @@ class ImageValidator(BaseValidator):
         return rand < 1 / 1
 
     async def get_scoring_task(self, uid, answer, response: ImageResponse):
-        if answer is None:
+        if response is None:
+            bt.logging.trace(f"response is None. so return score with 0 for this uid {uid}.")
             return 0
         if response.provider == "OpenAI":
-            completion = answer.completion
+            completion = response.completion
             if completion is None:
+                bt.logging.trace(f"response completion is None for uid {uid}. so return score with 0")
                 return 0
             image_url = completion["url"]
             score = await cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
                                                      self.weight)
         else:
+            bt.logging.trace(f"not found provider type {response.provider}")
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 

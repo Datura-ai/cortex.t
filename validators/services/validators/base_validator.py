@@ -7,7 +7,7 @@ from typing import List, Tuple
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.utils import error_handler
+from validators.utils import error_handler, apply_for_time_penalty_to_uid_scores
 
 dataset = None
 
@@ -67,6 +67,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     @error_handler
+    @apply_for_time_penalty_to_uid_scores
     async def score_responses(self, responses):
         answering_tasks = []
         scoring_tasks = []
