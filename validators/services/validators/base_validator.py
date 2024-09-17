@@ -1,13 +1,15 @@
 from abc import abstractmethod
 import asyncio
-from datasets import load_dataset
+from collections import defaultdict
+
 import random
-from typing import List, Tuple
+from typing import Tuple
 
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.utils import error_handler, apply_for_time_penalty_to_uid_scores
+from validators.utils import error_handler
+from cortext.constants import TEXT_VALI_MODELS_WEIGHTS
 
 dataset = None
 
@@ -42,7 +44,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     def select_random_provider_and_model(self):
         pass
 
-
     def get_provider_to_models(self):
         pass
 
@@ -71,19 +72,18 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         pass
 
     @error_handler
-    async def score_responses(self, responses):
+    async def score_responses(self, uid_to_query_resps, uid_to_capacity):
         answering_tasks = []
         scoring_tasks = []
-        uid_scores_dict = {}
         scored_response = []
 
-        for uid, query_resp in responses:
+        for uid, query_resp in uid_to_query_resps:
             task = self.get_answer_task(uid, query_resp.get("query"), query_resp.get("response"))
             answering_tasks.append((uid, task))
 
         answers_results = await asyncio.gather(*[task for _, task in answering_tasks])
 
-        for (uid, query_resp), answer in zip(responses, answers_results):
+        for (uid, query_resp), answer in zip(uid_to_query_resps, answers_results):
             task = self.get_scoring_task(uid, answer, query_resp.get("response"))
             scoring_tasks.append((uid, task))
 
@@ -93,25 +93,63 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             scored_responses) if scored_responses else 0
         bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
 
-        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
-            if scored_response is not None:
-                bt.logging.trace(f"scored response is {scored_response} for uid {uid}")
-                uid_scores_dict[uid] = float(scored_response)
-            else:
-                uid_scores_dict[uid] = 0
+        uid_scores_dict = self.get_uid_to_scores_dict(uid_to_query_resps, scored_responses, uid_to_capacity)
 
-        if uid_scores_dict != {}:
-            validator_type = self.__class__.__name__
-            bt.logging.info(f"{validator_type} scores is {uid_scores_dict}")
         bt.logging.trace("score_responses process completed.")
 
-        return uid_scores_dict, scored_response, responses
+        return uid_scores_dict, scored_response, uid_to_query_resps
 
-    async def get_and_score(self, available_uids: List[int]):
-        bt.logging.trace("starting query")
-        query_responses = await self.start_query(available_uids)
-        bt.logging.trace("scoring query with query responses")
-        return await self.score_responses(query_responses)
+    def get_uid_to_scores_dict(self, uid_to_query_resps, scored_responses: tuple[float], uid_to_capacity):
+        uid_provider_model_scores_dict = defaultdict(list)
+
+        # collect all scores per each uid, provider, model
+        for (uid, query_resp), scored_response in zip(uid_to_query_resps, scored_responses):
+            synapse = query_resp.get('query')
+            provider = synapse.provider
+            model = synapse.model
+            if scored_response is not None:
+                bt.logging.trace(f"scored response is {scored_response} for uid {uid} for provider {provider} "
+                                 f"and for model {model}")
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(float(scored_response))
+            else:
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(0)
+
+        # get avg score value for each uid, provider, model
+        uid_provider_model_scores_avg_dict = {}
+        for key, scores in uid_provider_model_scores_dict.items():
+            if len(scores) == 0:
+                bt.logging.debug(f"no scores found for this uid {key}")
+            avg_score = sum(scores) / len(scores)
+            uid_provider_model_scores_avg_dict[key] = avg_score
+
+        # total_weights = 0
+        # for provider, model_infos in TEXT_VALI_MODELS_WEIGHTS.items():
+        #     for model in model_infos:
+        #         total_weights += model_infos.get(model)
+
+        # apply weight for each model and calculate score based on weight of models.
+        uid_scores_dict = defaultdict(float)
+        for key, avg_score in uid_provider_model_scores_avg_dict.items():
+            uid = int(str(key).split("::")[0])
+            provider = str(key).split("::")[1]
+            model = str(key).split("::")[2]
+            model_weight = TEXT_VALI_MODELS_WEIGHTS.get(provider).get(model)
+            if model_weight is None:
+                bt.logging.debug(f"not weight found for this provider {provider} and model {model}")
+                model_weight = 0
+            band_width = uid_to_capacity.get(uid).bandwidth_rpm.get(f"{provider}").get(f"{model}")
+            if band_width is None:
+                bt.logging.debug(f"no band_width found for this uid {uid}")
+                band_width = 1
+            bt.logging.debug(f"bandwidth is {band_width}")
+            uid_scores_dict[uid] += avg_score * model_weight * band_width
+            bt.logging.debug(f"score {avg_score} for this model {model}, "
+                             f"and weighted_score is {uid_scores_dict[uid]}")
+
+        if not len(uid_scores_dict):
+            validator_type = self.__class__.__name__
+            bt.logging.debug(f"{validator_type} scores is {uid_scores_dict}")
+        return uid_scores_dict
 
     @classmethod
     def get_task_type(cls):

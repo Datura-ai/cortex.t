@@ -12,7 +12,7 @@ from cortext.utils import get_question
 import bittensor as bt
 
 
-class ImageValidator(BaseValidator):
+class ImageValidator:
     def __init__(self, config, metagraph=None):
         super().__init__(config, metagraph)
         self.num_uids_to_pick = 30

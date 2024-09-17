@@ -16,7 +16,7 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
+from validators.services import CapacityService, BaseValidator
 from validators.utils import handle_response
 
 scoring_organic_timeout = 60
@@ -24,7 +24,8 @@ scoring_organic_timeout = 60
 
 class WeightSetter:
     def __init__(self, config):
-        self.available_uids = None
+        self.uid_to_capacity = {}
+        self.available_uids = []
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
@@ -39,7 +40,7 @@ class WeightSetter:
         self.MIN_SCORED_QUERIES = 1  # Minimum number of times each UID should be scored per epoch
         self.scoring_percent = 1  # Percentage of total queries that will be scored
         self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
-        self.max_score_cnt_per_uid = 1
+        self.max_score_cnt_per_model = 1
         bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
                         f"with {self.MIN_SCORED_QUERIES} of them being scored.")
 
@@ -148,7 +149,7 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            if self.available_uids is None:
+            if not self.available_uids:
                 await self.initialize_uids_and_capacities()
 
             current_block = self.get_current_block()
@@ -166,7 +167,7 @@ class WeightSetter:
 
                 if not uids_to_query:
                     bt.logging.info("All UIDs have received the maximum number of total queries.")
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(10)
                     continue
 
                 # Prioritize UIDs with least total_queries_sent
@@ -207,12 +208,11 @@ class WeightSetter:
         response_tasks = []
         query_tasks = []
         provider_to_models = selected_validator.get_provider_to_models()
-        synapse_type = selected_validator.get_task_type()
 
         uids_to_query_expand = []
         for provider, model in provider_to_models:
             for uid in uids_to_query:
-                band_width = self.uid_to_capacity.get(uid).bandwidth_rpm.get(f"{synapse_type}_{provider}")
+                band_width = self.uid_to_capacity.get(uid).bandwidth_rpm.get(f"{provider}").get(f"{model}")
                 for _ in range(band_width):
                     query_task = selected_validator.create_query(uid, provider, model)
                     query_tasks.append(query_task)
@@ -506,7 +506,10 @@ class WeightSetter:
                 vali_type = type(validator).__name__
                 type_to_validator[vali_type] = validator
 
-                grouped_key = f"{vali_type}:{uid}"
+                provider = synapse.provider
+                model = synapse.model
+
+                grouped_key = f"{vali_type}:{uid}:{provider}:{model}"
                 grouped_query_resps[grouped_key].append(
                     (uid, {'query': synapse, 'response': response}))
 
@@ -514,13 +517,13 @@ class WeightSetter:
                 vali_type = str(key).split(":")[0]
                 if not uid_to_query_resps:
                     continue
-                query_resp_to_score_for_uid = random.choice(uid_to_query_resps)
-                validator_to_query_resps[vali_type].append(query_resp_to_score_for_uid)
+                query_resp_to_score_for_uids = random.choices(uid_to_query_resps, k=self.max_score_cnt_per_model)
+                validator_to_query_resps[vali_type] += query_resp_to_score_for_uids
 
             score_tasks = []
             for vali_type in type_to_validator:
                 validator = type_to_validator[vali_type]
-                text_score_task = validator.score_responses(validator_to_query_resps[vali_type])
+                text_score_task = validator.score_responses(validator_to_query_resps[vali_type], self.uid_to_capacity)
                 score_tasks.append(text_score_task)
 
             resps = await asyncio.gather(*score_tasks)
