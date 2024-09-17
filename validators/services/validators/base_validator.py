@@ -95,7 +95,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
             if scored_response is not None:
-                bt.logging.trace(f"scored response is None for uid {uid}")
+                bt.logging.trace(f"scored response is {scored_response} for uid {uid}")
                 uid_scores_dict[uid] = float(scored_response)
             else:
                 uid_scores_dict[uid] = 0
@@ -112,3 +112,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         query_responses = await self.start_query(available_uids)
         bt.logging.trace("scoring query with query responses")
         return await self.score_responses(query_responses)
+
+    @classmethod
+    def get_task_type(cls):
+        pass

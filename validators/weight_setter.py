@@ -39,7 +39,7 @@ class WeightSetter:
         self.MIN_SCORED_QUERIES = 1  # Minimum number of times each UID should be scored per epoch
         self.scoring_percent = 1  # Percentage of total queries that will be scored
         self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
-        self.max_score_cnt_per_model = 1
+        self.max_score_cnt_per_uid = 1
         bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
                         f"with {self.MIN_SCORED_QUERIES} of them being scored.")
 
@@ -176,30 +176,25 @@ class WeightSetter:
             num_uids_to_query = min(self.config.max_miners_cnt, len(uids_to_query))
             uids_to_query = uids_to_query[:num_uids_to_query]
 
-            selected_validator = self.select_validator()
-
-            # Perform synthetic queries
-            bt.logging.info("start querying to miners")
-            query_responses = await self.perform_queries(selected_validator, uids_to_query)
-
-            # Store queries and responses in the shared database
-            async with self.lock:
-                for uid, response_data in query_responses:
-                    # Update total_queries_sent
-                    self.total_queries_sent[uid] += 1
-
-                    # Decide whether to score this query
-                    self.query_database.append({
-                        'uid': uid,
-                        'synapse': response_data['query'],
-                        'response': response_data['response'],
-                        'query_type': 'synthetic',
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'validator': selected_validator
-                    })
-
+            for selected_validator in self.get_validators():
+                # Perform synthetic queries
+                bt.logging.info("start querying to miners")
+                query_responses = await self.perform_queries(selected_validator, uids_to_query)
+                # Store queries and responses in the shared database
+                async with self.lock:
+                    for uid, response_data in query_responses:
+                        # Decide whether to score this query
+                        self.query_database.append({
+                            'uid': uid,
+                            'synapse': response_data['query'],
+                            'response': response_data['response'],
+                            'query_type': 'synthetic',
+                            'timestamp': asyncio.get_event_loop().time(),
+                            'validator': selected_validator
+                        })
+                await asyncio.sleep(1)
+            self.total_queries_sent[uid] += 1
             bt.logging.info(f"Performed synthetic queries for UIDs: {uids_to_query}")
-
             # Slow down the validator steps if necessary
             await asyncio.sleep(1)
 
@@ -212,22 +207,24 @@ class WeightSetter:
         response_tasks = []
         query_tasks = []
         provider_to_models = selected_validator.get_provider_to_models()
+        synapse_type = selected_validator.get_task_type()
+
         uids_to_query_expand = []
         for provider, model in provider_to_models:
             for uid in uids_to_query:
-                band_width = self.uid_to_capacity.get(provider).get(model)
+                band_width = self.uid_to_capacity.get(uid).bandwidth_rpm.get(f"{synapse_type}_{provider}")
                 for _ in range(band_width):
                     query_task = selected_validator.create_query(uid, provider, model)
                     query_tasks.append(query_task)
                     uids_to_query_expand.append(uid)
 
-            queries = await asyncio.gather(*query_tasks)
-            for uid, query in zip(uids_to_query_expand, queries):
-                response_tasks.append(self.query_miner(uid, query))
+        queries = await asyncio.gather(*query_tasks)
+        for uid, query in zip(uids_to_query_expand, queries):
+            response_tasks.append(self.query_miner(uid, query))
 
-            responses = await asyncio.gather(*response_tasks)
-            for uid, query_syn, response in zip(uids_to_query_expand, queries, responses):
-                query_responses.append((uid, {'query': query_syn, 'response': response}))
+        responses = await asyncio.gather(*response_tasks)
+        for uid, query_syn, response in zip(uids_to_query_expand, queries, responses):
+            query_responses.append((uid, {'query': query_syn, 'response': response}))
         return query_responses
 
     @handle_response
@@ -257,6 +254,14 @@ class WeightSetter:
             return text_validator
         else:
             return image_validator
+
+    def get_validators(self):
+        validators = []
+        all_classes = ValidatorRegistryMeta.all_classes()
+        for class_name, class_ref in all_classes.items():
+            validator = ValidatorRegistryMeta.get_class(class_name)(config=self.config, metagraph=self.metagraph)
+            validators.append(validator)
+        return validators
 
     async def get_capacities_for_uids(self, uids):
         capacity_service = CapacityService(metagraph=self.metagraph, dendrite=self.dendrite)
@@ -498,17 +503,19 @@ class WeightSetter:
                 synapse = query_data['synapse']
                 response = query_data['response']
                 validator = query_data['validator']
-                type_to_validator[type(validator)] = validator
-                provider = synapse.provider
-                model = synapse.model
+                vali_type = type(validator).__name__
+                type_to_validator[vali_type] = validator
 
-                grouped_key = f"{type(validator)}:{uid}:{provider}:{model}"
-                if len(grouped_query_resps[grouped_key]) < self.max_score_cnt_per_model:
-                    grouped_query_resps[grouped_key].append(
-                        (uid, {'query': synapse, 'response': response}))
-                    validator_to_query_resps[type(validator)].append(
-                        (uid, {'query': synapse, 'response': response})
-                    )
+                grouped_key = f"{vali_type}:{uid}"
+                grouped_query_resps[grouped_key].append(
+                    (uid, {'query': synapse, 'response': response}))
+
+            for key, uid_to_query_resps in grouped_query_resps.items():
+                vali_type = str(key).split(":")[0]
+                if not uid_to_query_resps:
+                    continue
+                query_resp_to_score_for_uid = random.choice(uid_to_query_resps)
+                validator_to_query_resps[vali_type].append(query_resp_to_score_for_uid)
 
             score_tasks = []
             for vali_type in type_to_validator:

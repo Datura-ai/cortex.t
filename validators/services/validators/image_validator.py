@@ -50,7 +50,7 @@ class ImageValidator(BaseValidator):
             self.model = "dall-e-3"
 
     def get_provider_to_models(self):
-        return "OpenAI", "dall-e-3"
+        return [("OpenAI", "dall-e-3")]
 
     async def get_question(self):
         question = await get_question("images", 1)
@@ -109,3 +109,7 @@ class ImageValidator(BaseValidator):
             self.wandb_data["images"][uid] = wandb.Image(image) if image is not None else ''
             self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
         return self.wandb_data
+
+    @classmethod
+    def get_task_type(cls):
+        return ImageResponse.__name__

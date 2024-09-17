@@ -8,9 +8,9 @@ from cortext.protocol import Embeddings
 from validators.services.validators.base_validator import BaseValidator
 
 
-class EmbeddingsValidator(BaseValidator):
-    def __init__(self, config):
-        super().__init__(config)
+class EmbeddingsValidator:
+    def __init__(self, config, metagraph=None):
+        super().__init__(config, metagraph)
         self.streaming = False
         self.config = config
         self.query_type = "embeddings"

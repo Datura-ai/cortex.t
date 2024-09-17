@@ -172,3 +172,7 @@ class TextValidator(BaseValidator):
     async def get_scoring_task(self, uid, answer, response):
         response_str, _ = response
         return await cortext.reward.api_score(answer, response_str, self.weight, self.temperature, self.provider)
+
+    @classmethod
+    def get_task_type(cls):
+        return StreamPrompting.__name__
