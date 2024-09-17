@@ -89,8 +89,7 @@ def init_wandb(config):
     if not config.wandb_on:
         return
 
-    wallet = bt.wallet(name=config.wallet.name, hotkey=config.wallet.hotkey)
-    run_name = f"validator-{wallet.hotkey.ss58_address}-{cortext.__version__}"
+    run_name = f"validator-{config.wallet.hotkey.ss58_address}-{cortext.__version__}"
     config.run_name = run_name
     config.version = cortext.__version__
     config.type = "validator"
@@ -104,7 +103,7 @@ def init_wandb(config):
         reinit=True
     )
 
-    signature = wallet.hotkey.sign(run.id.encode()).hex()
+    signature = config.wallet.hotkey.sign(run.id.encode()).hex()
     config.signature = signature
     wandb.config.update(config.__dict__, allow_val_change=True)
 
