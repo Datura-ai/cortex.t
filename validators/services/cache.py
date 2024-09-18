@@ -51,10 +51,10 @@ class QueryResponseCache:
     def get_all_question_to_answers(self, provider, model):
         cursor = self.conn.cursor()
         cursor.execute('''
-                SELECT value FROM cache WHERE provider = ? AND model = ?
+                SELECT question, answer FROM cache WHERE provider = ? AND model = ?
                 ''', (provider, model))
-        result = cursor.fetchall()
-        return list(result) if result else None
+        results = [(row[0], row[1]) for row in cursor.fetchall()]
+        return results
 
     def close(self):
         self.conn.close()

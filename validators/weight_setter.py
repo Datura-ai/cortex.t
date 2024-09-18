@@ -18,7 +18,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import handle_response
+from validators.utils import handle_response, error_handler
 
 scoring_organic_timeout = 60
 
@@ -78,6 +78,7 @@ class WeightSetter:
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
+        self.loop.create_task(self.process_queries_from_cache_database())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -164,6 +165,10 @@ class WeightSetter:
 
             if last_update >= self.tempo * 2 or (
                     self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
+                async with self.lock:
+                    bt.logging.info("start scoring with cache database")
+                    await self.process_queries_from_cache_database()
+                    bt.logging.info("complete scoring with cache database")
                 await self.update_and_refresh(last_update)
 
             # Decide which UIDs to query, considering total queries sent
@@ -215,7 +220,6 @@ class WeightSetter:
         response_tasks = []
         query_tasks = []
         provider_to_models = selected_validator.get_provider_to_models()
-
         uids_to_query_expand = []
         for provider, model in provider_to_models:
             for uid in uids_to_query:
@@ -554,38 +558,51 @@ class WeightSetter:
 
     @property
     def batch_list_of_all_uids(self):
+        uids = list(self.available_uid_to_axons.keys())
         batch_size = self.batch_size
         batched_list = []
-        for i in range(0, len(self.available_uid_to_axons), batch_size):
-            batched_list.append(self.available_uid_to_axons.keys()[i:i + batch_size])
+        for i in range(0, len(uids), batch_size):
+            batched_list.append(uids[i:i + batch_size])
         return batched_list
 
+    @error_handler
     async def process_queries_from_cache_database(self):
+        # await self.initialize_uids_and_capacities()
+        tasks = []
         for vali in self.get_validators():
             for provider, model in vali.get_provider_to_models():
                 questions_answers: List[Tuple[str, str]] = self.cache.get_all_question_to_answers(provider, model)
+                if not questions_answers:
+                    continue
                 # select one of questions_answers
                 query, answer = random.choice(questions_answers)
                 query_syn = vali.get_synapse_from_json(query)
-                await self.score_miners_based_cached_answer(vali, query_syn, answer)
+                tasks.append(self.score_miners_based_cached_answer(vali, query_syn, answer))
+        await asyncio.gather(*tasks)
+        bt.logging.info("Successfully complete scoring for all miners with cached data and "
+                        f"total score is {self.total_scores}")
 
     async def score_miners_based_cached_answer(self, vali, query, answer):
-        bt.logging.info("Starting cache based scoring process...")
         total_query_resps = []
+        provider = query.provider
+        model = query.model
 
-        def mock_create_query():
+        async def mock_create_query(*args, **kwargs):
             return query
 
+        origin_ref_create_query = vali.create_query
+        origin_ref_provider_to_models = vali.get_provider_to_models
+
         for batch_uids in self.batch_list_of_all_uids:
-            async with self.lock:
-                origin_ref = vali.create_query
-                vali.create_query = mock_create_query
-                query_responses = await self.perform_queries(vali, batch_uids)
-                vali.create_query = origin_ref
+            vali.create_query = mock_create_query
+            vali.get_provider_to_models = lambda: [(provider, model)]
+            query_responses = await self.perform_queries(vali, batch_uids)
             total_query_resps += query_responses
 
-        bt.logging.debug(f"total cached query_resps: {total_query_resps}")
+        vali.create_query = origin_ref_create_query
+        vali.get_provider_to_models = origin_ref_provider_to_models
 
+        bt.logging.debug(f"total cached query_resps: {len(total_query_resps)}")
         queries_to_process = []
         for uid, response_data in total_query_resps:
             # Decide whether to score this query
@@ -598,21 +615,17 @@ class WeightSetter:
                 'validator': vali
             })
 
-        def mock_answer():
+        async def mock_answer(*args, **kwargs):
             return answer
 
-        async with self.lock:
-            origin_ref = vali.get_answer_task
-            vali.get_answer_task = mock_answer
-            score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
-            responses = await asyncio.gather(*score_tasks)
-            vali.get_answer_task = origin_ref
+        origin_ref_answer_task = vali.get_answer_task
+        vali.get_answer_task = mock_answer
+        score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
+        responses = await asyncio.gather(*score_tasks)
+        vali.get_answer_task = origin_ref_answer_task
 
-            responses = [item for item in responses if item is not None]
-            for uid_scores_dict, _, _ in responses:
-                for uid, score in uid_scores_dict.items():
-                    self.total_scores[uid] += score
+        responses = [item for item in responses if item is not None]
+        for uid_scores_dict, _, _ in responses:
+            for uid, score in uid_scores_dict.items():
+                self.total_scores[uid] += score
 
-        bt.logging.info("Successfully complete scoring for all miners with cached data and "
-                        f"total score is {self.total_scores}")
-        return query_responses
