@@ -71,6 +71,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def get_scoring_task(self, uid, answer, response):
         pass
 
+    @staticmethod
+    def get_synapse_from_json(data):
+        pass
+
     @error_handler
     async def score_responses(self, uid_to_query_resps, uid_to_capacity):
         answering_tasks = []

@@ -491,6 +491,42 @@ class WeightSetter:
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
 
+    def get_scoring_tasks_from_query_responses(self, queries_to_process):
+
+        grouped_query_resps = defaultdict(list)
+        validator_to_query_resps = defaultdict(list)
+        type_to_validator = {}
+
+        # Process queries outside the lock to prevent blocking
+        for query_data in queries_to_process:
+            uid = query_data['uid']
+            synapse = query_data['synapse']
+            response = query_data['response']
+            validator = query_data['validator']
+            vali_type = type(validator).__name__
+            type_to_validator[vali_type] = validator
+
+            provider = synapse.provider
+            model = synapse.model
+
+            grouped_key = f"{vali_type}:{uid}:{provider}:{model}"
+            grouped_query_resps[grouped_key].append(
+                (uid, {'query': synapse, 'response': response}))
+
+        for key, uid_to_query_resps in grouped_query_resps.items():
+            vali_type = str(key).split(":")[0]
+            if not uid_to_query_resps:
+                continue
+            query_resp_to_score_for_uids = random.choices(uid_to_query_resps, k=self.max_score_cnt_per_model)
+            validator_to_query_resps[vali_type] += query_resp_to_score_for_uids
+
+        score_tasks = []
+        for vali_type in type_to_validator:
+            validator = type_to_validator[vali_type]
+            text_score_task = validator.score_responses(validator_to_query_resps[vali_type], self.uid_to_capacity)
+            score_tasks.append(text_score_task)
+        return score_tasks
+
     async def process_queries_from_database(self):
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
@@ -501,44 +537,9 @@ class WeightSetter:
                 queries_to_process = self.query_database.copy()
                 self.query_database.clear()
 
-            grouped_query_resps = defaultdict(list)
-            validator_to_query_resps = defaultdict(list)
-            type_to_validator = {}
-            # Process queries outside the lock to prevent blocking
-            for query_data in queries_to_process:
-                uid = query_data['uid']
-                synapse = query_data['synapse']
-                response = query_data['response']
-                validator = query_data['validator']
-                vali_type = type(validator).__name__
-                type_to_validator[vali_type] = validator
+            score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
-                provider = synapse.provider
-                model = synapse.model
-
-                grouped_key = f"{vali_type}:{uid}:{provider}:{model}"
-                grouped_query_resps[grouped_key].append(
-                    (uid, {'query': synapse, 'response': response}))
-
-            for key, uid_to_query_resps in grouped_query_resps.items():
-                vali_type = str(key).split(":")[0]
-                if not uid_to_query_resps:
-                    continue
-                query_resp_to_score_for_uids = random.choices(uid_to_query_resps, k=self.max_score_cnt_per_model)
-                validator_to_query_resps[vali_type] += query_resp_to_score_for_uids
-
-            score_tasks = []
-            for vali_type in type_to_validator:
-                validator = type_to_validator[vali_type]
-                text_score_task = validator.score_responses(validator_to_query_resps[vali_type], self.uid_to_capacity)
-                score_tasks.append(text_score_task)
-
-            if self.in_cache_processing:
-                async with self.lock:
-                    resps = await asyncio.gather(*score_tasks)
-            else:
-                resps = await asyncio.gather(*score_tasks)
-
+            resps = await asyncio.gather(*score_tasks)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
             async with self.lock:
@@ -566,12 +567,15 @@ class WeightSetter:
                 # select one of questions_answers
                 query, answer = random.choice(questions_answers)
                 query_syn = vali.get_synapse_from_json(query)
+                await self.score_miners_based_cached_answer(vali, query_syn, answer)
 
     async def score_miners_based_cached_answer(self, vali, query, answer):
         bt.logging.info("Starting cache based scoring process...")
         total_query_resps = []
+
         def mock_create_query():
             return query
+
         for batch_uids in self.batch_list_of_all_uids:
             async with self.lock:
                 origin_ref = vali.create_query
@@ -582,10 +586,10 @@ class WeightSetter:
 
         bt.logging.debug(f"total cached query_resps: {total_query_resps}")
 
-
+        queries_to_process = []
         for uid, response_data in total_query_resps:
             # Decide whether to score this query
-            self.query_database.append({
+            queries_to_process.append({
                 'uid': uid,
                 'synapse': response_data['query'],
                 'response': response_data['response'],
@@ -593,9 +597,22 @@ class WeightSetter:
                 'timestamp': asyncio.get_event_loop().time(),
                 'validator': vali
             })
-        while self.query_database:
-            self.in_cache_processing = True
-            bt.logging.debug("Waiting for completing cache based scoring...")
-            await asyncio.sleep(10)
-        bt.logging.info("Successfully complete scoring for all miners with cached data")
+
+        def mock_answer():
+            return answer
+
+        async with self.lock:
+            origin_ref = vali.get_answer_task
+            vali.get_answer_task = mock_answer
+            score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
+            responses = await asyncio.gather(*score_tasks)
+            vali.get_answer_task = origin_ref
+
+            responses = [item for item in responses if item is not None]
+            for uid_scores_dict, _, _ in responses:
+                for uid, score in uid_scores_dict.items():
+                    self.total_scores[uid] += score
+
+        bt.logging.info("Successfully complete scoring for all miners with cached data and "
+                        f"total score is {self.total_scores}")
         return query_responses

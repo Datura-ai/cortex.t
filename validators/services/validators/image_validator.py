@@ -113,3 +113,8 @@ class ImageValidator:
     @classmethod
     def get_task_type(cls):
         return ImageResponse.__name__
+
+    @staticmethod
+    def get_synapse_from_json(data):
+        synapse = ImageResponse.parse_raw(data)
+        return synapse

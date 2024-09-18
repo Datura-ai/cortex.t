@@ -175,3 +175,9 @@ class TextValidator(BaseValidator):
     @classmethod
     def get_task_type(cls):
         return StreamPrompting.__name__
+
+    @staticmethod
+    def get_synapse_from_json(data):
+        synapse = StreamPrompting.parse_raw(data)
+        return synapse
+
