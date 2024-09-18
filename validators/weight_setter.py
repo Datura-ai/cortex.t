@@ -7,7 +7,7 @@ import traceback
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
-from typing import Tuple
+from typing import Tuple, List
 import bittensor as bt
 
 import cortext
@@ -17,15 +17,22 @@ from starlette.types import Send
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator
+from validators.services.cache import QueryResponseCache
 from validators.utils import handle_response
 
 scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, config):
+    def __init__(self, config, cache: QueryResponseCache):
+
+        # Cache object using sqlite3.
+        self.in_cache_processing = False
+        self.batch_size = 30
+        self.cache = cache
+
         self.uid_to_capacity = {}
-        self.available_uids = []
+        self.available_uid_to_axons = {}
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
@@ -101,14 +108,14 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def initialize_uids_and_capacities(self):
-        self.available_uids = await self.get_available_uids()
-        bt.logging.info(f"Available UIDs: {list(self.available_uids.keys())}")
-        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uids)
+        self.available_uid_to_axons = await self.get_available_uids()
+        bt.logging.info(f"Available UIDs: {list(self.available_uid_to_axons.keys())}")
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uid_to_axons)
         bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
         # Initialize total_scores, score_counts, and total_queries_sent
-        self.total_scores = {uid: 0.0 for uid in self.available_uids.keys()}
-        self.score_counts = {uid: 0 for uid in self.available_uids.keys()}
-        self.total_queries_sent = {uid: 0 for uid in self.available_uids.keys()}
+        self.total_scores = {uid: 0.0 for uid in self.available_uid_to_axons.keys()}
+        self.score_counts = {uid: 0 for uid in self.available_uid_to_axons.keys()}
+        self.total_queries_sent = {uid: 0 for uid in self.available_uid_to_axons.keys()}
 
     async def update_and_refresh(self, last_update):
         bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
@@ -145,11 +152,11 @@ class WeightSetter:
             self.score_counts[uid] = 0
             self.total_queries_sent[uid] = 0
 
-        self.available_uids = new_available_uids
+        self.available_uid_to_axons = new_available_uids
 
     async def perform_synthetic_queries(self):
         while True:
-            if not self.available_uids:
+            if not self.available_uid_to_axons:
                 await self.initialize_uids_and_capacities()
 
             current_block = self.get_current_block()
@@ -162,7 +169,7 @@ class WeightSetter:
             # Decide which UIDs to query, considering total queries sent
             async with self.lock:
                 # Select UIDs that have not reached TOTAL_QUERIES_PER_UID
-                uids_to_query = [uid for uid in self.available_uids
+                uids_to_query = [uid for uid in self.available_uid_to_axons
                                  if self.total_queries_sent[uid] < self.TOTAL_QUERIES_PER_UID]
 
                 if not uids_to_query:
@@ -255,7 +262,7 @@ class WeightSetter:
         else:
             return image_validator
 
-    def get_validators(self):
+    def get_validators(self) -> List[BaseValidator]:
         validators = []
         all_classes = ValidatorRegistryMeta.all_classes()
         for class_name, class_ref in all_classes.items():
@@ -526,7 +533,12 @@ class WeightSetter:
                 text_score_task = validator.score_responses(validator_to_query_resps[vali_type], self.uid_to_capacity)
                 score_tasks.append(text_score_task)
 
-            resps = await asyncio.gather(*score_tasks)
+            if self.in_cache_processing:
+                async with self.lock:
+                    resps = await asyncio.gather(*score_tasks)
+            else:
+                resps = await asyncio.gather(*score_tasks)
+
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
             async with self.lock:
@@ -538,3 +550,52 @@ class WeightSetter:
                         # Stop scoring if MIN_SCORED_QUERIES reached
                         if self.score_counts[uid] >= self.MIN_SCORED_QUERIES:
                             bt.logging.info(f"UID {uid} has reached the minimum number of scored queries.")
+
+    @property
+    def batch_list_of_all_uids(self):
+        batch_size = self.batch_size
+        batched_list = []
+        for i in range(0, len(self.available_uid_to_axons), batch_size):
+            batched_list.append(self.available_uid_to_axons.keys()[i:i + batch_size])
+        return batched_list
+
+    async def process_queries_from_cache_database(self):
+        for vali in self.get_validators():
+            for provider, model in vali.get_provider_to_models():
+                questions_answers: List[Tuple[str, str]] = self.cache.get_all_question_to_answers(provider, model)
+                # select one of questions_answers
+                query, answer = random.choice(questions_answers)
+                query_syn = vali.get_synapse_from_json(query)
+
+    async def score_miners_based_cached_answer(self, vali, query, answer):
+        bt.logging.info("Starting cache based scoring process...")
+        total_query_resps = []
+        def mock_create_query():
+            return query
+        for batch_uids in self.batch_list_of_all_uids:
+            async with self.lock:
+                origin_ref = vali.create_query
+                vali.create_query = mock_create_query
+                query_responses = await self.perform_queries(vali, batch_uids)
+                vali.create_query = origin_ref
+            total_query_resps += query_responses
+
+        bt.logging.debug(f"total cached query_resps: {total_query_resps}")
+
+
+        for uid, response_data in total_query_resps:
+            # Decide whether to score this query
+            self.query_database.append({
+                'uid': uid,
+                'synapse': response_data['query'],
+                'response': response_data['response'],
+                'query_type': 'synthetic',
+                'timestamp': asyncio.get_event_loop().time(),
+                'validator': vali
+            })
+        while self.query_database:
+            self.in_cache_processing = True
+            bt.logging.debug("Waiting for completing cache based scoring...")
+            await asyncio.sleep(10)
+        bt.logging.info("Successfully complete scoring for all miners with cached data")
+        return query_responses

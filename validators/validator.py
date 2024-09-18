@@ -10,6 +10,7 @@ import wandb
 import cortext
 from cortext import utils
 from validators.weight_setter import WeightSetter
+from validators.services.cache import QueryResponseCache
 
 # Load environment variables from .env file
 load_dotenv()
@@ -126,7 +127,8 @@ def main():
 
     init_wandb(config)
     loop = asyncio.get_event_loop()
-    weight_setter = WeightSetter(config=config)
+    conn = QueryResponseCache()
+    weight_setter = WeightSetter(config=config, conn=conn)
     state_path = os.path.join(config.full_path, "state.json")
     utils.get_state(state_path)
     try:
@@ -139,6 +141,8 @@ def main():
         bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
         utils.save_state_to_file(state, state_path)
+        bt.logging.info("closing connection of cache database.")
+        conn.close()
         if config.wandb_on:
             wandb.finish()
 
