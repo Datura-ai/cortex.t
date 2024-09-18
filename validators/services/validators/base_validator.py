@@ -60,9 +60,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
     async def build_wandb_data(self, scores, responses):
         pass
 
-    def should_i_score(self):
-        return True
-
     @abstractmethod
     async def get_answer_task(self, uid, synapse, response):
         pass

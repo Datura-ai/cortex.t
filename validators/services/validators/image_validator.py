@@ -1,13 +1,11 @@
 import asyncio
 import random
-import traceback
 import wandb
 
 import cortext.reward
 from cortext.protocol import ImageResponse
-from validators.services.validators.base_validator import BaseValidator
 from validators import utils
-from validators.utils import error_handler
+from validators.utils import error_handler, save_answer_to_cache
 from cortext.utils import get_question
 import bittensor as bt
 
@@ -84,6 +82,7 @@ class ImageValidator:
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 
+    @save_answer_to_cache
     async def get_answer_task(self, uid, synapse: ImageResponse, response):
         return synapse
 

@@ -11,7 +11,8 @@ from io import BytesIO
 from functools import wraps
 import logging
 
-from cortext import ImageResponse
+from cortext import ImageResponse, ALL_SYNAPSE_TYPE
+from validators.services.cache import cache_service
 
 
 async def download_image(url):
@@ -117,9 +118,22 @@ def apply_for_time_penalty_to_uid_scores(func):
     return wrapper
 
 
-def get_should_i_score_arr_for_text():
-    for i in itertools.count():
-        yield (i % 3) == 0
+def save_answer_to_cache(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        answer = await func(*args, **kwargs)
+        query_syn: ALL_SYNAPSE_TYPE = args[2]
+        provider  = query_syn.provider
+        model = query_syn.model
+        try:
+            cache_service.set_cache(question=str(query_syn.json()), answer=str(answer), provider=provider, model=model)
+        except Exception as err:
+            bt.logging.error(f"Exception during cache for uid {args[1]}, {err}")
+        else:
+            bt.logging.trace(f"saved answer to cache successfully.")
+        finally:
+            return answer
+    return wrapper
 
 
 def get_should_i_score_arr_for_image():

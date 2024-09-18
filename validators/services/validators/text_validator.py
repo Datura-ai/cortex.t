@@ -11,12 +11,10 @@ from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
-from validators.utils import get_should_i_score_arr_for_text
+from validators.utils import save_answer_to_cache
 
 
 class TextValidator(BaseValidator):
-    gen_should_i_score = get_should_i_score_arr_for_text()
-
     def __init__(self, config, provider: str = None, model: str = None, metagraph=None):
         super().__init__(config, metagraph)
         self.streaming = True
@@ -108,10 +106,6 @@ class TextValidator(BaseValidator):
                 provider_models.append((provider, model_))
         return provider_models
 
-    @classmethod
-    def should_i_score(cls):
-        return next(cls.gen_should_i_score)
-
     @error_handler
     async def build_wandb_data(self, uid_to_score, responses):
         for uid, _ in self.uid_to_questions.items():
@@ -163,10 +157,12 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
+    @save_answer_to_cache
     async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
         prompt = query_syn.messages[0].get("content")
         image_url = query_syn.messages[0].get("image")
-        return await self.call_api(prompt, image_url, self.provider)
+        answer = await self.call_api(prompt, image_url, self.provider)
+        return answer
 
     async def get_scoring_task(self, uid, answer, response):
         response_str, _ = response

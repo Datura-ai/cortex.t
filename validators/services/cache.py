@@ -4,7 +4,7 @@ import hashlib
 
 
 class QueryResponseCache:
-    def __int__(self):
+    def __init__(self):
         # Connect to (or create) the SQLite database
         conn = sqlite3.connect('cache.db')
         cursor = conn.cursor()
@@ -12,7 +12,7 @@ class QueryResponseCache:
         # Create a table for caching (key, value, and expiry time)
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS cache (
-            p_key TEXT PRIMARY KEY
+            p_key TEXT PRIMARY KEY,
             question TEXT,
             answer TEXT,
             provider TEXT,
@@ -35,7 +35,7 @@ class QueryResponseCache:
         expires_at = time.time() + ttl
         cursor = self.conn.cursor()
         cursor.execute('''
-        INSERT OR REPLACE INTO cache (p_key, question, answer, provider, model, expires_at)
+        INSERT OR REPLACE INTO cache (p_key, question, answer, provider, model, timestamp)
         VALUES (?, ?, ?, ?, ?, ?)
         ''', (p_key, question, answer, provider, model, expires_at))
         self.conn.commit()
@@ -43,7 +43,7 @@ class QueryResponseCache:
     def get_cache(self, key):
         cursor = self.conn.cursor()
         cursor.execute('''
-        SELECT value FROM cache WHERE p_key = ? AND expires_at > ?
+        SELECT value FROM cache WHERE p_key = ? AND timestamp > ?
         ''', (key, time.time()))
         result = cursor.fetchone()
         return result[0] if result else None
@@ -51,10 +51,13 @@ class QueryResponseCache:
     def get_all_question_to_answers(self, provider, model):
         cursor = self.conn.cursor()
         cursor.execute('''
-                SELECT value FROM cache WHERE provider = ? AND model = ? AND expires_at > ?
-                ''', (provider, model, time.time()))
+                SELECT value FROM cache WHERE provider = ? AND model = ?
+                ''', (provider, model))
         result = cursor.fetchall()
         return list(result) if result else None
 
     def close(self):
         self.conn.close()
+
+
+cache_service = QueryResponseCache()
