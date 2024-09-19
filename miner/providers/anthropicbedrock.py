@@ -34,7 +34,6 @@ class AnthropicBedrock(Provider):
             )
         except Exception as err:
             bt.logging.exception(err)
-            bt.logging.info("errrr acerr")
             await send({"type": "http.response.body", "body": b'', "more_body": False})
 
 

@@ -566,7 +566,19 @@ class WeightSetter:
                 query, answer = random.choice(questions_answers)
                 query_syn = vali.get_synapse_from_json(query)
                 tasks.append(self.score_miners_based_cached_answer(vali, query_syn, answer))
-        await asyncio.gather(*tasks)
+
+        # process tasks in batch_size to not exceed max request per 2min.
+        batched_task_list = []
+        for i in range(0, len(tasks), cortext.MAX_REQUESTS):
+            batched_task_list.append(tasks[i:i + cortext.MAX_REQUESTS])
+        for batch_tasks in batched_task_list:
+            start_time = time.time()
+            await asyncio.gather(*batch_tasks)
+            passed_time = time.time() - start_time
+            sleep_time = max(cortext.MIN_REQUEST_PERIOD * 60 - passed_time, 1)
+            bt.logging.debug(f"wait time {sleep_time} to not exceed max_request {cortext.MAX_REQUESTS} in 2min")
+            await  asyncio.sleep(sleep_time)
+
         bt.logging.info("Successfully complete scoring for all miners with cached data and "
                         f"total score is {self.total_scores}")
 
@@ -616,4 +628,3 @@ class WeightSetter:
         for uid_scores_dict, _, _ in responses:
             for uid, score in uid_scores_dict.items():
                 self.total_scores[uid] += score
-
