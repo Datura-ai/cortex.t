@@ -31,10 +31,11 @@ class Dendrite(dendrite):
     hotkey_to_uid_capacity = defaultdict(tuple)
     synthetic_requests_queue: List[Request] = []
     organic_requests_queue: List[Request] = []
-
+    lock = asyncio.Lock()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
 
     @classmethod
     def push_request_queue(cls, request: Request):
@@ -49,8 +50,11 @@ class Dendrite(dendrite):
             task_to_request_id = {}
             if cls.organic_requests_queue:
                 # distribute organic queries to miners according to bandwidth.
+                async with cls.lock:
+                    cls.organic_requests_copy = cls.organic_requests_queue.copy()
+                    cls.organic_requests_queue.clear()
                 bt.logging.info("distribute organic queries to miners according to bandwidth.")
-                for request in cls.organic_requests_queue:
+                for request in cls.organic_requests_copy:
                     task = asyncio.create_task(cls.create_task_from_request(request))
                     task_to_request_id[task] = request.request_id
             if cls.synthetic_requests_queue:
@@ -66,7 +70,7 @@ class Dendrite(dendrite):
                 bt.logging.info(f"request {request_id} is complete. {result}")
                 # push result to redis.
 
-            # process result
+            # wait for 1 sec so that queues are filled with requests.
             await asyncio.sleep(1)
 
     @classmethod
