@@ -21,6 +21,7 @@ from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator
 from validators.services.cache import QueryResponseCache
 from validators.utils import handle_response, error_handler
+from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
 
@@ -75,10 +76,12 @@ class WeightSetter:
         self.tempo = self.subtensor.tempo(self.netuid)
         self.weights_rate_limit = self.get_weights_rate_limit()
 
+        asyncio.run(self.initialize_uids_and_capacities())
+        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, config=config)
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
-        self.loop.create_task(self.perform_synthetic_queries())
+        # self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
@@ -180,7 +183,6 @@ class WeightSetter:
                     uids_to_query_batch = self.uids_to_query[:self.batch_size]
                     # remove processing uids
                     self.uids_to_query = self.uids_to_query[self.batch_size:]
-
 
             for selected_validator in self.get_validators():
                 # Perform synthetic queries
@@ -381,8 +383,8 @@ class WeightSetter:
 
         axon = self.metagraph.axons[synapse.uid]
         start_time = time.time()
-        synapse_response:ImageResponse = await self.dendrite(axon, synapse, deserialize=False,
-                                               timeout=synapse.timeout)
+        synapse_response: ImageResponse = await self.dendrite(axon, synapse, deserialize=False,
+                                                              timeout=synapse.timeout)
         synapse_response.process_time = time.time() - start_time
 
         bt.logging.info(f"New synapse = {synapse_response}")
@@ -426,13 +428,14 @@ class WeightSetter:
         bt.logging.info(f"Received {synapse}")
 
         # Return the streaming response
-        async def _prompt(synapse, send: Send):
+        async def _prompt(synapse: StreamPrompting, send: Send):
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
-
-            axon = self.metagraph.axons[synapse.uid]
             start_time = time.time()
 
-            await self.dendrite.aclose_session()
+            synapse.deserialize = False
+            synapse.streaming = True
+
+            self.task_mgr.assign_task(synapse)
             responses = await self.dendrite(
                 axons=[axon],
                 synapse=synapse,

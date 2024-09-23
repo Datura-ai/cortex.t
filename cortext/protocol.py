@@ -292,6 +292,12 @@ class StreamPrompting(bt.StreamingSynapse):
         title="streaming",
         description="whether to stream the output",
     )
+    deserialize: bool = pydantic.Field(
+        default=True
+    )
+    task_id: int = pydantic.Field(
+        default=0
+    )
 
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:
         if self.completion is None:
@@ -302,9 +308,6 @@ class StreamPrompting(bt.StreamingSynapse):
                 if token:
                     self.completion += token
             yield tokens
-
-    def deserialize(self) -> str:
-        return self.completion
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
         headers = {

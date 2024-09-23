@@ -141,9 +141,4 @@ class Dendrite(dendrite):
             timeout: float = 12.0,
             deserialize: bool = True,
     ) -> bittensor.Synapse:
-        uid, remain_cap = Dendrite.get_remaining_capacity(target_axon, synapse)
-        if remain_cap > 0:
-            return await super().call(target_axon, synapse, timeout, deserialize)
-        else:
-            bt.logging.debug(f"remain_cap is {remain_cap} for this uid {uid}. so can't send request.")
-            return synapse
+        pass
