@@ -1,6 +1,8 @@
 import asyncio
+from copy import deepcopy
 
 from cortext.protocol import Bandwidth
+from cortext import MIN_REQUEST_PERIOD
 import bittensor as bt
 
 
@@ -9,6 +11,9 @@ class CapacityService:
         self.metagraph = metagraph
         self.dendrite: bt.dendrite = dendrite
         self.timeout = 4
+        self.uid_to_capacity = {}
+        self.remain_uid_to_capacity = {}
+        self.epoch_len = MIN_REQUEST_PERIOD
 
     async def query_capacity_to_miners(self, available_uids):
         capacity_query_tasks = []
@@ -29,4 +34,10 @@ class CapacityService:
                 bt.logging.error(f"exception happens while querying capacity to miner {uid}, {resp}")
             else:
                 uid_to_capacity[uid] = resp
+        self.uid_to_capacity = deepcopy(uid_to_capacity)
         return uid_to_capacity
+
+    async def refresh_capacity_per_epoch(self):
+        while True:
+            self.remain_uid_to_capacity = deepcopy(self.uid_to_capacity)
+            await asyncio.sleep(self.epoch_len * 60)

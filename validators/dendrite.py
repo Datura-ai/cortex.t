@@ -23,6 +23,7 @@ class Request(BaseModel):
     deserialize: bool = True
     type: RequestType
     stream: False
+    request_id: int
 
 
 class Dendrite(dendrite):
@@ -30,6 +31,7 @@ class Dendrite(dendrite):
     hotkey_to_uid_capacity = defaultdict(tuple)
     synthetic_requests_queue: List[Request] = []
     organic_requests_queue: List[Request] = []
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -42,24 +44,61 @@ class Dendrite(dendrite):
             cls.synthetic_requests_queue.append(request)
 
     @classmethod
-    def process_requests(cls):
+    async def process_requests(cls):
         while True:
+            task_to_request_id = {}
             if cls.organic_requests_queue:
                 # distribute organic queries to miners according to bandwidth.
-                bt.logging.info("# distribute organic queries to miners according to bandwidth.")
-                organic_tasks = []
+                bt.logging.info("distribute organic queries to miners according to bandwidth.")
                 for request in cls.organic_requests_queue:
-                    uid, cap = cls.get_remaining_capacity(request)
-                    if cap > 0:
-                        if request.stream:
-                            task = super().call_stream(target_axon=request.target_axon, synapse=request.synapse,
-                                                       timeout=request.timeout,
-                                                       deserialize=request.deserialize)
-                        else:
-                            task = super().call(target_axon=request.target_axon, synapse=request.synapse,
-                                                timeout=request.timeout,
-                                                deserialize=request.deserialize)
-                results = asyncio.gather(*organic_tasks)
+                    task = asyncio.create_task(cls.create_task_from_request(request))
+                    task_to_request_id[task] = request.request_id
+            if cls.synthetic_requests_queue:
+                bt.logging.info("start synthetic query and test bandwidth for all miners.")
+                for request in cls.synthetic_requests_queue:
+                    task = asyncio.create_task(cls.create_task_from_request(request))
+                    task_to_request_id[task] = request.request_id
+                pass
+
+            for completed_task in asyncio.as_completed(task_to_request_id):
+                result = await completed_task
+                request_id = task_to_request_id[completed_task]
+                bt.logging.info(f"request {request_id} is complete. {result}")
+                # push result to redis.
+
+            # process result
+            await asyncio.sleep(1)
+
+    @classmethod
+    async def create_task_from_request(cls, request):
+        uid, cap = cls.get_remaining_capacity(request)
+        if cap > 0:
+            if request.stream:
+                task = super().call_stream(target_axon=request.target_axon, synapse=request.synapse,
+                                           timeout=request.timeout,
+                                           deserialize=request.deserialize)
+            else:
+                task = await super().call(target_axon=request.target_axon, synapse=request.synapse,
+                                    timeout=request.timeout,
+                                    deserialize=request.deserialize)
+            cls.decrease_remaining_cap_after_request(request)
+            return task
+        bt.logging.info(f"can't process this request because all miners are too busy now")
+        return None
+
+    @classmethod
+    def decrease_remaining_cap_after_request(cls, request):
+        target_axon = request.target_axon
+        synapse = request.synapse
+        hotkey = target_axon.info().hotkey
+        uid, cap = cls.hotkey_to_uid_capacity[hotkey]
+        provider = synapse.provider
+        model = synapse.model
+        cap[provider][model] = cap - 1
+
+        # update capacity with decreased by 1 for provider, model
+        cls.hotkey_to_uid_capacity[hotkey] = uid, cap
+
 
     @classmethod
     def get_remaining_capacity(cls, request):
