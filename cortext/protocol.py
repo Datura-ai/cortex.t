@@ -17,6 +17,7 @@ class IsAlive(bt.Synapse):
 class Bandwidth(bt.Synapse):
     bandwidth_rpm: Optional[Dict[str, dict]] = None
 
+
 class ImageResponse(bt.Synapse):
     """ A class to represent the response for an image-related request. """
     # https://platform.stability.ai/docs/api-reference#tag/v1generation/operation/textToImage
@@ -128,6 +129,9 @@ class ImageResponse(bt.Synapse):
         default=9999,
         title="process time",
         description="processed time of querying dendrite.",
+    )
+    task_id: str = pydantic.Field(
+        default="9999"
     )
 
     def deserialize(self) -> Optional[Dict]:
@@ -295,8 +299,10 @@ class StreamPrompting(bt.StreamingSynapse):
     deserialize_flag: bool = pydantic.Field(
         default=True
     )
-    task_id: int = pydantic.Field(
-        default=0
+    task_id: str = pydantic.Field(
+        default="9999",
+        title="task_id",
+        description="task id of the request from this syanpse."
     )
 
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:

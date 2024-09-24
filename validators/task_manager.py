@@ -2,6 +2,7 @@ import asyncio
 import bittensor as bt
 
 from cortext import ALL_SYNAPSE_TYPE
+from validators.utils import error_handler
 from validators.workers import Worker
 from validators import utils
 
@@ -15,6 +16,7 @@ class TaskMgr:
         self.dendrite = dendrite
         self.metagraph = metagraph
 
+    @error_handler
     def assign_task(self, synapse: ALL_SYNAPSE_TYPE):
 
         # Find the worker with the most available resources (simplified logic)
@@ -23,7 +25,6 @@ class TaskMgr:
         if self.resources[resource_key] <= 0:
             bt.logging.debug(f"no available resources to assign this task.")
             return None
-
         task_id = utils.create_hash_value((synapse.json()))
         synapse.task_id = task_id
         bt.logging.trace(f"Assigning task {task_id} to {resource_key}")
@@ -34,9 +35,10 @@ class TaskMgr:
         worker = Worker(synapse=synapse, dendrite=self.dendrite, axon=self.get_axon_from_resource_key(resource_key),
                         redis_client=self.redis_client)
         asyncio.create_task(worker.run_task())
+        return task_id
 
     def get_axon_from_resource_key(self, resource_key):
-        uid = resource_key.split("_")[0]
+        uid = int(resource_key.split("_")[0])
         return self.metagraph.axons[uid]
 
     def init_resources(self, uid_to_capacities):

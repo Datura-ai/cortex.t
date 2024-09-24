@@ -18,9 +18,9 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService, BaseValidator, redis
+from validators.services import CapacityService, BaseValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import handle_response, error_handler
+from validators.utils import handle_response, error_handler, get_stream_result
 from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
@@ -83,8 +83,8 @@ class WeightSetter:
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
-        self.loop.create_task(self.perform_synthetic_queries())
-        self.loop.create_task(self.process_queries_from_database())
+        # self.loop.create_task(self.perform_synthetic_queries())
+        # self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -133,33 +133,7 @@ class WeightSetter:
 
         bt.logging.info("Refreshing metagraph...")
         await self.refresh_metagraph()
-
-        bt.logging.info("Refreshing available UIDs...")
-        new_available_uids = await self.get_available_uids()
-        bt.logging.info(f"Available UIDs: {list(new_available_uids.keys())}")
-
-        bt.logging.info("Refreshing capacities...")
-        self.uid_to_capacity = await self.get_capacities_for_uids(new_available_uids)
-
-        # Update total_scores, score_counts
-        # Remove UIDs that are no longer available
-        for uid in list(self.total_scores.keys()):
-            if uid not in new_available_uids:
-                del self.total_scores[uid]
-                del self.score_counts[uid]
-
-        # Add new UIDs
-        for uid in new_available_uids:
-            if uid not in self.total_scores:
-                self.total_scores[uid] = 0.0
-                self.score_counts[uid] = 0
-
-        # Reset counts for new epoch
-        for uid in self.total_scores.keys():
-            self.total_scores[uid] = 0.0
-            self.score_counts[uid] = 0
-
-        self.available_uid_to_axons = new_available_uids
+        await self.initialize_uids_and_capacities()
 
     async def perform_synthetic_queries(self):
         while True:
@@ -441,10 +415,15 @@ class WeightSetter:
             synapse.streaming = True
 
             task_id = self.task_mgr.assign_task(query_synapse)
+            if task_id is None:
+                bt.logging.error("Can't create task.")
+                await send({"type": "http.response.body", "body": b'', "more_body": False})
+                return
+            bt.logging.trace(f"task is created and task_id is {task_id}")
 
             response_text = ''
 
-            async for chunk in self.redis_client.get_stream_result(task_id):
+            async for chunk in get_stream_result(task_id=task_id, redis_client=self.redis_client):
                 if isinstance(chunk, str):
                     await send({
                         "type": "http.response.body",
