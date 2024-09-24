@@ -1,54 +1,33 @@
-import asyncio
-
-import redis
-import json
 import bittensor as bt
-from cortext import StreamPrompting, ImageResponse, REDIS_RESULT_STREAM, REDIS_RESULT
+from cortext import REDIS_RESULT_STREAM, REDIS_RESULT
 
 
 class Worker:
-    # Initialize Redis client
-    redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-    def __init__(self, task_id, dendrite, axon):
-        self.worker_id = task_id
+    def __init__(self, synapse, dendrite, axon, redis_client):
+        self.redis_client = redis_client
+        self.synapse = synapse
         self.dendrite = dendrite
         self.axon = axon
 
-
-    @staticmethod
-    def covert_json_to_synapse(task_obj):
-        if task_obj.get("streaming"):
-            synapse = StreamPrompting.parse_obj(task_obj)
-        else:
-            synapse = ImageResponse.parse_obj(task_obj)
-        return synapse
-
-    async def pull_and_run_task(self):
+    async def run_task(self):
         # Pull task from worker-specific queue
-        while True:
-            task = json.loads(self.redis_client.lpop(f"tasks:{self.worker_id}") or "{}")
-            if task:
-                synapse = self.covert_json_to_synapse(task)
-                bt.logging.trace(f"Worker {self.worker_id} received task: {synapse}")
-                try:
-                    responses = self.dendrite(
-                        axons=[self.axon],
-                        synapse=synapse,
-                        deserialize=synapse.deserialize,
-                        timeout=synapse.timeout,
-                        streaming=synapse.streaming,
-                    )
-                except Exception as err:
-                    bt.logging.exception(err)
-                else:
-                    if synapse.streaming:
-                        async for chunk in responses[0]:
-                            if isinstance(chunk, str):
-                                await self.redis_client.xadd(REDIS_RESULT_STREAM, {"chunk": chunk})
-                    else:
-                        await self.redis_client.rpush(REDIS_RESULT, responses[0])
+        task_id = self.synapse.task_id
+        bt.logging.trace(f"Worker {task_id} received task: {self.synapse}")
+        try:
+            responses = await self.dendrite(
+                axons=[self.axon],
+                synapse=self.synapse,
+                deserialize=self.synapse.deserialize_flag,
+                timeout=self.synapse.timeout,
+                streaming=self.synapse.streaming,
+            )
+        except Exception as err:
+            bt.logging.exception(err)
+        else:
+            if self.synapse.streaming:
+                async for chunk in responses[0]:
+                    if isinstance(chunk, str):
+                        await self.redis_client.xadd(REDIS_RESULT_STREAM + f"{task_id}", {"chunk": chunk})
             else:
-                # if there is no task then await 1sec.
-                bt.logging.info(f"no new task to consume")
-                break
+                await self.redis_client.rpush(REDIS_RESULT, responses[0])

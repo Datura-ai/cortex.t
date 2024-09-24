@@ -4,7 +4,7 @@ import random
 import torch
 import traceback
 import time
-
+import aioredis
 
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
@@ -12,8 +12,6 @@ from functools import partial
 from typing import Tuple, List
 import bittensor as bt
 from bittensor import StreamingSynapse
-import redis
-
 import cortext
 
 from starlette.types import Send
@@ -32,10 +30,11 @@ class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache):
 
         # Cache object using sqlite3.
+        self.task_mgr = None
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
         self.cache = cache
-        self.redis_client = redis.Redis.redis_client
+        self.redis_client = aioredis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)
 
         self.uid_to_capacity = {}
         self.available_uid_to_axons = {}
@@ -79,12 +78,12 @@ class WeightSetter:
         self.tempo = self.subtensor.tempo(self.netuid)
         self.weights_rate_limit = self.get_weights_rate_limit()
 
+        # initialize uid and capacities.
         asyncio.run(self.initialize_uids_and_capacities())
-        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, config=config)
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
-        # self.loop.create_task(self.perform_synthetic_queries())
+        self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
@@ -124,6 +123,9 @@ class WeightSetter:
         # Initialize total_scores, score_counts.
         self.total_scores = {uid: 0.0 for uid in self.available_uid_to_axons.keys()}
         self.score_counts = {uid: 0 for uid in self.available_uid_to_axons.keys()}
+
+        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
+                                metagraph=self.metagraph, redis_client=self.redis_client)
 
     async def update_and_refresh(self, last_update):
         bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
@@ -435,7 +437,7 @@ class WeightSetter:
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
             start_time = time.time()
 
-            synapse.deserialize = False
+            synapse.deserialize_flag = False
             synapse.streaming = True
 
             task_id = self.task_mgr.assign_task(query_synapse)

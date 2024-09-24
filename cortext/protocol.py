@@ -292,7 +292,7 @@ class StreamPrompting(bt.StreamingSynapse):
         title="streaming",
         description="whether to stream the output",
     )
-    deserialize: bool = pydantic.Field(
+    deserialize_flag: bool = pydantic.Field(
         default=True
     )
     task_id: int = pydantic.Field(

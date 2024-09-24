@@ -4,13 +4,12 @@ import bittensor as bt
 from cortext import ALL_SYNAPSE_TYPE
 from validators.workers import Worker
 from validators import utils
-from validators.services.redis import Redis
 
 
 class TaskMgr:
-    def __init__(self, uid_to_capacities, dendrite, metagraph):
+    def __init__(self, uid_to_capacities, dendrite, metagraph, redis_client):
         # Initialize Redis client
-        self.redis_client = Redis.redis_client
+        self.redis_client = redis_client
         self.resources = {}
         self.init_resources(uid_to_capacities)
         self.dendrite = dendrite
@@ -26,14 +25,15 @@ class TaskMgr:
             return None
 
         task_id = utils.create_hash_value((synapse.json()))
+        synapse.task_id = task_id
         bt.logging.trace(f"Assigning task {task_id} to {resource_key}")
 
         # decrease remaining capacity after sending request.
         self.resources[resource_key] -= 1
         # Push task to the selected worker's task queue
-        worker = Worker(task_id=task_id, dendrite=self.dendrite, axon=self.get_axon_from_resource_key(resource_key))
-        self.redis_client.rpush(f"tasks:{task_id}", synapse.json())
-        asyncio.create_task(worker.pull_and_run_task())
+        worker = Worker(synapse=synapse, dendrite=self.dendrite, axon=self.get_axon_from_resource_key(resource_key),
+                        redis_client=self.redis_client)
+        asyncio.create_task(worker.run_task())
 
     def get_axon_from_resource_key(self, resource_key):
         uid = resource_key.split("_")[0]
