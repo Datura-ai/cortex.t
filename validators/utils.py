@@ -2,7 +2,7 @@ import time
 import aiohttp
 import asyncio
 import base64
-import itertools
+import hashlib
 import inspect
 import bittensor as bt
 
@@ -123,7 +123,7 @@ def save_answer_to_cache(func):
     async def wrapper(*args, **kwargs):
         answer = await func(*args, **kwargs)
         query_syn: ALL_SYNAPSE_TYPE = args[2]
-        provider  = query_syn.provider
+        provider = query_syn.provider
         model = query_syn.model
         try:
             cache_service.set_cache(question=str(query_syn.json()), answer=str(answer), provider=provider, model=model)
@@ -133,9 +133,16 @@ def save_answer_to_cache(func):
             bt.logging.trace(f"saved answer to cache successfully.")
         finally:
             return answer
+
     return wrapper
 
 
-def get_should_i_score_arr_for_image():
-    for i in itertools.count():
-        yield (i % 1) != 0
+def create_hash_value(input_string):
+    # Create a SHA-256 hash object
+    input_string = str(input_string)
+    hash_object = hashlib.sha256()
+    # Encode the string to bytes and update the hash object
+    hash_object.update(input_string.encode('utf-8'))
+    # Get the hexadecimal representation of the hash
+    hash_value = hash_object.hexdigest()
+    return hash_value

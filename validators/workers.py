@@ -3,14 +3,12 @@ import asyncio
 import redis
 import json
 import bittensor as bt
-from cortext import ALL_SYNAPSE_TYPE, StreamPrompting, ImageResponse
+from cortext import StreamPrompting, ImageResponse, REDIS_RESULT_STREAM, REDIS_RESULT
 
 
 class Worker:
     # Initialize Redis client
     redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
-    TASK_STREAM = 'task_stream'
-    RESULT_STREAM = 'result_stream'
 
     def __init__(self, worker_id, bandwidth, config, axon):
         self.worker_id = worker_id
@@ -19,9 +17,6 @@ class Worker:
         self.axon = axon
         self.report_resources()
 
-    def report_resources(self):
-        # Store worker's resource info in Redis hash
-        self.redis_client.hset("workers", self.worker_id, self.bandwidth)
 
     @staticmethod
     def covert_json_to_synapse(task_obj):
@@ -38,9 +33,8 @@ class Worker:
             if task:
                 synapse = self.covert_json_to_synapse(task)
                 bt.logging.trace(f"Worker {self.worker_id} received task: {synapse}")
-                task_id = synapse.task_id
                 try:
-                    responses = await self.dendrite(
+                    responses = self.dendrite(
                         axons=[self.axon],
                         synapse=synapse,
                         deserialize=synapse.deserialize,
@@ -50,7 +44,13 @@ class Worker:
                 except Exception as err:
                     bt.logging.exception(err)
                 else:
-                    async for chunk in responses[0]:
-                        if isinstance(chunk, str):
-                            await self.redis_client.xadd(Worker.RESULT_STREAM, {'task_id': task_id, 'chunk': chunk})
-            await asyncio.sleep(0.1)
+                    if synapse.streaming:
+                        async for chunk in responses[0]:
+                            if isinstance(chunk, str):
+                                await self.redis_client.xadd(REDIS_RESULT_STREAM, {"chunk": chunk})
+                    else:
+                        await self.redis_client.rpush(REDIS_RESULT, responses[0])
+            else:
+                # if there is no task then await 1sec.
+                bt.logging.info(f"no new task to consume")
+                break

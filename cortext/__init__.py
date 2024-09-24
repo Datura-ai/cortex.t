@@ -3769,3 +3769,6 @@ IMAGE_THEMES = [
 
 
 ALL_SYNAPSE_TYPE = Union[StreamPrompting, Embeddings, ImageResponse, IsAlive]
+
+REDIS_RESULT_STREAM = 'result_stream'
+REDIS_RESULT = 'result'
