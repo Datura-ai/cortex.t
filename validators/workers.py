@@ -10,12 +10,10 @@ class Worker:
     # Initialize Redis client
     redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
-    def __init__(self, worker_id, bandwidth, config, axon):
-        self.worker_id = worker_id
-        self.bandwidth = bandwidth
-        self.dendrite = bt.dendrite(config.wallet)
+    def __init__(self, task_id, dendrite, axon):
+        self.worker_id = task_id
+        self.dendrite = dendrite
         self.axon = axon
-        self.report_resources()
 
 
     @staticmethod

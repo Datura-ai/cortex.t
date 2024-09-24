@@ -5,12 +5,14 @@ import torch
 import traceback
 import time
 
+
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple, List
 import bittensor as bt
 from bittensor import StreamingSynapse
+import redis
 
 import cortext
 
@@ -18,7 +20,7 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService, BaseValidator
+from validators.services import CapacityService, BaseValidator, redis
 from validators.services.cache import QueryResponseCache
 from validators.utils import handle_response, error_handler
 from validators.task_manager import TaskMgr
@@ -33,6 +35,7 @@ class WeightSetter:
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
         self.cache = cache
+        self.redis_client = redis.Redis.redis_client
 
         self.uid_to_capacity = {}
         self.available_uid_to_axons = {}
@@ -428,25 +431,18 @@ class WeightSetter:
         bt.logging.info(f"Received {synapse}")
 
         # Return the streaming response
-        async def _prompt(synapse: StreamPrompting, send: Send):
+        async def _prompt(query_synapse: StreamPrompting, send: Send):
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
             start_time = time.time()
 
             synapse.deserialize = False
             synapse.streaming = True
 
-            self.task_mgr.assign_task(synapse)
-            responses = await self.dendrite(
-                axons=[axon],
-                synapse=synapse,
-                deserialize=False,
-                timeout=synapse.timeout,
-                streaming=True,
-            )
+            task_id = self.task_mgr.assign_task(query_synapse)
 
             response_text = ''
 
-            async for chunk in responses[0]:
+            async for chunk in self.redis_client.get_stream_result(task_id):
                 if isinstance(chunk, str):
                     await send({
                         "type": "http.response.body",
