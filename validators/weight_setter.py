@@ -430,8 +430,8 @@ class WeightSetter:
                         "body": chunk.encode("utf-8"),
                         "more_body": True,
                     })
-                    bt.logging.info(f"Streamed text: {chunk}")
                     response_text += chunk
+            bt.logging.trace(response_text)
 
             await send({"type": "http.response.body", "body": b'', "more_body": False})
 

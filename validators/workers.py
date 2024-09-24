@@ -15,6 +15,7 @@ class Worker:
         task_id = self.synapse.task_id
         bt.logging.trace(f"Worker {task_id} received task: {self.synapse}")
         try:
+            await self.dendrite.aclose_session()
             responses = await self.dendrite(
                 axons=[self.axon],
                 synapse=self.synapse,

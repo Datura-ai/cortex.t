@@ -27,6 +27,7 @@ class TaskMgr:
             return None
         task_id = utils.create_hash_value((synapse.json()))
         synapse.task_id = task_id
+        synapse.uid = self.get_id_from_resource_key(resource_key)
         bt.logging.trace(f"Assigning task {task_id} to {resource_key}")
 
         # decrease remaining capacity after sending request.
@@ -40,6 +41,10 @@ class TaskMgr:
     def get_axon_from_resource_key(self, resource_key):
         uid = int(resource_key.split("_")[0])
         return self.metagraph.axons[uid]
+
+    @staticmethod
+    def get_id_from_resource_key(resource_key):
+        return int(resource_key.split("_")[0])
 
     def init_resources(self, uid_to_capacities):
         # init resources
