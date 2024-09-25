@@ -18,7 +18,6 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from cortext import MIN_REQUEST_PERIOD
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
 from validators.utils import handle_response, error_handler, get_stream_result_as_async_gen, get_stream_result
@@ -142,7 +141,7 @@ class WeightSetter:
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
-            await asyncio.sleep(MIN_REQUEST_PERIOD * 60)
+            await asyncio.sleep(cortext.MIN_REQUEST_PERIOD * 60)
             bt.logging.info(f"start processing synthetic queries {time.time()}")
             start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
@@ -192,12 +191,12 @@ class WeightSetter:
 
     def choose_validator_from_model(self, model):
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
-        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
-                                                                            metagraph=self.metagraph)
+        # image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+        #                                                                     metagraph=self.metagraph)
         if model != 'dall-e-3':
             return text_validator
-        else:
-            return image_validator
+        # else:
+        #     return image_validator
 
     def should_i_score(self):
         # Randomly decide whether to score this query based on scoring_percent
@@ -211,7 +210,7 @@ class WeightSetter:
         uids_to_query_expand = []
         for provider, model in provider_to_models:
             for uid in uids_to_query:
-                band_width = self.uid_to_capacity.get(uid).bandwidth_rpm.get(f"{provider}").get(f"{model}")
+                band_width = self.uid_to_capacity.get(uid).get(f"{provider}").get(f"{model}")
                 for _ in range(band_width):
                     query_task = selected_validator.create_query(uid, provider, model)
                     query_tasks.append(query_task)

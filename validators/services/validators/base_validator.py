@@ -138,7 +138,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             if model_weight is None:
                 bt.logging.debug(f"not weight found for this provider {provider} and model {model}")
                 model_weight = 0
-            band_width = uid_to_capacity.get(uid).bandwidth_rpm.get(f"{provider}").get(f"{model}")
+            band_width = uid_to_capacity.get(uid).get(f"{provider}").get(f"{model}")
             if band_width is None:
                 bt.logging.debug(f"no band_width found for this uid {uid}")
                 band_width = 1
