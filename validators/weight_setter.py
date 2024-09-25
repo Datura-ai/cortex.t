@@ -137,11 +137,16 @@ class WeightSetter:
         bt.logging.info("Refreshing metagraph...")
         await self.refresh_metagraph()
         await self.initialize_uids_and_capacities()
+        # update task_mgr after synthetic query at the end of iterator.
+        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
+                                metagraph=self.metagraph, redis_client=self.redis_client)
+        bt.logging.info("Metagraph refreshed.")
 
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
-            await asyncio.sleep(cortext.MIN_REQUEST_PERIOD * 60)
+            # await asyncio.sleep(cortext.MIN_REQUEST_PERIOD * 60)
+            await asyncio.sleep(1)
             bt.logging.info(f"start processing synthetic queries {time.time()}")
             start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
@@ -157,6 +162,9 @@ class WeightSetter:
                         else:
                             continue
 
+            if not query_tasks:
+                bt.logging.debug(f"No query tasks for synthetic.")
+                continue
             # don't process any organic query while processing synthetic queries.
             synthetic_task_ids = []
             async with self.lock:
@@ -185,7 +193,6 @@ class WeightSetter:
                 })
 
             self.synthetic_task_done = True
-
             bt.logging.info(
                 f"synthetic queries has been processed successfully. total queries are {len(query_synapses)}")
 
