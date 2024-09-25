@@ -32,6 +32,7 @@ class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache):
 
         # Cache object using sqlite3.
+        self.synthetic_task_done = False
         self.task_mgr: TaskMgr = None
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
@@ -157,10 +158,10 @@ class WeightSetter:
                         else:
                             continue
 
-            query_synapses = await asyncio.gather(*query_tasks)
-
+            # don't process any organic query while processing synthetic queries.
             synthetic_task_ids = []
             async with self.lock:
+                query_synapses = await asyncio.gather(*query_tasks)
                 for query_syn in query_synapses:
                     task_id = self.task_mgr.assign_task(query_syn)
                     synthetic_task_ids.append(task_id)
@@ -183,6 +184,8 @@ class WeightSetter:
                     'timestamp': asyncio.get_event_loop().time(),
                     'validator': self.choose_validator_from_model(synapse.model)
                 })
+
+            self.synthetic_task_done = True
 
             bt.logging.info(
                 f"synthetic queries has been processed successfully. total queries are {len(query_synapses)}")
@@ -516,14 +519,21 @@ class WeightSetter:
     async def process_queries_from_database(self):
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
+
+            # accumulate all query results for MIN_REQUEST_PERIOD
+            if not self.query_database or not self.synthetic_task_done:
+                bt.logging.trace("no data in query_database. so continue...")
+                continue
+
             async with self.lock:
-                if not self.query_database:
-                    bt.logging.trace("no data in query_database. so continue...")
-                    continue
                 # Copy queries to process and clear the database
                 queries_to_process = self.query_database.copy()
                 self.query_database.clear()
 
+            self.synthetic_task_done = False
+
+
+            # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
             resps = await asyncio.gather(*score_tasks)
