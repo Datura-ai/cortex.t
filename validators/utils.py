@@ -185,3 +185,19 @@ async def get_stream_result(redis_client, task_id):
             break
     bt.logging.trace(f"stream exit. delete old stream from queue.")
     await redis_client.delete(stream_name)
+
+
+def find_positive_values(data: dict):
+    positive_values = {}
+
+    for key, value in data.items():
+        if isinstance(value, dict):
+            # Recursively handle nested dictionaries
+            nested_result = find_positive_values(value)
+            if nested_result:
+                positive_values[key] = nested_result
+        elif isinstance(value, (int, float)) and value > 0:
+            # Store key-value pairs where the value is greater than 0
+            positive_values[key] = value
+
+    return positive_values

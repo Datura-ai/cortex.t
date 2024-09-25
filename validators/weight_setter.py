@@ -18,7 +18,8 @@ from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.services import CapacityService, BaseValidator
+from cortext import MIN_REQUEST_PERIOD
+from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
 from validators.utils import handle_response, error_handler, get_stream_result
 from validators.task_manager import TaskMgr
@@ -30,11 +31,12 @@ class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache):
 
         # Cache object using sqlite3.
-        self.task_mgr = None
+        self.task_mgr: TaskMgr = None
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
         self.cache = cache
         self.redis_client = aioredis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)
+        self.start_time = time.time()
 
         self.uid_to_capacity = {}
         self.available_uid_to_axons = {}
@@ -83,7 +85,7 @@ class WeightSetter:
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
-        # self.loop.create_task(self.perform_synthetic_queries())
+        self.loop.create_task(self.perform_synthetic_queries())
         # self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
@@ -137,53 +139,41 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            if not self.available_uid_to_axons:
-                await self.initialize_uids_and_capacities()
-
-            current_block = self.get_current_block()
-            last_update = self.get_last_update(current_block)
-
-            if last_update >= self.tempo * 2 or (
-                    self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
-                async with self.lock:
-                    bt.logging.info("start scoring with cache database")
-                    await self.process_queries_from_cache_database()
-                    bt.logging.info("complete scoring with cache database")
-                await self.update_and_refresh(last_update)
-
-            # Decide which UIDs to query, considering total queries sent
+            time.sleep(MIN_REQUEST_PERIOD * 60)
+            # check available bandwidth and send synthetic requests to all miners.
+            query_tasks = []
+            for uid, provider_to_cap in self.task_mgr.remain_resources.items():
+                for provider, model_to_cap in provider_to_cap.items():
+                    for model, bandwidth in model_to_cap.items():
+                        if bandwidth > 0:
+                            # create task and send remaining requests to the miner
+                            vali = self.choose_validator_from_model(model)
+                            query_task = vali.create_query(uid, provider, model)
+                            query_tasks.append(query_task)
+                        else:
+                            continue
             async with self.lock:
-                if not self.uids_to_query:
-                    bt.logging.info("All UIDs has been processed.")
-                    await asyncio.sleep(10)
-                    continue
-                else:
-                    # Limit the number of UIDs to query based on configuration
-                    uids_to_query_batch = self.uids_to_query[:self.batch_size]
-                    # remove processing uids
-                    self.uids_to_query = self.uids_to_query[self.batch_size:]
+                start_time = time.time()
+                query_synapses = await asyncio.gather(*query_tasks)
+                bt.logging.debug(f"{time.time() - start_time} elapsed for getting synthetic queries.")
 
-            for selected_validator in self.get_validators():
-                # Perform synthetic queries
-                bt.logging.info("start querying to miners")
-                query_responses = await self.perform_queries(selected_validator, uids_to_query_batch)
-                # Store queries and responses in the shared database
-                async with self.lock:
-                    for uid, response_data in query_responses:
-                        # Decide whether to score this query
-                        self.query_database.append({
-                            'uid': uid,
-                            'synapse': response_data['query'],
-                            'response': response_data['response'],
-                            'query_type': 'synthetic',
-                            'timestamp': asyncio.get_event_loop().time(),
-                            'validator': selected_validator
-                        })
-                await asyncio.sleep(1)
+            synthetic_task_ids = []
+            for query_syn in query_synapses:
+                task_id = self.task_mgr.assign_task(query_syn)
+                synthetic_task_ids.append(task_id)
 
-            bt.logging.info(f"Performed synthetic queries for UIDs: {uids_to_query_batch}")
-            # Slow down the validator steps if necessary
-            await asyncio.sleep(1)
+            # get result from all synthetic tasks
+            
+
+
+    def choose_validator_from_model(self, model):
+        text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
+        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+                                                                            metagraph=self.metagraph)
+        if model != 'dall-e-3':
+            return text_validator
+        else:
+            return image_validator
 
     def should_i_score(self):
         # Randomly decide whether to score this query based on scoring_percent
