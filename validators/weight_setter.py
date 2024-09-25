@@ -517,6 +517,8 @@ class WeightSetter:
 
     async def process_queries_from_database(self):
         while True:
+            current_block = self.get_current_block()
+            last_update = self.get_last_update(current_block)
             await asyncio.sleep(1)  # Adjust the sleep time as needed
 
             # accumulate all query results for MIN_REQUEST_PERIOD
@@ -531,7 +533,6 @@ class WeightSetter:
 
             self.synthetic_task_done = False
 
-
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
@@ -543,6 +544,8 @@ class WeightSetter:
                     for uid, score in uid_scores_dict.items():
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
+
+            await self.update_and_refresh(last_update)
 
     @property
     def batch_list_of_all_uids(self):
