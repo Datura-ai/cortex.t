@@ -145,8 +145,7 @@ class WeightSetter:
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
-            # await asyncio.sleep(cortext.MIN_REQUEST_PERIOD * 60)
-            await asyncio.sleep(1)
+            await asyncio.sleep(cortext.MIN_REQUEST_PERIOD * 60)
             bt.logging.info(f"start processing synthetic queries {time.time()}")
             start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
