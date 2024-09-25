@@ -1,3 +1,4 @@
+import random
 import time
 import aiohttp
 import asyncio
@@ -151,8 +152,8 @@ def save_answer_to_cache(func):
 
 
 def create_hash_value(input_string):
-    # Create a SHA-256 hash object
-    input_string = str(input_string)
+    # Create a SHA-256 hash object based on random and synpase
+    input_string = str(input_string) + str(random.Random().random())
     hash_object = hashlib.sha256()
     # Encode the string to bytes and update the hash object
     hash_object.update(input_string.encode('utf-8'))

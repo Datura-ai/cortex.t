@@ -25,9 +25,11 @@ class TaskMgr:
         if self.resources[resource_key] <= 0:
             bt.logging.debug(f"no available resources to assign this task.")
             return None
+
+        synapse.uid = self.get_id_from_resource_key(resource_key)
         task_id = utils.create_hash_value((synapse.json()))
         synapse.task_id = task_id
-        synapse.uid = self.get_id_from_resource_key(resource_key)
+
         bt.logging.trace(f"Assigning task {task_id} to {resource_key}")
 
         # decrease remaining capacity after sending request.
