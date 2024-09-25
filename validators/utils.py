@@ -163,7 +163,7 @@ def create_hash_value(input_string):
 
 
 @error_handler
-async def get_stream_result(redis_client, task_id):
+async def get_stream_result_as_async_gen(redis_client, task_id):
     last_id = '0'  # Start reading from the beginning of the stream
     bt.logging.trace(f"Waiting for results of task {task_id}...")
     stream_name = REDIS_RESULT_STREAM + f"{task_id}"
@@ -185,6 +185,33 @@ async def get_stream_result(redis_client, task_id):
             break
     bt.logging.trace(f"stream exit. delete old stream from queue.")
     await redis_client.delete(stream_name)
+
+
+@error_handler
+async def get_stream_result(redis_client, task_id):
+    last_id = '0'  # Start reading from the beginning of the stream
+    bt.logging.trace(f"Waiting for results of task {task_id}...")
+    stream_name = REDIS_RESULT_STREAM + f"{task_id}"
+    full_response = ""
+    start_time = time.time()
+    while True:
+        # Read from the Redis stream
+        result_entries = await redis_client.xread({stream_name: last_id}, block=5000)
+        result_entries = result_entries or []
+        if result_entries:
+            for entry in result_entries:
+                stream_name, results = entry
+                for result_id, data in results:
+                    result_chunk = data['chunk']
+                    last_id = result_id
+                    bt.logging.trace(result_chunk)
+                    full_response += result_chunk
+        else:
+            bt.logging.trace("No new results. stop generation.")
+            break
+    bt.logging.trace(f"stream exit. delete old stream from queue.")
+    await redis_client.delete(stream_name)
+    return full_response, time.time() - start_time
 
 
 def find_positive_values(data: dict):

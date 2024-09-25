@@ -21,8 +21,9 @@ from cortext.metaclasses import ValidatorRegistryMeta
 from cortext import MIN_REQUEST_PERIOD
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import handle_response, error_handler, get_stream_result
+from validators.utils import handle_response, error_handler, get_stream_result_as_async_gen, get_stream_result
 from validators.task_manager import TaskMgr
+from validators.models.enum import QueryType
 
 scoring_organic_timeout = 60
 
@@ -86,7 +87,7 @@ class WeightSetter:
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
-        # self.loop.create_task(self.process_queries_from_database())
+        self.loop.create_task(self.process_queries_from_database())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
@@ -139,7 +140,10 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            time.sleep(MIN_REQUEST_PERIOD * 60)
+            # wait for MIN_REQUEST_PERIOD minutes.
+            await asyncio.sleep(MIN_REQUEST_PERIOD * 60)
+            bt.logging.info(f"start processing synthetic queries {time.time()}")
+            start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
             query_tasks = []
             for uid, provider_to_cap in self.task_mgr.remain_resources.items():
@@ -152,19 +156,36 @@ class WeightSetter:
                             query_tasks.append(query_task)
                         else:
                             continue
-            async with self.lock:
-                start_time = time.time()
-                query_synapses = await asyncio.gather(*query_tasks)
-                bt.logging.debug(f"{time.time() - start_time} elapsed for getting synthetic queries.")
+
+            query_synapses = await asyncio.gather(*query_tasks)
 
             synthetic_task_ids = []
-            for query_syn in query_synapses:
-                task_id = self.task_mgr.assign_task(query_syn)
-                synthetic_task_ids.append(task_id)
+            async with self.lock:
+                for query_syn in query_synapses:
+                    task_id = self.task_mgr.assign_task(query_syn)
+                    synthetic_task_ids.append(task_id)
+
+            bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
             # get result from all synthetic tasks
-            
+            synthetic_result_tasks = []
+            for task_id in synthetic_task_ids:
+                task = get_stream_result(redis_client=self.redis_client, task_id=task_id)
+                synthetic_result_tasks.append(task)
 
+            synthetic_results = await asyncio.gather(*synthetic_result_tasks)
+            for synapse, (result, time_process) in zip(query_synapses, synthetic_results):
+                self.query_database.append({
+                    'uid': synapse.uid,
+                    'synapse': synapse,
+                    'response': (result, time_process),
+                    'query_type': QueryType.synthetic_type,
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': self.choose_validator_from_model(synapse.model)
+                })
+
+            bt.logging.info(
+                f"synthetic queries has been processed successfully. total queries are {len(query_synapses)}")
 
     def choose_validator_from_model(self, model):
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
@@ -413,7 +434,7 @@ class WeightSetter:
 
             response_text = ''
 
-            async for chunk in get_stream_result(task_id=task_id, redis_client=self.redis_client):
+            async for chunk in get_stream_result_as_async_gen(task_id=task_id, redis_client=self.redis_client):
                 if isinstance(chunk, str):
                     await send({
                         "type": "http.response.body",
