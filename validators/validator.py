@@ -137,6 +137,7 @@ def main():
     finally:
         bt.logging.info("stopping axon server.")
         weight_setter.axon.stop()
+        weight_setter.redis_client.close()
         bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
         utils.save_state_to_file(state, state_path)

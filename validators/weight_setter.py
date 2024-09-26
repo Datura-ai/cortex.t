@@ -36,7 +36,6 @@ class WeightSetter:
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
         self.cache = cache
-        self.redis_client = aioredis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)
         self.start_time = time.time()
 
         self.uid_to_capacity = {}
@@ -128,7 +127,7 @@ class WeightSetter:
         self.score_counts = {uid: 0 for uid in self.available_uid_to_axons.keys()}
 
         self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
-                                metagraph=self.metagraph, redis_client=self.redis_client)
+                                metagraph=self.metagraph, loop=self.loop)
 
     async def update_and_refresh(self, last_update):
         bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
@@ -138,8 +137,7 @@ class WeightSetter:
         await self.refresh_metagraph()
         await self.initialize_uids_and_capacities()
         # update task_mgr after synthetic query at the end of iterator.
-        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
-                                metagraph=self.metagraph, redis_client=self.redis_client)
+        self.task_mgr.update_remain_capacity_based_on_new_capacity(self.uid_to_capacity)
         bt.logging.info("Metagraph refreshed.")
 
     async def perform_synthetic_queries(self):
@@ -157,7 +155,7 @@ class WeightSetter:
                             # create task and send remaining requests to the miner
                             vali = self.choose_validator_from_model(model)
                             query_task = vali.create_query(uid, provider, model)
-                            query_tasks.append(query_task)
+                            query_tasks += [query_task] * bandwidth
                         else:
                             continue
 
@@ -172,12 +170,15 @@ class WeightSetter:
                     task_id = self.task_mgr.assign_task(query_syn)
                     synthetic_task_ids.append(task_id)
 
+            # restore capacities immediately after synthetic query consuming all bandwidth.
+            self.task_mgr.restore_capacities_for_all_miners()
+
             bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
             # get result from all synthetic tasks
             synthetic_result_tasks = []
             for task_id in synthetic_task_ids:
-                task = get_stream_result(redis_client=self.redis_client, task_id=task_id)
+                task = get_stream_result(task_id=task_id)
                 synthetic_result_tasks.append(task)
 
             synthetic_results = await asyncio.gather(*synthetic_result_tasks)
@@ -442,7 +443,7 @@ class WeightSetter:
 
             response_text = ''
 
-            async for chunk in get_stream_result_as_async_gen(task_id=task_id, redis_client=self.redis_client):
+            async for chunk in get_stream_result_as_async_gen(task_id=task_id):
                 if isinstance(chunk, str):
                     await send({
                         "type": "http.response.body",
@@ -550,7 +551,7 @@ class WeightSetter:
                     for uid, score in uid_scores_dict.items():
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
-
+            bt.logging.info(f"current total score are {self.total_scores}")
             await self.update_and_refresh(last_update)
 
     @property

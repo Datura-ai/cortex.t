@@ -2,6 +2,7 @@ import random
 import time
 import aiohttp
 import asyncio
+import aioredis
 import base64
 import hashlib
 import inspect
@@ -163,10 +164,11 @@ def create_hash_value(input_string):
 
 
 @error_handler
-async def get_stream_result_as_async_gen(redis_client, task_id):
+async def get_stream_result_as_async_gen(task_id):
     last_id = '0'  # Start reading from the beginning of the stream
     bt.logging.trace(f"Waiting for results of task {task_id}...")
     stream_name = REDIS_RESULT_STREAM + f"{task_id}"
+    redis_client = await get_redis_client()
 
     while True:
         # Read from the Redis stream
@@ -188,7 +190,8 @@ async def get_stream_result_as_async_gen(redis_client, task_id):
 
 
 @error_handler
-async def get_stream_result(redis_client, task_id):
+async def get_stream_result(task_id):
+    redis_client = await get_redis_client()
     last_id = '0'  # Start reading from the beginning of the stream
     bt.logging.trace(f"Waiting for results of task {task_id}...")
     stream_name = REDIS_RESULT_STREAM + f"{task_id}"
@@ -228,3 +231,7 @@ def find_positive_values(data: dict):
             positive_values[key] = value
 
     return positive_values
+
+async def get_redis_client():
+    redis_client = await aioredis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)
+    return redis_client
