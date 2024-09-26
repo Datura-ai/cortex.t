@@ -37,6 +37,8 @@ def error_handler(func):
     async def wrapper(*args, **kwargs):
         try:
             result = await func(*args, **kwargs)
+        except GeneratorExit as err:
+            bt.logging.error(f"{err}. {traceback.format_exc()}")
         except Exception as err:
             bt.logging.error(f"{err}. {traceback.format_exc()}")
             return None
@@ -186,6 +188,7 @@ async def get_stream_result_as_async_gen(task_id):
             bt.logging.trace("No new results. stop generation.")
             break
     bt.logging.trace(f"stream exit. delete old stream from queue.")
+    await redis_client.close()
     await redis_client.delete(stream_name)
 
 
@@ -214,6 +217,7 @@ async def get_stream_result(task_id):
             break
     bt.logging.trace(f"stream exit. delete old stream from queue.")
     await redis_client.delete(stream_name)
+    await redis_client.close()
     return full_response, time.time() - start_time
 
 

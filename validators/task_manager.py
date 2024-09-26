@@ -18,6 +18,7 @@ class TaskMgr:
         self.loop = loop
 
     def restore_capacities_for_all_miners(self):
+        bt.logging.debug(f"resource is restored. self.remain_resources = {self.remain_resources}")
         self.remain_resources = deepcopy(self.uid_to_capacity)
 
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
@@ -28,6 +29,8 @@ class TaskMgr:
                         self.remain_resources[uid][provider][model] = cap
                     else:
                         diff = self.uid_to_capacity[uid][provider][model] - cap
+                        if diff:
+                            bt.logging.debug(f"diff {diff} found in {uid}, {provider}, {model}")
                         self.remain_resources[uid][provider][model] -= diff
 
     @error_handler

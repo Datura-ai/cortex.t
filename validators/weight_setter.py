@@ -4,7 +4,6 @@ import random
 import torch
 import traceback
 import time
-import aioredis
 
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
@@ -28,7 +27,7 @@ scoring_organic_timeout = 60
 
 
 class WeightSetter:
-    def __init__(self, config, cache: QueryResponseCache):
+    def __init__(self, config, cache: QueryResponseCache, loop=None):
 
         # Cache object using sqlite3.
         self.synthetic_task_done = False
@@ -71,7 +70,7 @@ class WeightSetter:
 
         # Set up async-related attributes
         self.lock = asyncio.Lock()
-        self.loop = asyncio.get_event_loop()
+        self.loop = loop or asyncio.get_event_loop()
 
         # Initialize shared query database
         self.query_database = []
@@ -126,8 +125,12 @@ class WeightSetter:
         self.total_scores = {uid: 0.0 for uid in self.available_uid_to_axons.keys()}
         self.score_counts = {uid: 0 for uid in self.available_uid_to_axons.keys()}
 
-        self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
-                                metagraph=self.metagraph, loop=self.loop)
+        # update task_mgr after synthetic query at the end of iterator.
+        if self.task_mgr:
+            self.task_mgr.update_remain_capacity_based_on_new_capacity(self.uid_to_capacity)
+        else:
+            self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
+                                    metagraph=self.metagraph, loop=self.loop)
 
     async def update_and_refresh(self, last_update):
         bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
@@ -136,8 +139,6 @@ class WeightSetter:
         bt.logging.info("Refreshing metagraph...")
         await self.refresh_metagraph()
         await self.initialize_uids_and_capacities()
-        # update task_mgr after synthetic query at the end of iterator.
-        self.task_mgr.update_remain_capacity_based_on_new_capacity(self.uid_to_capacity)
         bt.logging.info("Metagraph refreshed.")
 
     async def perform_synthetic_queries(self):
