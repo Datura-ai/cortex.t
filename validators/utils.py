@@ -14,7 +14,7 @@ from functools import wraps
 import traceback
 
 from cortext import ImageResponse, ALL_SYNAPSE_TYPE, REDIS_RESULT_STREAM
-from validators.services.cache import cache_service
+from validators.services.cache import QueryResponseCache
 
 
 async def download_image(url):
@@ -77,6 +77,8 @@ def save_answer_to_cache(func):
         query_syn: ALL_SYNAPSE_TYPE = args[2]
         provider = query_syn.provider
         model = query_syn.model
+
+        cache_service = QueryResponseCache()
         try:
             cache_service.set_cache(question=str(query_syn.json()), answer=str(answer), provider=provider, model=model)
         except Exception as err:
@@ -132,7 +134,7 @@ async def get_stream_as_async_gen(task_id):
                 bt.logging.trace(result_chunk)
                 full_response += result_chunk
                 yield result_chunk
-        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
+        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=20)
 
     bt.logging.debug(f"stream exit. delete old stream from queue. {full_response}")
     redis_client.delete(stream_name)
@@ -141,31 +143,28 @@ async def get_stream_as_async_gen(task_id):
 
 @error_handler
 async def get_stream_result(task_id):
-    redis_client = get_redis_client()
     last_id = '0'  # Start reading from the beginning of the stream
     bt.logging.trace(f"Waiting for results of task {task_id}...")
     stream_name = REDIS_RESULT_STREAM + f"{task_id}"
-    full_response = ""
-    start_time = time.time()
-    while True:
+    redis_client = get_redis_client()
+    full_response = ''
+    result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
+
+    while result_entries:
         # Read from the Redis stream
-        result_entries = redis_client.xread({stream_name: last_id}, block=5000)
-        result_entries = result_entries or []
-        if result_entries:
-            for entry in result_entries:
-                stream_name, results = entry
-                for result_id, data in results:
-                    result_chunk = data['chunk']
-                    last_id = result_id
-                    bt.logging.trace(result_chunk)
-                    full_response += result_chunk
-        else:
-            bt.logging.trace("No new results. stop generation.")
-            break
-    bt.logging.trace(f"stream exit. delete old stream from queue.")
+        for entry in result_entries:
+            stream_name, results = entry
+            for result_id, data in results:
+                result_chunk = data['chunk']
+                last_id = result_id
+                bt.logging.trace(result_chunk)
+                full_response += result_chunk
+        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=20)
+
+    bt.logging.debug(f"stream exit. delete old stream from queue.")
     redis_client.delete(stream_name)
     redis_client.close()
-    return full_response, time.time() - start_time
+    return full_response, 0
 
 
 def find_positive_values(data: dict):
