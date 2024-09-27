@@ -33,4 +33,3 @@ class Worker:
         else:
             redis_client.rpush(REDIS_RESULT, responses[0])
         redis_client.close()
-        bt.logging.debug(f"worker sends this {full_resp}: {self.synapse.uid}")

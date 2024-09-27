@@ -75,20 +75,11 @@ class WeightSetter:
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
-        # Start the thread with a new event loop
-        thread = threading.Thread(target=self.run_scoring_event_loop)
-        thread.start()
+        self.loop.create_task(self.process_queries_from_database())
 
-    # Function to run the event loop
-    def run_scoring_event_loop(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)  # Set the new event loop for this thread
-        loop.run_until_complete(self.process_queries_from_database())
-        loop.close()
 
     async def run_sync_in_async(self, fn):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, fn)
+        return await self.loop.run_in_executor(None, fn)
 
     async def refresh_metagraph(self):
         await self.run_sync_in_async(lambda: self.metagraph.sync())
@@ -222,12 +213,13 @@ class WeightSetter:
         avg_scores = {}
 
         # Compute average scores per UID
-        for uid in self.total_scores:
-            count = self.score_counts[uid]
-            if count > 0:
-                avg_scores[uid] = self.total_scores[uid] / count
-            else:
-                avg_scores[uid] = 0.0
+        async with self.lock:
+            for uid in self.total_scores:
+                count = self.score_counts[uid]
+                if count > 0:
+                    avg_scores[uid] = self.total_scores[uid] / count
+                else:
+                    avg_scores[uid] = 0.0
 
         bt.logging.info(f"Average scores = {avg_scores}")
 
@@ -442,10 +434,11 @@ class WeightSetter:
             if not self.query_database or not self.synthetic_task_done:
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
-            bt.logging.info(f"start scoring process for {len(self.query_database)} query_resps. {self.query_database}")
+            bt.logging.info(f"start scoring process...")
 
-            queries_to_process = self.query_database.copy()
-            self.query_database.clear()
+            async with self.lock:
+                queries_to_process = self.query_database.copy()
+                self.query_database.clear()
 
             self.synthetic_task_done = False
 
