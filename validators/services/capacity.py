@@ -3,7 +3,7 @@ from copy import deepcopy
 from typing import List
 
 from cortext.protocol import Bandwidth
-from cortext import MIN_REQUEST_PERIOD
+from cortext import REQUEST_PERIOD
 import bittensor as bt
 
 
@@ -14,7 +14,7 @@ class CapacityService:
         self.timeout = 4
         self.uid_to_capacity = {}
         self.remain_uid_to_capacity = {}
-        self.epoch_len = MIN_REQUEST_PERIOD
+        self.epoch_len = REQUEST_PERIOD
 
     async def query_capacity_to_miners(self, available_uids):
         capacity_query_tasks = []

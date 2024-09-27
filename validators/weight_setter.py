@@ -52,11 +52,7 @@ class WeightSetter:
 
         # Scoring and querying parameters
         self.MIN_SCORED_QUERIES = 1  # Minimum number of times each UID should be scored per epoch
-        # self.scoring_percent = 1  # Percentage of total queries that will be scored
-        self.TOTAL_QUERIES_PER_UID = int(self.MIN_SCORED_QUERIES / self.scoring_percent)
         self.max_score_cnt_per_model = 1
-        bt.logging.info(f"Each UID will receive {self.TOTAL_QUERIES_PER_UID} total queries, "
-                        f"with {self.MIN_SCORED_QUERIES} of them being scored.")
 
         # Initialize scores and counts
         self.total_scores = {}
