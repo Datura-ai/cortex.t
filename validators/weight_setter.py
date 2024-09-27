@@ -2,7 +2,6 @@ import asyncio
 import concurrent
 import random
 import torch
-import traceback
 import time
 
 from black.trans import defaultdict
@@ -19,7 +18,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import error_handler, get_stream_result_as_async_gen, get_stream_result
+from validators.utils import error_handler, get_stream_as_async_gen, get_stream_result
 from validators.task_manager import TaskMgr
 from validators.models.enum import QueryType
 
@@ -35,7 +34,6 @@ class WeightSetter:
         self.in_cache_processing = False
         self.batch_size = config.max_miners_cnt
         self.cache = cache
-        self.start_time = time.time()
 
         self.uid_to_capacity = {}
         self.available_uid_to_axons = {}
@@ -51,12 +49,11 @@ class WeightSetter:
         bt.logging.info(f"Running validator on subnet: {self.netuid} with uid: {self.my_uid}")
 
         # Scoring and querying parameters
-        self.MIN_SCORED_QUERIES = 1  # Minimum number of times each UID should be scored per epoch
         self.max_score_cnt_per_model = 1
 
         # Initialize scores and counts
         self.total_scores = {}
-        self.score_counts = {}  # Number of times a UID has been scored
+        self.score_counts = {}
         self.moving_average_scores = None
 
         # Set up axon and dendrite
@@ -70,10 +67,6 @@ class WeightSetter:
 
         # Initialize shared query database
         self.query_database = []
-
-        # Get network tempo
-        self.tempo = self.subtensor.tempo(self.netuid)
-        self.weights_rate_limit = self.get_weights_rate_limit()
 
         # initialize uid and capacities.
         asyncio.run(self.initialize_uids_and_capacities())
@@ -117,7 +110,7 @@ class WeightSetter:
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
             await asyncio.sleep(cortext.REQUEST_PERIOD * 60)
-            bt.logging.info(f"start processing synthetic queries at block {self.get_current_block()} at time {time.time()}")
+            bt.logging.info(f"start processing synthetic queries at block {self.metagraph.block} at time {time.time()}")
             start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
             query_tasks = []
@@ -177,7 +170,6 @@ class WeightSetter:
             return text_validator
         # else:
         #     return image_validator
-
 
     async def get_capacities_for_uids(self, uids):
         capacity_service = CapacityService(metagraph=self.metagraph, dendrite=self.dendrite)
@@ -353,8 +345,7 @@ class WeightSetter:
             bt.logging.trace(f"task is created and task_id is {task_id}")
 
             response_text = ''
-
-            async for chunk in get_stream_result_as_async_gen(task_id=task_id):
+            async for chunk in get_stream_as_async_gen(task_id):
                 if isinstance(chunk, str):
                     await send({
                         "type": "http.response.body",
@@ -362,7 +353,7 @@ class WeightSetter:
                         "more_body": True,
                     })
                     response_text += chunk
-            bt.logging.trace(response_text)
+            bt.logging.trace(f"received total response is :{response_text}")
 
             await send({"type": "http.response.body", "body": b'', "more_body": False})
 

@@ -101,28 +101,40 @@ def create_hash_value(input_string):
 
 
 @error_handler
-async def get_stream_result_as_async_gen(task_id):
+async def get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt):
+    result_entries = None
+    while max_try_cnt:
+        result_entries = redis_client.xread({stream_name: last_id}, block=100)
+        await asyncio.sleep(0.1)
+        if result_entries:
+            break
+        else:
+            max_try_cnt -= 1
+    return result_entries
+
+
+@error_handler
+async def get_stream_as_async_gen(task_id):
     last_id = '0'  # Start reading from the beginning of the stream
     bt.logging.trace(f"Waiting for results of task {task_id}...")
     stream_name = REDIS_RESULT_STREAM + f"{task_id}"
     redis_client = get_redis_client()
+    full_response = ''
+    result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
 
-    while True:
+    while result_entries:
         # Read from the Redis stream
-        result_entries = redis_client.xread({stream_name: last_id}, block=5000)
-        result_entries = result_entries or []
-        if result_entries:
-            for entry in result_entries:
-                stream_name, results = entry
-                for result_id, data in results:
-                    result_chunk = data['chunk']
-                    last_id = result_id
-                    bt.logging.trace(result_chunk)
-                    yield result_chunk
-        else:
-            bt.logging.trace("No new results. stop generation.")
-            break
-    bt.logging.trace(f"stream exit. delete old stream from queue.")
+        for entry in result_entries:
+            stream_name, results = entry
+            for result_id, data in results:
+                result_chunk = data['chunk']
+                last_id = result_id
+                bt.logging.trace(result_chunk)
+                full_response += result_chunk
+                yield result_chunk
+        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
+
+    bt.logging.debug(f"stream exit. delete old stream from queue. {full_response}")
     redis_client.delete(stream_name)
     redis_client.close()
 
@@ -170,6 +182,7 @@ def find_positive_values(data: dict):
             positive_values[key] = value
 
     return positive_values
+
 
 def get_redis_client():
     redis_client = redis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)

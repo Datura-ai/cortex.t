@@ -17,7 +17,6 @@ class Worker:
         task_id = self.synapse.task_id
         bt.logging.trace(f"Worker {task_id} received task: {self.synapse}")
 
-        await self.dendrite.aclose_session()
         responses = await self.dendrite(
             axons=[self.axon],
             synapse=self.synapse,
@@ -25,10 +24,13 @@ class Worker:
             timeout=self.synapse.timeout,
             streaming=self.synapse.streaming,
         )
+        full_resp = ''
         if self.synapse.streaming:
             async for chunk in responses[0]:
                 if isinstance(chunk, str):
                     redis_client.xadd(REDIS_RESULT_STREAM + f"{task_id}", {"chunk": chunk})
+                    full_resp += chunk
         else:
             redis_client.rpush(REDIS_RESULT, responses[0])
         redis_client.close()
+        bt.logging.debug(f"worker sends this {full_resp}: {self.synapse.uid}")
