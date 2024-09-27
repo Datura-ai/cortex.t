@@ -1,11 +1,10 @@
 Metadata-Version: 2.1
 Name: Cortex.t
-Version: 3.2.3
+Version: 3.3.6
 Summary: Decentralized APIs for synthetic data generation
 Home-page: https://github.com/corcel-api/cortex.t
 Author: Fish
 License: MIT
-Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha
 Classifier: Intended Audience :: Developers
 Classifier: License :: OSI Approved :: MIT License
@@ -119,5 +118,3 @@ This repository is licensed under the MIT License.
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 ```
-
-

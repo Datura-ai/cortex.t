@@ -11,4 +11,3 @@ cortext/__init__.py
 cortext/protocol.py
 cortext/reward.py
 cortext/utils.py
-test_base/__init__.py
