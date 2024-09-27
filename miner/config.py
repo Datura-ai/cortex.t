@@ -36,7 +36,8 @@ class Config:
 
         self.BT_SUBTENSOR_NETWORK = 'test' if self.ENV == 'test' else 'finney'
         self.WANDB_OFF = False if self.ENV == 'prod' else True
-        self.LOGGING_TRACE = False if self.ENV == 'prod' else True
+        # still can use the --logging.debug and --logging.trace to turn on logging
+        self.LOGGING_TRACE = False # if self.ENV == 'prod' else True
         self.BLACKLIST_AMT = 5000 if self.ENV == 'prod' else 0
         self.BLOCKS_PER_EPOCH = int(os.getenv('BLOCKS_PER_EPOCH', 100))
         self.WAIT_NEXT_BLOCK_TIME = int(os.getenv('WAIT_NEXT_BLOCK_TIME', 1))
