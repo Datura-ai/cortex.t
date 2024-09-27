@@ -16,4 +16,4 @@ pyOpenSSL==24.*
 google-generativeai
 groq==0.5.0
 aioboto3
-aioredis==2.0.1
+redis>=4.2.0

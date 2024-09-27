@@ -2,7 +2,7 @@ import random
 import time
 import aiohttp
 import asyncio
-import aioredis
+import redis.asyncio as aioredis
 import base64
 import hashlib
 import inspect
