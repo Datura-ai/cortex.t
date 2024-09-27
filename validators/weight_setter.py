@@ -10,7 +10,6 @@ from functools import partial
 from typing import Tuple, List
 import bittensor as bt
 from bittensor import StreamingSynapse
-import threading
 import cortext
 
 from starlette.types import Send
@@ -62,6 +61,10 @@ class WeightSetter:
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
         self.dendrite = config.dendrite
 
+        # Get network tempo
+        self.tempo = self.subtensor.tempo(self.netuid)
+        self.weights_rate_limit = self.node_query('SubtensorModule', 'WeightsSetRateLimit', [self.netuid])
+
         # Set up async-related attributes
         self.lock = asyncio.Lock()
         self.loop = loop or asyncio.get_event_loop()
@@ -76,7 +79,7 @@ class WeightSetter:
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
-
+        self.loop.create_task(self.update_and_refresh())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -101,12 +104,35 @@ class WeightSetter:
             self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
                                     metagraph=self.metagraph, loop=self.loop)
 
+    def node_query(self, module, method, params):
+        try:
+            result = self.node.query(module, method, params).value
+
+        except Exception as err:
+            # reinitilize node
+            self.node = SubstrateInterface(url=self.config.subtensor.chain_endpoint)
+            result = self.node.query(module, method, params).value
+
+        return result
+
+    def get_blocks_til_epoch(self, block):
+        return self.tempo - (block + 19) % (self.tempo + 1)
+
     async def update_and_refresh(self):
-        await self.update_weights()
-        bt.logging.info("Refreshing metagraph...")
-        await self.refresh_metagraph()
-        await self.initialize_uids_and_capacities()
-        bt.logging.info("Metagraph refreshed.")
+        while True:
+            current_block = self.node_query('System', 'Number', [])
+            last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
+            bt.logging.info(f"last update: {last_update} blocks ago")
+
+            if last_update >= self.tempo * 2 or (
+                    self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
+                await self.update_weights()
+                bt.logging.info("Refreshing metagraph...")
+                await self.refresh_metagraph()
+                await self.initialize_uids_and_capacities()
+                bt.logging.info("Metagraph refreshed.")
+
+            await asyncio.sleep(60)
 
     async def perform_synthetic_queries(self):
         while True:
@@ -454,7 +480,6 @@ class WeightSetter:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
-            await self.update_and_refresh()
 
     @property
     def batch_list_of_all_uids(self):
