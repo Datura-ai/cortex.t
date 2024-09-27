@@ -199,7 +199,8 @@ Go to the [Pixabay API docs](https://pixabay.com/api/docs/) and sign in with you
 Before starting make sure update your system and have pm2 installed to run the scripts in the background.
 
 ```bash
-apt update -y && apt-get install git -y && apt install python3-pip -y
+apt update -y && apt-get install git -y && apt install python3-pip -y && apt install redis-server
+
 ```
 
 Download the repository, navigate to the folder and then create virtual env and install the necessary requirements with the following chained command.
