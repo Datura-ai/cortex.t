@@ -50,40 +50,40 @@ TEXT_VALI_MODELS_WEIGHTS = {
 
 bandwidth_to_model = {
     "OpenAI": {
-        "gpt-4o": 1,
-        "gpt-4o-mini": 1,
-        "gpt-3.5-turbo": 1,
-        "o1-preview": 1,
-        "o1-mini": 1,
+        "gpt-4o": 3,
+        # "gpt-4o-mini": 1,
+        # "gpt-3.5-turbo": 1,
+        # "o1-preview": 1,
+        # "o1-mini": 1,
     },
     # from https://ai.google.dev/pricing
-    "Gemini": {
-        "gemini-1.5-flash": 1,
-        "gemini-1.5-pro": 1,
-    },
+    # "Gemini": {
+    #     "gemini-1.5-flash": 1,
+    #     "gemini-1.5-pro": 1,
+    # },
     #
     "Anthropic": {
-        "claude-3-5-sonnet-20240620": 1,
+        "claude-3-5-sonnet-20240620": 2,
         # "claude-3-opus-20240229": 1,
-        "claude-3-haiku-20240307": 1,
+        # "claude-3-haiku-20240307": 1,
     },
     # model IDs from https://console.groq.com/docs/tool-use?hss_channel=tw-842860575289819136
     # prices not available yet, default to bedrock pricing
     # free tier: 30 rpm
     "Groq": {
-        "gemma2-9b-it": 1,
-        "llama-3.1-8b-instant": 1,
+        # "gemma2-9b-it": 1,
+        # "llama-3.1-8b-instant": 1,
         "llama-3.1-70b-versatile": 1,
         # "llama-3.1-405b-reasoning": 16,
-        "mixtral-8x7b-32768": 1,
+        # "mixtral-8x7b-32768": 1,
     },
     # from https://aws.amazon.com/bedrock/pricing/
     # model IDs from https://docs.aws.amazon.com/bedrock/latest/userguide/model-ids.html#model-ids-arns
-    "Bedrock": {
-        "mistral.mixtral-8x7b-instruct-v0:1": 1,
-        "mistral.mistral-large-2402-v1:0": 1,
-        "meta.llama3-1-8b-instruct-v1:0": 1,
-        "meta.llama3-1-70b-instruct-v1:0": 1,
+    # "Bedrock": {
+    #     "mistral.mixtral-8x7b-instruct-v0:1": 1,
+    #     "mistral.mistral-large-2402-v1:0": 1,
+    #     "meta.llama3-1-8b-instruct-v1:0": 1,
+    #     "meta.llama3-1-70b-instruct-v1:0": 1,
         # "meta.llama3-1-405b-instruct-v1:0": 16,
-    }
+    # }
 }
