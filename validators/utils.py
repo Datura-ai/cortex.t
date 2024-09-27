@@ -159,7 +159,7 @@ async def get_stream_result(task_id):
                 last_id = result_id
                 bt.logging.trace(result_chunk)
                 full_response += result_chunk
-        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=20)
+        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
 
     bt.logging.debug(f"stream exit. delete old stream from queue.")
     redis_client.delete(stream_name)
