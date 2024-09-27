@@ -19,7 +19,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import handle_response, error_handler, get_stream_result_as_async_gen, get_stream_result
+from validators.utils import error_handler, get_stream_result_as_async_gen, get_stream_result
 from validators.task_manager import TaskMgr
 from validators.models.enum import QueryType
 
@@ -86,28 +86,6 @@ class WeightSetter:
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(self.thread_executor, fn)
 
-    def get_current_block(self):
-        return self.node.query("System", "Number", []).value
-
-    def get_weights_rate_limit(self):
-        return self.node.query("SubtensorModule", "WeightsSetRateLimit", [self.netuid]).value
-
-    def get_last_update(self, block):
-        try:
-            last_update_blocks = block - self.node.query("SubtensorModule", "LastUpdate", [self.netuid]).value[
-                self.my_uid]
-        except Exception as err:
-            bt.logging.error(f"Error getting last update: {traceback.format_exc()}")
-            bt.logging.exception(err)
-            # Means that the validator is not registered yet.
-            last_update_blocks = 1000
-
-        bt.logging.trace(f"Last set weights successfully {last_update_blocks} blocks ago")
-        return last_update_blocks
-
-    def get_blocks_til_epoch(self, block):
-        return self.tempo - (block + 19) % (self.tempo + 1)
-
     async def refresh_metagraph(self):
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
@@ -128,10 +106,8 @@ class WeightSetter:
             self.task_mgr = TaskMgr(uid_to_capacities=self.uid_to_capacity, dendrite=self.dendrite,
                                     metagraph=self.metagraph, loop=self.loop)
 
-    async def update_and_refresh(self, last_update):
-        bt.logging.info(f"Setting weights, last update {last_update} blocks ago")
+    async def update_and_refresh(self):
         await self.update_weights()
-
         bt.logging.info("Refreshing metagraph...")
         await self.refresh_metagraph()
         await self.initialize_uids_and_capacities()
@@ -202,68 +178,6 @@ class WeightSetter:
         # else:
         #     return image_validator
 
-    def should_i_score(self):
-        # Randomly decide whether to score this query based on scoring_percent
-        return random.random() < self.scoring_percent
-
-    async def perform_queries(self, selected_validator, uids_to_query):
-        query_responses = []
-        response_tasks = []
-        query_tasks = []
-        provider_to_models = selected_validator.get_provider_to_models()
-        uids_to_query_expand = []
-        for provider, model in provider_to_models:
-            for uid in uids_to_query:
-                band_width = self.uid_to_capacity.get(uid).get(f"{provider}").get(f"{model}")
-                for _ in range(band_width):
-                    query_task = selected_validator.create_query(uid, provider, model)
-                    query_tasks.append(query_task)
-                    uids_to_query_expand.append(uid)
-
-        queries = await asyncio.gather(*query_tasks)
-        for uid, query in zip(uids_to_query_expand, queries):
-            response_tasks.append(self.query_miner(uid, query))
-
-        responses = await asyncio.gather(*response_tasks)
-        for uid, query_syn, response in zip(uids_to_query_expand, queries, responses):
-            query_responses.append((uid, {'query': query_syn, 'response': response}))
-        return query_responses
-
-    @handle_response
-    async def query_miner(self, uid, synapse):
-        axon = self.metagraph.axons[uid]
-
-        streaming = False
-        if isinstance(synapse, bt.StreamingSynapse):
-            streaming = True
-
-        responses = await self.dendrite(
-            axons=[axon],
-            synapse=synapse,
-            deserialize=False,
-            timeout=synapse.timeout,
-            streaming=streaming,
-        )
-        # Handle the response appropriately
-        return responses[0]  # Assuming responses is a list
-
-    def select_validator(self) -> BaseValidator:
-        rand = random.random()
-        text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
-        image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
-                                                                            metagraph=self.metagraph)
-        if rand > self.config.image_validator_probability:
-            return text_validator
-        else:
-            return image_validator
-
-    def get_validators(self) -> List[BaseValidator]:
-        validators = []
-        all_classes = ValidatorRegistryMeta.all_classes()
-        for class_name, class_ref in all_classes.items():
-            validator = ValidatorRegistryMeta.get_class(class_name)(config=self.config, metagraph=self.metagraph)
-            validators.append(validator)
-        return validators
 
     async def get_capacities_for_uids(self, uids):
         capacity_service = CapacityService(metagraph=self.metagraph, dendrite=self.dendrite)
@@ -521,8 +435,6 @@ class WeightSetter:
 
     async def process_queries_from_database(self):
         while True:
-            current_block = self.get_current_block()
-            last_update = self.get_last_update(current_block)
             await asyncio.sleep(1)  # Adjust the sleep time as needed
 
             # accumulate all query results for MIN_REQUEST_PERIOD
@@ -549,7 +461,7 @@ class WeightSetter:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
-            await self.update_and_refresh(last_update)
+            await self.update_and_refresh()
 
     @property
     def batch_list_of_all_uids(self):
@@ -564,15 +476,17 @@ class WeightSetter:
     async def process_queries_from_cache_database(self):
         # await self.initialize_uids_and_capacities()
         tasks = []
-        for vali in self.get_validators():
-            for provider, model in vali.get_provider_to_models():
-                questions_answers: List[Tuple[str, str]] = self.cache.get_all_question_to_answers(provider, model)
-                if not questions_answers:
-                    continue
-                # select one of questions_answers
-                query, answer = random.choice(questions_answers)
-                query_syn = vali.get_synapse_from_json(query)
-                tasks.append(self.score_miners_based_cached_answer(vali, query_syn, answer))
+        for uid in self.uid_to_capacity.keys():
+            for provider, model_to_bandwidth in self.uid_to_capacity.get(uid).items():
+                for model, bandwidth in model_to_bandwidth.items():
+                    vali = self.choose_validator_from_model(model)
+                    questions_answers: List[Tuple[str, str]] = self.cache.get_all_question_to_answers(provider, model)
+                    if not questions_answers:
+                        continue
+                    # select one of questions_answers
+                    query, answer = random.choice(questions_answers)
+                    query_syn = vali.get_synapse_from_json(query)
+                    tasks.append(self.score_miners_based_cached_answer(vali, query_syn, answer))
 
         # process tasks in batch_size to not exceed max request per 2min.
         batched_task_list = []
@@ -582,7 +496,7 @@ class WeightSetter:
             start_time = time.time()
             await asyncio.gather(*batch_tasks)
             passed_time = time.time() - start_time
-            sleep_time = max(cortext.MIN_REQUEST_PERIOD * 60 - passed_time, 1)
+            sleep_time = max(cortext.REQUEST_PERIOD * 60 - passed_time, 1)
             bt.logging.debug(f"wait time {sleep_time} to not exceed max_request {cortext.MAX_REQUESTS} in 2min")
             await  asyncio.sleep(sleep_time)
 
