@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import asyncio
+import json
 from collections import defaultdict
 
 import random
@@ -143,7 +144,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             uid_model_to_scores_dict[uid][model] = weighted_score
         bt.logging.debug(f"""
         score details for all miners:
-        {uid_model_to_scores_dict}
+        {json.dumps(uid_model_to_scores_dict, indent=4)}
         """)
 
         if not len(uid_scores_dict):
