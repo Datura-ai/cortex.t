@@ -53,7 +53,6 @@ def calculate_text_similarity(text1: str, text2: str):
         # Calculate the Cosine Similarity
         similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
-        bt.logging.debug(f"Similarity: {similarity}")
         return similarity
     except Exception as e:
         bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")

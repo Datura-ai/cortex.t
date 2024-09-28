@@ -21,12 +21,19 @@ class TaskMgr:
         self.remain_resources = deepcopy(self.uid_to_capacity)
         bt.logging.debug(f"resource is restored. remain_resources = {self.remain_resources}")
 
+    def get_remaining_bandwidth(self, uid, provider, model):
+        if self.remain_resources.get(uid):
+            if self.remain_resources.get(uid).get(provider):
+                return self.remain_resources.get(uid).get(provider).get(model)
+
+
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
         for uid, capacity in new_uid_to_capacity.items():
             for provider, model_to_cap in capacity.items():
                 for model, cap in model_to_cap.items():
-                    if self.remain_resources.get(uid).get(provider).get(model) is None:
+                    if self.get_remaining_bandwidth(uid, provider, model) is None:
                         self.remain_resources[uid][provider][model] = cap
+                        utils.update_nested_dict(self.remain_resources, keys=[uid, provider, model], value=cap)
                     else:
                         diff = self.uid_to_capacity[uid][provider][model] - cap
                         if diff:

@@ -11,7 +11,7 @@ from io import BytesIO
 from functools import wraps
 import traceback
 
-from cortext import ImageResponse, ALL_SYNAPSE_TYPE, REDIS_RESULT_STREAM
+from cortext import ImageResponse, ALL_SYNAPSE_TYPE
 from validators.services.cache import QueryResponseCache
 
 
@@ -150,3 +150,19 @@ def find_positive_values(data: dict):
             positive_values[key] = value
 
     return positive_values
+
+
+def update_nested_dict(data, keys, value):
+    """
+    Updates the value in the nested dictionary or creates the key path if it doesn't exist.
+
+    :param data: The dictionary to update.
+    :param keys: A list of keys representing the path in the nested dictionary.
+    :param value: The value to set at the specified key path.
+    """
+    if len(keys) == 1:
+        data[keys[0]] = value
+    else:
+        if keys[0] not in data or not isinstance(data[keys[0]], dict):
+            data[keys[0]] = {}
+        update_nested_dict(data[keys[0]], keys[1:], value)

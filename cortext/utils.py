@@ -310,7 +310,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
     async with list_update_lock:
         items = state[category][item_type]
 
-        bt.logging.debug(f"Queue for {list_type}: {len(items) if items else 0} items")
+        bt.logging.trace(f"Queue for {list_type}: {len(items) if items else 0} items")
 
         item = await get_item_from_list(items, vision)
 
@@ -319,7 +319,7 @@ async def update_counters_and_get_new_list(category, item_type, num_questions_ne
             items = await get_items(category, item_type, theme)
             bt.logging.trace(f"Items generated: {items}")
             state[category][item_type] = items
-            bt.logging.debug(f"Fetched new list for {list_type}, containing {len(items)} items")
+            bt.logging.trace(f"Fetched new list for {list_type}, containing {len(items)} items")
 
             item = await get_item_from_list(items, vision)
 
@@ -457,7 +457,7 @@ def extract_python_list(text: str):
 
 async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, top_p=1):
     for _ in range(2):
-        bt.logging.debug(
+        bt.logging.trace(
             f"Calling Openai to get answer. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
         )
         try:
@@ -503,7 +503,7 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
 
 
 async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
-    bt.logging.debug(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
+    bt.logging.trace(f"Calling Gemini. Temperature = {temperature}, Model = {model}, Messages = {messages}")
     try:
         model = genai.GenerativeModel(model)
         response = model.generate_content(
@@ -554,7 +554,7 @@ async def call_gemini(messages, temperature, model, max_tokens, top_p, top_k):
 
 async def call_anthropic_bedrock(prompt, temperature, model, max_tokens=2048, top_p=1, top_k=10000):
     try:
-        bt.logging.debug(
+        bt.logging.trace(
             f"Calling Bedrock via Anthropic. Model = {model}, Prompt = {prompt}, Temperature = {temperature}, Max Tokens = {max_tokens}"
         )
         completion = await anthropic_bedrock_client.completions.create(
@@ -610,7 +610,7 @@ async def generate_messages_to_claude(messages):
 
 async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k):
     try:
-        bt.logging.info(
+        bt.logging.trace(
             f"calling Anthropic for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}, top_k: {top_k}"
         )
         filtered_messages, system_prompt = await generate_messages_to_claude(messages)
@@ -633,7 +633,7 @@ async def call_anthropic(messages, temperature, model, max_tokens, top_p, top_k)
 
 async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
     try:
-        bt.logging.info(
+        bt.logging.trace(
             f"calling groq for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}"
         )
 
@@ -655,7 +655,7 @@ async def call_groq(messages, temperature, model, max_tokens, top_p, seed):
 
 async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
     try:
-        bt.logging.info(
+        bt.logging.trace(
             f"calling AWS Bedrock for {messages} with temperature: {temperature}, model: {model}, max_tokens: {max_tokens}, top_p: {top_p}"
         )
 
@@ -746,7 +746,7 @@ async def call_bedrock(messages, temperature, model, max_tokens, top_p, seed):
 
 async def call_stability(prompt, seed, steps, cfg_scale, width, height, samples, sampler):
     # bt.logging.info(f"calling stability for {prompt, seed, steps, cfg_scale, width, height, samples, sampler}")
-    bt.logging.info(f"calling stability for {prompt[:50]}...")
+    bt.logging.trace(f"calling stability for {prompt[:50]}...")
 
     # Run the synchronous stability_api.generate function in a separate thread
     meta = await asyncio.to_thread(

@@ -125,6 +125,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         # apply weight for each model and calculate score based on weight of models.
         uid_scores_dict = defaultdict(float)
+        uid_model_to_scores_dict = defaultdict(dict)
         for key, avg_score in uid_provider_model_scores_avg_dict.items():
             uid = int(str(key).split("::")[0])
             provider = str(key).split("::")[1]
@@ -137,11 +138,13 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             if band_width is None:
                 bt.logging.debug(f"no band_width found for this uid {uid}")
                 band_width = 1
-            bt.logging.debug(f"bandwidth is {band_width}")
             weighted_score = avg_score * model_weight * band_width
             uid_scores_dict[uid] += weighted_score
-            bt.logging.debug(f"score {avg_score} for this model {model}, "
-                             f"and weighted_score is {weighted_score}")
+            uid_model_to_scores_dict[uid][model] = weighted_score
+        bt.logging.debug(f"""
+        score details for all miners:
+        {uid_model_to_scores_dict}
+        """)
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__

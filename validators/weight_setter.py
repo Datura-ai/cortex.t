@@ -147,8 +147,6 @@ class WeightSetter:
                         if isinstance(chunk, str):
                             response_text += chunk
                             bt.logging.trace(f"Streamed text: {chunk}")
-                bt.logging.debug(f"{len(response_text)} for uid {uid}")
-
 
                 # Store the query and response in the shared database
                 async with self.lock:
@@ -162,7 +160,6 @@ class WeightSetter:
                                                                                       metagraph=self.metagraph)
                     })
 
-
             axon = self.metagraph.axons[uid]
             responses = await self.dendrite(
                 axons=[axon],
@@ -174,6 +171,7 @@ class WeightSetter:
             await handle_response(responses)
         else:
             pass
+
     async def create_query_syns_for_remaining_bandwidth(self):
         query_tasks = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
@@ -242,8 +240,6 @@ class WeightSetter:
 
         # Create a dictionary of UID to axon info for active UIDs
         available_uids = {uid: axon_info for uid, axon_info in zip(tasks.keys(), results) if axon_info is not None}
-
-        bt.logging.info(f"Available UIDs: {list(available_uids.keys())}")
 
         return available_uids
 
@@ -427,7 +423,6 @@ class WeightSetter:
 
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
-
             axon = self.metagraph.axons[uid]
             await self.dendrite.aclose_session()
             responses = await self.dendrite(
@@ -438,7 +433,6 @@ class WeightSetter:
                 streaming=True,
             )
             return await handle_response(responses)
-
 
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
