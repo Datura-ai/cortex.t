@@ -18,9 +18,8 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import error_handler, get_stream_as_async_gen, get_stream_result
+from validators.utils import error_handler
 from validators.task_manager import TaskMgr
-from validators.models.enum import QueryType
 
 scoring_organic_timeout = 60
 
@@ -133,6 +132,50 @@ class WeightSetter:
         await self.initialize_uids_and_capacities()
         bt.logging.info("Metagraph refreshed.")
 
+    async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
+        if query_syn.streaming:
+            uid = self.task_mgr.assign_task(query_syn)
+            if uid is None:
+                bt.logging.error("Can't create task.")
+                return
+            bt.logging.trace(f"synthetic task is created and uid is {uid}")
+
+            async def handle_response(responses):
+                start_time = time.time()
+                response_text = ''
+                for resp in responses:
+                    async for chunk in resp:
+                        if isinstance(chunk, str):
+                            response_text += chunk
+                            bt.logging.trace(f"Streamed text: {chunk}")
+                bt.logging.debug(f"{len(response_text)} for uid {uid}")
+
+
+                # Store the query and response in the shared database
+                async with self.lock:
+                    self.query_database.append({
+                        'uid': uid,
+                        'synapse': query_syn,
+                        'response': (response_text, time.time() - start_time),
+                        'query_type': 'organic',
+                        'timestamp': asyncio.get_event_loop().time(),
+                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                      metagraph=self.metagraph)
+                    })
+
+
+            axon = self.metagraph.axons[uid]
+            responses = await self.dendrite(
+                axons=[axon],
+                synapse=query_syn,
+                deserialize=False,
+                timeout=query_syn.timeout,
+                streaming=True,
+            )
+            await handle_response(responses)
+        else:
+            pass
+
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
@@ -157,34 +200,19 @@ class WeightSetter:
                 bt.logging.debug(f"No query tasks for synthetic.")
                 continue
             # don't process any organic query while processing synthetic queries.
-            synthetic_task_ids = []
+            synthetic_tasks = []
             async with self.lock:
                 query_synapses = await asyncio.gather(*query_tasks)
                 for query_syn in query_synapses:
-                    task_id = self.task_mgr.assign_task(query_syn)
-                    synthetic_task_ids.append(task_id)
+                    uid = self.task_mgr.assign_task(query_syn)
+                    synthetic_tasks.append(self.query_miner(uid, query_syn))
+
+            bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
             # restore capacities immediately after synthetic query consuming all bandwidth.
             self.task_mgr.restore_capacities_for_all_miners()
 
-            bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
-
-            # get result from all synthetic tasks
-            synthetic_result_tasks = []
-            for task_id in synthetic_task_ids:
-                task = get_stream_result(task_id=task_id)
-                synthetic_result_tasks.append(task)
-
-            synthetic_results = await asyncio.gather(*synthetic_result_tasks)
-            for synapse, (result, time_process) in zip(query_synapses, synthetic_results):
-                self.query_database.append({
-                    'uid': synapse.uid,
-                    'synapse': synapse,
-                    'response': (result, time_process),
-                    'query_type': QueryType.synthetic_type,
-                    'timestamp': asyncio.get_event_loop().time(),
-                    'validator': self.choose_validator_from_model(synapse.model)
-                })
+            await asyncio.gather(*synthetic_tasks)
 
             self.synthetic_task_done = True
             bt.logging.info(
@@ -362,42 +390,56 @@ class WeightSetter:
         # Return the streaming response
         async def _prompt(query_synapse: StreamPrompting, send: Send):
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
-            start_time = time.time()
 
             synapse.deserialize_flag = False
             synapse.streaming = True
 
-            task_id = self.task_mgr.assign_task(query_synapse)
-            if task_id is None:
+            uid = self.task_mgr.assign_task(query_synapse)
+            if uid is None:
                 bt.logging.error("Can't create task.")
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
                 return
-            bt.logging.trace(f"task is created and task_id is {task_id}")
+            bt.logging.trace(f"task is created and uid is {uid}")
 
-            response_text = ''
-            async for chunk in get_stream_as_async_gen(task_id):
-                if isinstance(chunk, str):
-                    await send({
-                        "type": "http.response.body",
-                        "body": chunk.encode("utf-8"),
-                        "more_body": True,
+            async def handle_response(responses):
+                start_time = time.time()
+                response_text = ''
+                for resp in responses:
+                    async for chunk in resp:
+                        if isinstance(chunk, str):
+                            await send({
+                                "type": "http.response.body",
+                                "body": chunk.encode("utf-8"),
+                                "more_body": True,
+                            })
+                            response_text += chunk
+                            bt.logging.trace(f"Streamed text: {chunk}")
+
+                # Store the query and response in the shared database
+                async with self.lock:
+                    self.query_database.append({
+                        'uid': synapse.uid,
+                        'synapse': synapse,
+                        'response': (response_text, time.time() - start_time),
+                        'query_type': 'organic',
+                        'timestamp': asyncio.get_event_loop().time(),
+                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                      metagraph=self.metagraph)
                     })
-                    response_text += chunk
-            bt.logging.trace(f"received total response is :{response_text}")
 
-            await send({"type": "http.response.body", "body": b'', "more_body": False})
+                await send({"type": "http.response.body", "body": b'', "more_body": False})
 
-            # Store the query and response in the shared database
-            async with self.lock:
-                self.query_database.append({
-                    'uid': synapse.uid,
-                    'synapse': synapse,
-                    'response': (response_text, time.time() - start_time),
-                    'query_type': 'organic',
-                    'timestamp': asyncio.get_event_loop().time(),
-                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
-                                                                                  metagraph=self.metagraph)
-                })
+
+            axon = self.metagraph.axons[synapse.uid]
+            responses = await self.dendrite(
+                axons=[axon],
+                synapse=synapse,
+                deserialize=False,
+                timeout=synapse.timeout,
+                streaming=True,
+            )
+            return await handle_response(responses)
+
 
         token_streamer = partial(_prompt, synapse)
         return synapse.create_streaming_response(token_streamer)
@@ -458,7 +500,7 @@ class WeightSetter:
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
             # accumulate all query results for MIN_REQUEST_PERIOD
-            if not self.query_database or not self.is_epoch_end():
+            if not self.synthetic_task_done or not self.is_epoch_end():
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
 

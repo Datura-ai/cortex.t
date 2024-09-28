@@ -115,58 +115,6 @@ async def get_result_entry_from_redis(redis_client, stream_name, last_id, max_tr
     return result_entries
 
 
-@error_handler
-async def get_stream_as_async_gen(task_id):
-    last_id = '0'  # Start reading from the beginning of the stream
-    bt.logging.trace(f"Waiting for results of task {task_id}...")
-    stream_name = REDIS_RESULT_STREAM + f"{task_id}"
-    redis_client = get_redis_client()
-    full_response = ''
-    result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
-
-    while result_entries:
-        # Read from the Redis stream
-        for entry in result_entries:
-            stream_name, results = entry
-            for result_id, data in results:
-                result_chunk = data['chunk']
-                last_id = result_id
-                bt.logging.trace(result_chunk)
-                full_response += result_chunk
-                yield result_chunk
-        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=20)
-
-    bt.logging.debug(f"stream exit. delete old stream from queue. {full_response}")
-    redis_client.delete(stream_name)
-    redis_client.close()
-
-
-@error_handler
-async def get_stream_result(task_id):
-    last_id = '0'  # Start reading from the beginning of the stream
-    bt.logging.trace(f"Waiting for results of task {task_id}...")
-    stream_name = REDIS_RESULT_STREAM + f"{task_id}"
-    redis_client = get_redis_client()
-    full_response = ''
-    result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
-
-    while result_entries:
-        # Read from the Redis stream
-        for entry in result_entries:
-            stream_name, results = entry
-            for result_id, data in results:
-                result_chunk = data['chunk']
-                last_id = result_id
-                bt.logging.trace(result_chunk)
-                full_response += result_chunk
-        result_entries = await get_result_entry_from_redis(redis_client, stream_name, last_id, max_try_cnt=50)
-
-    bt.logging.debug(f"stream exit. delete old stream from queue.")
-    redis_client.delete(stream_name)
-    redis_client.close()
-    return full_response, 0
-
-
 def find_positive_values(data: dict):
     positive_values = {}
 
@@ -181,8 +129,3 @@ def find_positive_values(data: dict):
             positive_values[key] = value
 
     return positive_values
-
-
-def get_redis_client():
-    redis_client = redis.from_url("redis://localhost", encoding="utf-8", decode_responses=True)
-    return redis_client

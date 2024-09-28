@@ -4,7 +4,6 @@ import bittensor as bt
 
 from cortext import ALL_SYNAPSE_TYPE
 from validators.utils import error_handler
-from validators.workers import Worker
 from validators import utils
 
 
@@ -46,11 +45,7 @@ class TaskMgr:
         synapse.task_id = task_id
 
         bt.logging.trace(f"Assigning task {task_id} to miner {uid}")
-
-        # Push task to the selected worker's task queue
-        worker = Worker(synapse=synapse, dendrite=self.dendrite, axon=self.get_axon_from_uid(uid=uid))
-        self.loop.create_task(worker.run_task())
-        return task_id
+        return uid
 
     def get_axon_from_uid(self, uid):
         uid = int(uid)

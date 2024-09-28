@@ -138,9 +138,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 bt.logging.debug(f"no band_width found for this uid {uid}")
                 band_width = 1
             bt.logging.debug(f"bandwidth is {band_width}")
-            uid_scores_dict[uid] += avg_score * model_weight * band_width
+            weighted_score = avg_score * model_weight * band_width
+            uid_scores_dict[uid] += weighted_score
             bt.logging.debug(f"score {avg_score} for this model {model}, "
-                             f"and weighted_score is {uid_scores_dict[uid]}")
+                             f"and weighted_score is {weighted_score}")
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__
