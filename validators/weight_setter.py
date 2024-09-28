@@ -134,7 +134,6 @@ class WeightSetter:
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
         if query_syn.streaming:
-            uid = self.task_mgr.assign_task(query_syn)
             if uid is None:
                 bt.logging.error("Can't create task.")
                 return
@@ -212,6 +211,7 @@ class WeightSetter:
             # restore capacities immediately after synthetic query consuming all bandwidth.
             self.task_mgr.restore_capacities_for_all_miners()
 
+            await self.dendrite.aclose_session()
             await asyncio.gather(*synthetic_tasks)
 
             self.synthetic_task_done = True
@@ -393,7 +393,6 @@ class WeightSetter:
 
             synapse.deserialize_flag = False
             synapse.streaming = True
-
             uid = self.task_mgr.assign_task(query_synapse)
             if uid is None:
                 bt.logging.error("Can't create task.")
@@ -430,7 +429,8 @@ class WeightSetter:
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
 
-            axon = self.metagraph.axons[synapse.uid]
+            axon = self.metagraph.axons[uid]
+            await self.dendrite.aclose_session()
             responses = await self.dendrite(
                 axons=[axon],
                 synapse=synapse,

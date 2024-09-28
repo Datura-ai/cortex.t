@@ -17,8 +17,8 @@ class TaskMgr:
         self.loop = loop
 
     def restore_capacities_for_all_miners(self):
-        bt.logging.debug(f"resource is restored. self.remain_resources = {self.remain_resources}")
         self.remain_resources = deepcopy(self.uid_to_capacity)
+        bt.logging.debug(f"resource is restored. remain_resources = {self.remain_resources}")
 
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
         for uid, capacity in new_uid_to_capacity.items():
@@ -31,6 +31,7 @@ class TaskMgr:
                         if diff:
                             bt.logging.debug(f"diff {diff} found in {uid}, {provider}, {model}")
                         self.remain_resources[uid][provider][model] -= diff
+        bt.logging.debug(f"remain_resources after epoch = {self.remain_resources}")
 
     @error_handler
     def assign_task(self, synapse: ALL_SYNAPSE_TYPE):
@@ -39,12 +40,7 @@ class TaskMgr:
         if uid is None:
             bt.logging.debug(f"no available resources to process this request.")
             return None
-
-        synapse.uid = uid
-        task_id = utils.create_hash_value((synapse.json()))
-        synapse.task_id = task_id
-
-        bt.logging.trace(f"Assigning task {task_id} to miner {uid}")
+        bt.logging.trace(f"Assigning task to miner {uid}")
         return uid
 
     def get_axon_from_uid(self, uid):
@@ -54,9 +50,10 @@ class TaskMgr:
     def choose_miner(self, synapse: ALL_SYNAPSE_TYPE):
         provider = synapse.provider
         model = synapse.model
-        for uid, capacity in self.remain_resources.items():
+        for uid in self.remain_resources:
+            capacity = self.remain_resources.get(uid)
             bandwidth = capacity.get(provider).get(model)
             if bandwidth is not None and bandwidth > 0:
                 # decrease resource by one after choosing this miner for the request.
-                capacity[provider][model] -= 1
+                self.remain_resources[uid][provider][model] -= 1
                 return uid
