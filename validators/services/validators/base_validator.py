@@ -123,11 +123,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             avg_score = sum(scores) / len(scores)
             uid_provider_model_scores_avg_dict[key] = avg_score
 
-        # total_weights = 0
-        # for provider, model_infos in TEXT_VALI_MODELS_WEIGHTS.items():
-        #     for model in model_infos:
-        #         total_weights += model_infos.get(model)
-
         # apply weight for each model and calculate score based on weight of models.
         uid_scores_dict = defaultdict(float)
         for key, avg_score in uid_provider_model_scores_avg_dict.items():

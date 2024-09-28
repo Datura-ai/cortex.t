@@ -116,7 +116,9 @@ class TextValidator(BaseValidator):
             self.wandb_data["responses"][uid] = response
         return self.wandb_data
 
-    async def call_api(self, prompt: str, image_url: Optional[str], provider: str) -> str:
+    async def call_api(self, prompt: str, image_url: Optional[str], query_syn: StreamPrompting) -> str:
+        provider = query_syn.provider
+        self.model = query_syn.model
         if provider == "OpenAI":
             return await call_openai(
                 [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed,
@@ -161,7 +163,7 @@ class TextValidator(BaseValidator):
     async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
         prompt = query_syn.messages[0].get("content")
         image_url = query_syn.messages[0].get("image")
-        answer = await self.call_api(prompt, image_url, self.provider)
+        answer = await self.call_api(prompt, image_url, query_syn)
         return answer
 
     async def get_scoring_task(self, uid, answer, response):

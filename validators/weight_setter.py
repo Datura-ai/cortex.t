@@ -79,7 +79,6 @@ class WeightSetter:
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
-        self.loop.create_task(self.update_and_refresh())
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -118,27 +117,28 @@ class WeightSetter:
     def get_blocks_til_epoch(self, block):
         return self.tempo - (block + 19) % (self.tempo + 1)
 
+    def is_epoch_end(self):
+        current_block = self.node_query('System', 'Number', [])
+        last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
+        bt.logging.info(f"last update: {last_update} blocks ago")
+        if last_update >= self.tempo * 2 or (
+                self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
+            return True
+        return False
+
     async def update_and_refresh(self):
-        while True:
-            current_block = self.node_query('System', 'Number', [])
-            last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
-            bt.logging.info(f"last update: {last_update} blocks ago")
-
-            if last_update >= self.tempo * 2 or (
-                    self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
-                await self.update_weights()
-                bt.logging.info("Refreshing metagraph...")
-                await self.refresh_metagraph()
-                await self.initialize_uids_and_capacities()
-                bt.logging.info("Metagraph refreshed.")
-
-            await asyncio.sleep(60)
+        await self.update_weights()
+        bt.logging.info("Refreshing metagraph...")
+        await self.refresh_metagraph()
+        await self.initialize_uids_and_capacities()
+        bt.logging.info("Metagraph refreshed.")
 
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
             await asyncio.sleep(cortext.REQUEST_PERIOD * 60)
-            bt.logging.info(f"start processing synthetic queries at block {self.metagraph.block} at time {time.time()}")
+            current_block = self.node_query('System', 'Number', [])
+            bt.logging.info(f"start processing synthetic queries at block {current_block} at time {time.time()}")
             start_time = time.time()
             # check available bandwidth and send synthetic requests to all miners.
             query_tasks = []
@@ -188,13 +188,15 @@ class WeightSetter:
 
             self.synthetic_task_done = True
             bt.logging.info(
-                f"synthetic queries has been processed successfully. total queries are {len(query_synapses)}")
+                f"synthetic queries has been processed successfully."
+                f"total queries are {len(query_synapses)}")
 
     def choose_validator_from_model(self, model):
         text_validator = ValidatorRegistryMeta.get_class('TextValidator')(config=self.config, metagraph=self.metagraph)
         # image_validator = ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
         #                                                                     metagraph=self.metagraph)
         if model != 'dall-e-3':
+            text_validator.model = model
             return text_validator
         # else:
         #     return image_validator
@@ -455,11 +457,11 @@ class WeightSetter:
     async def process_queries_from_database(self):
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
-
             # accumulate all query results for MIN_REQUEST_PERIOD
-            if not self.query_database or not self.synthetic_task_done:
+            if not self.query_database or not self.is_epoch_end():
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
+
             bt.logging.info(f"start scoring process...")
 
             async with self.lock:
@@ -480,6 +482,7 @@ class WeightSetter:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
+            await self.update_and_refresh()
 
     @property
     def batch_list_of_all_uids(self):
