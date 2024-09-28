@@ -174,6 +174,20 @@ class WeightSetter:
             await handle_response(responses)
         else:
             pass
+    async def create_query_syns_for_remaining_bandwidth(self):
+        query_tasks = []
+        for uid, provider_to_cap in self.task_mgr.remain_resources.items():
+            for provider, model_to_cap in provider_to_cap.items():
+                for model, bandwidth in model_to_cap.items():
+                    if bandwidth > 0:
+                        # create task and send remaining requests to the miner
+                        vali = self.choose_validator_from_model(model)
+                        query_task = vali.create_query(uid, provider, model)
+                        query_tasks += [query_task] * bandwidth
+                    else:
+                        continue
+        query_synapses = await asyncio.gather(*query_tasks)
+        return query_synapses
 
     async def perform_synthetic_queries(self):
         while True:
@@ -182,26 +196,11 @@ class WeightSetter:
             current_block = self.node_query('System', 'Number', [])
             bt.logging.info(f"start processing synthetic queries at block {current_block} at time {time.time()}")
             start_time = time.time()
-            # check available bandwidth and send synthetic requests to all miners.
-            query_tasks = []
-            for uid, provider_to_cap in self.task_mgr.remain_resources.items():
-                for provider, model_to_cap in provider_to_cap.items():
-                    for model, bandwidth in model_to_cap.items():
-                        if bandwidth > 0:
-                            # create task and send remaining requests to the miner
-                            vali = self.choose_validator_from_model(model)
-                            query_task = vali.create_query(uid, provider, model)
-                            query_tasks += [query_task] * bandwidth
-                        else:
-                            continue
-
-            if not query_tasks:
-                bt.logging.debug(f"No query tasks for synthetic.")
-                continue
             # don't process any organic query while processing synthetic queries.
             synthetic_tasks = []
             async with self.lock:
-                query_synapses = await asyncio.gather(*query_tasks)
+                # check available bandwidth and send synthetic requests to all miners.
+                query_synapses = await self.create_query_syns_for_remaining_bandwidth()
                 for query_syn in query_synapses:
                     uid = self.task_mgr.assign_task(query_syn)
                     synthetic_tasks.append(self.query_miner(uid, query_syn))

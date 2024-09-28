@@ -1,4 +1,5 @@
 import asyncio
+import random
 from copy import deepcopy
 import bittensor as bt
 
@@ -50,10 +51,13 @@ class TaskMgr:
     def choose_miner(self, synapse: ALL_SYNAPSE_TYPE):
         provider = synapse.provider
         model = synapse.model
+        available_uids = []
         for uid in self.remain_resources:
             capacity = self.remain_resources.get(uid)
             bandwidth = capacity.get(provider).get(model)
             if bandwidth is not None and bandwidth > 0:
                 # decrease resource by one after choosing this miner for the request.
-                self.remain_resources[uid][provider][model] -= 1
-                return uid
+                available_uids.append(uid)
+        uid = random.choice(available_uids)
+        self.remain_resources[uid][provider][model] -= 1
+        return uid

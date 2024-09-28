@@ -1,8 +1,6 @@
 import random
-import time
 import aiohttp
 import asyncio
-import redis
 import base64
 import hashlib
 import inspect
@@ -70,15 +68,19 @@ async def handle_response_stream(responses) -> tuple[str, str]:
     return full_response
 
 
-def save_answer_to_cache(func):
+def save_or_get_answer_from_cache(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
-        answer = await func(*args, **kwargs)
         query_syn: ALL_SYNAPSE_TYPE = args[2]
         provider = query_syn.provider
         model = query_syn.model
 
         cache_service = QueryResponseCache()
+        answer = cache_service.get_answer(question=str(query_syn.json()), provider=provider, model=model)
+        if answer:
+            return answer
+
+        answer = await func(*args, **kwargs)
         try:
             cache_service.set_cache(question=str(query_syn.json()), answer=str(answer), provider=provider, model=model)
         except Exception as err:
@@ -87,6 +89,25 @@ def save_answer_to_cache(func):
             bt.logging.trace(f"saved answer to cache successfully.")
         finally:
             return answer
+
+    return wrapper
+
+
+def get_query_synapse_from_cache(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        cache_service = QueryResponseCache()
+        vali = args[0]
+        provider = args[2]
+        model = args[3]
+        questions_answers = cache_service.get_all_question_to_answers(provider=provider, model=model)
+        if not questions_answers or random.random() > 0.5:
+            query_syn = await func(*args, **kwargs)
+            return query_syn
+        # select one of questions_answers
+        query, answer = random.choice(questions_answers)
+        query_syn = vali.get_synapse_from_json(query)
+        return query_syn
 
     return wrapper
 

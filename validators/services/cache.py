@@ -40,11 +40,20 @@ class QueryResponseCache:
         ''', (p_key, question, answer, provider, model, expires_at))
         self.conn.commit()
 
+    def get_answer(self, question, provider, model):
+        p_key = self.generate_hash(str(question) + str(provider) + str(model))
+        cursor = self.conn.cursor()
+        cursor.execute('''
+                SELECT answer FROM cache WHERE p_key = ?
+                ''', (p_key,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+
     def get_cache(self, key):
         cursor = self.conn.cursor()
         cursor.execute('''
-        SELECT value FROM cache WHERE p_key = ? AND timestamp > ?
-        ''', (key, time.time()))
+        SELECT * FROM cache WHERE p_key = ?
+        ''', key)
         result = cursor.fetchone()
         return result[0] if result else None
 

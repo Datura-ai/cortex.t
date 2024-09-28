@@ -11,7 +11,7 @@ from typing import Optional
 from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
-from validators.utils import save_answer_to_cache
+from validators.utils import save_or_get_answer_from_cache, get_query_synapse_from_cache
 
 
 class TextValidator(BaseValidator):
@@ -74,6 +74,7 @@ class TextValidator(BaseValidator):
         question = await get_question("text", miner_cnt, is_vision_model)
         return question
 
+    @get_query_synapse_from_cache
     async def create_query(self, uid, provider=None, model=None) -> bt.Synapse:
         question = await self.get_question()
         prompt = question.get("prompt")
@@ -159,7 +160,7 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
-    @save_answer_to_cache
+    @save_or_get_answer_from_cache
     async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
         prompt = query_syn.messages[0].get("content")
         image_url = query_syn.messages[0].get("image")

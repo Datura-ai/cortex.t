@@ -5,7 +5,7 @@ import wandb
 import cortext.reward
 from cortext.protocol import ImageResponse
 from validators import utils
-from validators.utils import error_handler, save_answer_to_cache
+from validators.utils import error_handler, save_or_get_answer_from_cache
 from cortext.utils import get_question
 import bittensor as bt
 
@@ -82,7 +82,7 @@ class ImageValidator:
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 
-    @save_answer_to_cache
+    @save_or_get_answer_from_cache
     async def get_answer_task(self, uid, synapse: ImageResponse, response):
         return synapse
 
