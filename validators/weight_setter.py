@@ -18,7 +18,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import error_handler
+from validators.utils import error_handler, setup_max_capacity
 from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
@@ -208,8 +208,10 @@ class WeightSetter:
             # restore capacities immediately after synthetic query consuming all bandwidth.
             self.task_mgr.restore_capacities_for_all_miners()
 
-            await self.dendrite.aclose_session()
-            await asyncio.gather(*synthetic_tasks)
+            batch_size = 30
+            for batched_queries in [synthetic_tasks[i:i + batch_size] for i in range(0, len(synthetic_tasks), batch_size)]:
+                await self.dendrite.aclose_session()
+                await asyncio.gather(*batched_queries)
 
             self.synthetic_task_done = True
             bt.logging.info(
@@ -229,6 +231,8 @@ class WeightSetter:
     async def get_capacities_for_uids(self, uids):
         capacity_service = CapacityService(metagraph=self.metagraph, dendrite=self.dendrite)
         uid_to_capacity = await capacity_service.query_capacity_to_miners(uids)
+        # apply limit on max_capacity for each miner.
+        setup_max_capacity(uid_to_capacity)
         return uid_to_capacity
 
     async def get_available_uids(self):

@@ -166,3 +166,11 @@ def update_nested_dict(data, keys, value):
         if keys[0] not in data or not isinstance(data[keys[0]], dict):
             data[keys[0]] = {}
         update_nested_dict(data[keys[0]], keys[1:], value)
+
+
+def setup_max_capacity(item):
+    for key, value in item.items():
+        if isinstance(value, dict):  # If the value is another dictionary, recurse
+            setup_max_capacity(value)
+        elif isinstance(value, (int, float)):  # If the value is a number, increment by 5
+            item[key] = min(value, 100)
