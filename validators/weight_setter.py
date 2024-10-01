@@ -187,6 +187,7 @@ class WeightSetter:
                     else:
                         continue
         query_synapses = await asyncio.gather(*query_tasks)
+        random.shuffle(query_synapses)
         return query_synapses
 
     def set_up_next_block_to_wait(self):
