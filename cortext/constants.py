@@ -11,7 +11,7 @@ TEXT_VALI_MODELS_WEIGHTS = {
     # from https://openai.com/api/pricing/
     "OpenAI": {
         "gpt-4o": 15.00,
-        # "gpt-4o-mini": 0.600,
+        "gpt-4o-mini": 0.600,
         # "gpt-3.5-turbo": 2.00,
         # "o1-preview": 60.00,
         # "o1-mini": 12.00,
@@ -51,7 +51,7 @@ TEXT_VALI_MODELS_WEIGHTS = {
 bandwidth_to_model = {
     "OpenAI": {
         "gpt-4o": 2,
-        # "gpt-4o-mini": 1,
+        "gpt-4o-mini": 2,
         # "gpt-3.5-turbo": 1,
         # "o1-preview": 1,
         # "o1-mini": 1,
