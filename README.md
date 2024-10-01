@@ -218,9 +218,11 @@ After installing it, copy `env.example` to `.env` and substitute
 all env vars with values appropriate for your accounts.
 
 ## Mining
-
+# step1.
+go to cortext/constants.py and change bandwidth_to_model value as per limit of api.
+currently we support only 3 models: "gpt-4o", "claude-3-5-sonnet-20240620", "llama-3.1-70b-versatile". 
+so don't add more than that.
 You can launch your miners via python3 using the following command.
-
 ```bash
 bash start_miner.sh
 ```
