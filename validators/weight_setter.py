@@ -191,12 +191,16 @@ class WeightSetter:
 
     def set_up_next_block_to_wait(self):
         # score all miners based on uid.
-        current_block = self.node_query('System', 'Number', [])
+        if self.next_block_to_wait:
+            current_block = self.next_block_to_wait
+        else:
+            current_block = self.node_query('System', 'Number', [])
         next_block = current_block + 36
         self.next_block_to_wait = next_block
 
     def is_cycle_end(self):
         current_block = self.node_query('System', 'Number', [])
+        bt.logging.info(current_block, self.next_block_to_wait)
         if current_block >= self.next_block_to_wait:
             return True
         else:
@@ -208,6 +212,7 @@ class WeightSetter:
             if not self.is_cycle_end():
                 await asyncio.sleep(12)
                 continue
+            self.set_up_next_block_to_wait()
             start_time = time.time()
             # don't process any organic query while processing synthetic queries.
             synthetic_tasks = []
