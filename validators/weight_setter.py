@@ -28,6 +28,7 @@ class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache, loop=None):
 
         # Cache object using sqlite3.
+        self.next_block_to_wait = None
         self.synthetic_task_done = False
         self.task_mgr: TaskMgr = None
         self.in_cache_processing = False
@@ -73,6 +74,7 @@ class WeightSetter:
 
         # initialize uid and capacities.
         asyncio.run(self.initialize_uids_and_capacities())
+        self.set_up_next_block_to_wait()
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
@@ -187,12 +189,25 @@ class WeightSetter:
         query_synapses = await asyncio.gather(*query_tasks)
         return query_synapses
 
+    def set_up_next_block_to_wait(self):
+        # score all miners based on uid.
+        current_block = self.node_query('System', 'Number', [])
+        next_block = current_block + 36
+        self.next_block_to_wait = next_block
+
+    def is_cycle_end(self):
+        current_block = self.node_query('System', 'Number', [])
+        if current_block >= self.next_block_to_wait:
+            return True
+        else:
+            return False
+
     async def perform_synthetic_queries(self):
         while True:
             # wait for MIN_REQUEST_PERIOD minutes.
-            await asyncio.sleep(cortext.REQUEST_PERIOD * 60)
-            current_block = self.node_query('System', 'Number', [])
-            bt.logging.info(f"start processing synthetic queries at block {current_block} at time {time.time()}")
+            if not self.is_cycle_end():
+                await asyncio.sleep(12)
+                continue
             start_time = time.time()
             # don't process any organic query while processing synthetic queries.
             synthetic_tasks = []
@@ -209,7 +224,8 @@ class WeightSetter:
             self.task_mgr.restore_capacities_for_all_miners()
 
             batch_size = 30
-            for batched_queries in [synthetic_tasks[i:i + batch_size] for i in range(0, len(synthetic_tasks), batch_size)]:
+            for batched_queries in [synthetic_tasks[i:i + batch_size] for i in
+                                    range(0, len(synthetic_tasks), batch_size)]:
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_queries)
 
