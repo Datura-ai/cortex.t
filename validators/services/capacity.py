@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import List
 
 from cortext.protocol import Bandwidth
-from cortext import REQUEST_PERIOD
 import bittensor as bt
 
 
@@ -14,7 +13,6 @@ class CapacityService:
         self.timeout = 4
         self.uid_to_capacity = {}
         self.remain_uid_to_capacity = {}
-        self.epoch_len = REQUEST_PERIOD
 
     async def query_capacity_to_miners(self, available_uids):
         capacity_query_tasks = []
@@ -37,8 +35,3 @@ class CapacityService:
                 uid_to_capacity[uid] = resp.bandwidth_rpm
         self.uid_to_capacity = deepcopy(uid_to_capacity)
         return uid_to_capacity
-
-    async def refresh_capacity_per_epoch(self):
-        while True:
-            self.remain_uid_to_capacity = deepcopy(self.uid_to_capacity)
-            await asyncio.sleep(self.epoch_len * 60)

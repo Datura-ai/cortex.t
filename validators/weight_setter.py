@@ -209,7 +209,6 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            # wait for MIN_REQUEST_PERIOD minutes.
             if not self.is_cycle_end():
                 await asyncio.sleep(12)
                 continue
@@ -518,7 +517,7 @@ class WeightSetter:
     async def process_queries_from_database(self):
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
-            # accumulate all query results for MIN_REQUEST_PERIOD
+            # accumulate all query results for 36 blocks
             if not self.synthetic_task_done or not self.is_epoch_end():
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
@@ -553,37 +552,6 @@ class WeightSetter:
         for i in range(0, len(uids), batch_size):
             batched_list.append(uids[i:i + batch_size])
         return batched_list
-
-    @error_handler
-    async def process_queries_from_cache_database(self):
-        # await self.initialize_uids_and_capacities()
-        tasks = []
-        for uid in self.uid_to_capacity.keys():
-            for provider, model_to_bandwidth in self.uid_to_capacity.get(uid).items():
-                for model, bandwidth in model_to_bandwidth.items():
-                    vali = self.choose_validator_from_model(model)
-                    questions_answers: List[Tuple[str, str]] = self.cache.get_all_question_to_answers(provider, model)
-                    if not questions_answers:
-                        continue
-                    # select one of questions_answers
-                    query, answer = random.choice(questions_answers)
-                    query_syn = vali.get_synapse_from_json(query)
-                    tasks.append(self.score_miners_based_cached_answer(vali, query_syn, answer))
-
-        # process tasks in batch_size to not exceed max request per 2min.
-        batched_task_list = []
-        for i in range(0, len(tasks), cortext.MAX_REQUESTS):
-            batched_task_list.append(tasks[i:i + cortext.MAX_REQUESTS])
-        for batch_tasks in batched_task_list:
-            start_time = time.time()
-            await asyncio.gather(*batch_tasks)
-            passed_time = time.time() - start_time
-            sleep_time = max(cortext.REQUEST_PERIOD * 60 - passed_time, 1)
-            bt.logging.debug(f"wait time {sleep_time} to not exceed max_request {cortext.MAX_REQUESTS} in 2min")
-            await  asyncio.sleep(sleep_time)
-
-        bt.logging.info("Successfully complete scoring for all miners with cached data and "
-                        f"total score is {self.total_scores}")
 
     async def score_miners_based_cached_answer(self, vali, query, answer):
         total_query_resps = []
