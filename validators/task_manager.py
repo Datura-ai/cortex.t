@@ -40,7 +40,9 @@ class TaskMgr:
                         if diff:
                             bt.logging.debug(f"diff {diff} found in {uid}, {provider}, {model}")
                         self.remain_resources[uid][provider][model] -= diff
+
         bt.logging.debug(f"remain_resources after epoch = {self.remain_resources}")
+        self.uid_to_capacity = deepcopy(self.remain_resources)
 
     @error_handler
     def assign_task(self, synapse: ALL_SYNAPSE_TYPE):
