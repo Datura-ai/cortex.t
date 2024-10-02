@@ -174,3 +174,8 @@ def setup_max_capacity(item):
             setup_max_capacity(value)
         elif isinstance(value, (int, float)):  # If the value is a number, increment by 5
             item[key] = min(value, 100)
+
+
+def get_bandwidth(data, uid, provider, model):
+    value = data.get(uid, {}).get(provider, {}).get(model, 0)
+    return value

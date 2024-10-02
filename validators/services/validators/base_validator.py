@@ -9,7 +9,7 @@ from typing import Tuple
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
-from validators.utils import error_handler
+from validators.utils import error_handler, get_bandwidth
 from cortext.constants import TEXT_VALI_MODELS_WEIGHTS
 
 dataset = None
@@ -135,7 +135,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             if model_weight is None:
                 bt.logging.debug(f"not weight found for this provider {provider} and model {model}")
                 model_weight = 0
-            band_width = uid_to_capacity.get(uid).get(f"{provider}").get(f"{model}")
+
+            band_width = get_bandwidth(uid_to_capacity, uid, provider, model)
+
             if band_width is None:
                 bt.logging.debug(f"no band_width found for this uid {uid}")
                 band_width = 1
