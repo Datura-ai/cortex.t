@@ -233,7 +233,6 @@ class WeightSetter:
 
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
-                start_time = time.time()
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks)
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
