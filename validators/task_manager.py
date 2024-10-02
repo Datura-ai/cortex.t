@@ -32,7 +32,6 @@ class TaskMgr:
             for provider, model_to_cap in capacity.items():
                 for model, cap in model_to_cap.items():
                     if self.get_remaining_bandwidth(uid, provider, model) is None:
-                        self.remain_resources[uid][provider][model] = cap
                         utils.update_nested_dict(self.remain_resources, keys=[uid, provider, model], value=cap)
                     else:
                         diff = self.uid_to_capacity[uid][provider][model] - cap
