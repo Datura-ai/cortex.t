@@ -17,3 +17,4 @@ validators/.ipynb_checkpoints/
 **/test.ipynb
 .env
 **/server/**/*.py
+cache.db
