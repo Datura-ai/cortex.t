@@ -233,7 +233,6 @@ class WeightSetter:
 
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
-                start_time = time.time()
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks)
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
@@ -562,8 +561,9 @@ class WeightSetter:
             async with self.lock:
                 for uid_scores_dict, _, _ in resps:
                     for uid, score in uid_scores_dict.items():
-                        self.total_scores[uid] += score
-                        self.score_counts[uid] += 1
+                        if self.total_scores.get(uid) is not None:
+                            self.total_scores[uid] += score
+                            self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
             await self.update_and_refresh()
 

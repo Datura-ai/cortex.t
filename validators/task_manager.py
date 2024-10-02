@@ -64,6 +64,8 @@ class TaskMgr:
         available_uids = []
         for uid in self.remain_resources:
             capacity = self.remain_resources.get(uid)
+            if capacity is None:
+                continue
             bandwidth = capacity.get(provider).get(model)
             if bandwidth is not None and bandwidth > 0:
                 # decrease resource by one after choosing this miner for the request.
