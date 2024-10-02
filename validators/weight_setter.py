@@ -23,7 +23,7 @@ from validators.utils import error_handler, setup_max_capacity
 from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
-
+NUM_INTERVALS_PER_CYCLE = 10
 
 class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache, loop=None):
@@ -197,7 +197,7 @@ class WeightSetter:
             current_block = self.next_block_to_wait
         else:
             current_block = self.node_query('System', 'Number', [])
-        next_block = current_block + 36
+        next_block = current_block + (self.tempo / NUM_INTERVALS_PER_CYCLE) # 36 blocks per cycle.
         self.next_block_to_wait = next_block
 
     def is_cycle_end(self):
@@ -494,7 +494,8 @@ class WeightSetter:
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
         )
-        self.axon.serve(netuid=self.netuid)
+        # self.axon.serve(netuid=self.netuid, subtensor=self.subtensor)
+        print(f"axon: {self.axon}")
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
 
