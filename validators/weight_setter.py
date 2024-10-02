@@ -494,7 +494,7 @@ class WeightSetter:
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
         )
-        # self.axon.serve(netuid=self.netuid, subtensor=self.subtensor)
+        self.axon.serve(netuid=self.netuid, subtensor=self.subtensor)
         print(f"axon: {self.axon}")
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
