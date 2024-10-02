@@ -19,7 +19,7 @@
 
 
 # version must stay on line 22
-__version__ = "4.0.10"
+__version__ = "4.0.11"
 version_split = __version__.split(".")
 __spec_version__ = (
         (1000 * int(version_split[0]))
@@ -52,8 +52,6 @@ PROMPT_BLACKLIST_STAKE = 5000
 IMAGE_BLACKLIST_STAKE = 5000
 EMBEDDING_BLACKLIST_STAKE = 5000
 ISALIVE_BLACKLIST_STAKE = min(PROMPT_BLACKLIST_STAKE, IMAGE_BLACKLIST_STAKE, EMBEDDING_BLACKLIST_STAKE)
-MIN_REQUEST_PERIOD = 2
-MAX_REQUESTS = 20
 # must have the test_key whitelisted to avoid a global blacklist
 testnet_key = ["5EhEZN6soubtKJm8RN7ANx9FGZ2JezxBUFxr45cdsHtDp3Uk"]
 test_key = ["5DcRHcCwD33YsHfj4PX5j2evWLniR1wSWeNmpf5RXaspQT6t"]
@@ -3769,3 +3767,6 @@ IMAGE_THEMES = [
 
 
 ALL_SYNAPSE_TYPE = Union[StreamPrompting, Embeddings, ImageResponse, IsAlive]
+
+REDIS_RESULT_STREAM = 'result_stream'
+REDIS_RESULT = 'result'

@@ -18,8 +18,8 @@
 # DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 from transformers import logging as hf_logging
-hf_logging.set_verbosity_error()
 
+hf_logging.set_verbosity_error()
 
 import re
 import io
@@ -37,10 +37,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 from transformers import CLIPProcessor, CLIPModel
 
+
 # ==== TEXT ====
 
 def calculate_text_similarity(text1: str, text2: str):
     try:
+        text1 = str(text1).lower()
+        text2 = str(text2).lower()
         # Initialize the TF-IDF Vectorizer
         vectorizer = TfidfVectorizer()
 
@@ -50,11 +53,11 @@ def calculate_text_similarity(text1: str, text2: str):
         # Calculate the Cosine Similarity
         similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
 
-        bt.logging.debug(f"Similarity: {similarity}")
         return similarity
     except Exception as e:
         bt.logging.error(f"Error in calculate_text_similarity: {traceback.format_exc()}")
         raise
+
 
 async def api_score(api_answer: str, response: str, weight: float, temperature: float, provider: str) -> float:
     try:
@@ -153,6 +156,7 @@ def calculate_image_similarity(image, description, max_length: int = 77):
     # Calculate cosine similarity
     return torch.cosine_similarity(image_embedding, text_embedding, dim=1).item()
 
+
 async def dalle_score(uid, url, desired_size, description, weight, similarity_threshold=0.21) -> float:
     """Calculate the image score based on similarity and size asynchronously."""
 
@@ -191,11 +195,11 @@ async def dalle_score(uid, url, desired_size, description, weight, similarity_th
         return 0
 
 
-
 # IMAGES ---- DETERMINISTIC
 
 async def deterministic_score(uid: int, syn, weight: float):
-    vali_b64s = await utils.call_stability(syn.messages, syn.seed, syn.steps, syn.cfg_scale, syn.width, syn.height, syn.samples, syn.sampler)
+    vali_b64s = await utils.call_stability(syn.messages, syn.seed, syn.steps, syn.cfg_scale, syn.width, syn.height,
+                                           syn.samples, syn.sampler)
 
     for miner_b64, vali_b64 in zip(syn.completion["b64s"], vali_b64s):
         if miner_b64[:50] != vali_b64[:50]:
@@ -206,14 +210,12 @@ async def deterministic_score(uid: int, syn, weight: float):
     return weight
 
 
-
 # ==== Embeddings =====
 
 async def embeddings_score(openai_answer: list, response: list, weight: float, threshold: float = .95) -> float:
     if len(openai_answer) != len(response):
         bt.logging.info("The number of embeddings in openai_answer and response do not match.")
         return 0
-
 
     # Calculate similarity for each pair of embeddings
     similarities = []

@@ -1,13 +1,16 @@
 from abc import abstractmethod
 import asyncio
-from datasets import load_dataset
+import json
+from collections import defaultdict
+
 import random
-from typing import List, Tuple
+from typing import Tuple
 
 import bittensor as bt
 
 from cortext.metaclasses import ValidatorRegistryMeta
-from cortext import utils
+from validators.utils import error_handler, get_bandwidth
+from cortext.constants import TEXT_VALI_MODELS_WEIGHTS
 
 dataset = None
 
@@ -28,37 +31,6 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         self.num_samples = 100
         self.wandb_data = {}
 
-    def get_random_texts(self) -> list[str]:
-        global dataset
-        if dataset is None:
-            dataset = load_dataset('wikitext', 'wikitext-2-v1')
-        texts = [item['text'] for item in dataset['train']]
-        return random.sample(texts, self.num_samples)
-
-    async def load_questions(self, available_uids, item_type: str = "text", vision=False):
-        self.uid_to_questions = dict()
-
-        for index, uid in enumerate(available_uids):
-
-            if item_type == "images":
-                content = await utils.get_question("images", len(available_uids))
-                self.uid_to_questions[uid] = content  # Store messages for each UID
-            elif item_type == "text":
-                question = await utils.get_question("text", len(available_uids), vision)
-                if isinstance(question, str):
-                    bt.logging.info(f"Question is str, dict expected: {question}")
-                prompt = question.get("prompt")
-                image_url = question.get("image")
-                self.uid_to_questions[uid] = {"prompt": prompt}
-                self.uid_to_questions[uid]["image"] = image_url
-            else:
-                random_texts = self.get_random_texts()
-                num_texts_per_uid = len(random_texts) // len(available_uids)
-                start_index = index * num_texts_per_uid
-                end_index = start_index + num_texts_per_uid
-                prompt = random_texts[start_index:end_index]
-                self.uid_to_questions[uid] = prompt
-
     async def query_miner(self, metagraph, uid, syn):
         try:
             responses = await self.dendrite([metagraph.axons[uid]], syn, deserialize=False, timeout=self.timeout,
@@ -69,44 +41,52 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bt.logging.error(f"Exception during query for uid {uid}: {e}")
             return uid, None
 
+    @abstractmethod
+    def select_random_provider_and_model(self):
+        pass
+
+    def get_provider_to_models(self):
+        pass
+
     async def handle_response(self, uid, response) -> Tuple[int, bt.Synapse]:
         if type(response) == list and response:
             response = response[0]
         return uid, response
 
     @abstractmethod
-    async def start_query(self, available_uids: List[int]) -> bt.Synapse:
+    async def create_query(self, uid):
         pass
 
     @abstractmethod
     async def build_wandb_data(self, scores, responses):
         pass
 
-    def should_i_score(self):
-        return True
-
     @abstractmethod
-    async def get_answer_task(self, uid, synapse=None):
+    async def get_answer_task(self, uid, synapse, response):
         pass
 
     @abstractmethod
     async def get_scoring_task(self, uid, answer, response):
         pass
 
-    async def score_responses(self, responses):
+    @staticmethod
+    def get_synapse_from_json(data):
+        pass
+
+    @error_handler
+    async def score_responses(self, uid_to_query_resps, uid_to_capacity):
         answering_tasks = []
         scoring_tasks = []
-        uid_scores_dict = {}
         scored_response = []
 
-        for uid, syn in responses:
-            task = self.get_answer_task(uid, syn)
+        for uid, query_resp in uid_to_query_resps:
+            task = self.get_answer_task(uid, query_resp.get("query"), query_resp.get("response"))
             answering_tasks.append((uid, task))
 
         answers_results = await asyncio.gather(*[task for _, task in answering_tasks])
 
-        for (uid, response), answer in zip(responses, answers_results):
-            task = self.get_scoring_task(uid, answer, response)
+        for (uid, query_resp), answer in zip(uid_to_query_resps, answers_results):
+            task = self.get_scoring_task(uid, answer, query_resp.get("response"))
             scoring_tasks.append((uid, task))
 
         # Await all scoring tasks
@@ -115,20 +95,65 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             scored_responses) if scored_responses else 0
         bt.logging.debug(f"scored responses = {scored_responses}, average score = {average_score}")
 
-        for (uid, _), scored_response in zip(scoring_tasks, scored_responses):
-            if scored_response is not None:
-                uid_scores_dict[uid] = float(scored_response)
-            else:
-                uid_scores_dict[uid] = 0
+        uid_scores_dict = self.get_uid_to_scores_dict(uid_to_query_resps, scored_responses, uid_to_capacity)
 
-        if uid_scores_dict != {}:
-            bt.logging.info(f"text_scores is {uid_scores_dict}")
         bt.logging.trace("score_responses process completed.")
 
-        return uid_scores_dict, scored_response, responses
+        return uid_scores_dict, scored_response, uid_to_query_resps
 
-    async def get_and_score(self, available_uids: List[int]):
-        bt.logging.trace("starting query")
-        query_responses = await self.start_query(available_uids)
-        bt.logging.trace("scoring query with query responses")
-        return await self.score_responses(query_responses)
+    def get_uid_to_scores_dict(self, uid_to_query_resps, scored_responses: tuple[float], uid_to_capacity):
+        uid_provider_model_scores_dict = defaultdict(list)
+
+        # collect all scores per each uid, provider, model
+        for (uid, query_resp), scored_response in zip(uid_to_query_resps, scored_responses):
+            synapse = query_resp.get('query')
+            provider = synapse.provider
+            model = synapse.model
+            if scored_response is not None:
+                bt.logging.trace(f"scored response is {scored_response} for uid {uid} for provider {provider} "
+                                 f"and for model {model}")
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(float(scored_response))
+            else:
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(0)
+
+        # get avg score value for each uid, provider, model
+        uid_provider_model_scores_avg_dict = {}
+        for key, scores in uid_provider_model_scores_dict.items():
+            if len(scores) == 0:
+                bt.logging.debug(f"no scores found for this uid {key}")
+            avg_score = sum(scores) / len(scores)
+            uid_provider_model_scores_avg_dict[key] = avg_score
+
+        # apply weight for each model and calculate score based on weight of models.
+        uid_scores_dict = defaultdict(float)
+        uid_model_to_scores_dict = defaultdict(dict)
+        for key, avg_score in uid_provider_model_scores_avg_dict.items():
+            uid = int(str(key).split("::")[0])
+            provider = str(key).split("::")[1]
+            model = str(key).split("::")[2]
+            model_weight = TEXT_VALI_MODELS_WEIGHTS.get(provider).get(model)
+            if model_weight is None:
+                bt.logging.debug(f"not weight found for this provider {provider} and model {model}")
+                model_weight = 0
+
+            band_width = get_bandwidth(uid_to_capacity, uid, provider, model)
+
+            if band_width is None:
+                bt.logging.debug(f"no band_width found for this uid {uid}")
+                band_width = 1
+            weighted_score = avg_score * model_weight * band_width
+            uid_scores_dict[uid] += weighted_score
+            uid_model_to_scores_dict[uid][model] = weighted_score
+        bt.logging.debug(f"""
+        score details for all miners:
+        {json.dumps(uid_model_to_scores_dict, indent=4)}
+        """)
+
+        if not len(uid_scores_dict):
+            validator_type = self.__class__.__name__
+            bt.logging.debug(f"{validator_type} scores is {uid_scores_dict}")
+        return uid_scores_dict
+
+    @classmethod
+    def get_task_type(cls):
+        pass

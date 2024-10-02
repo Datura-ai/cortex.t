@@ -10,10 +10,12 @@ import wandb
 import cortext
 from cortext import utils
 from validators.weight_setter import WeightSetter
+from validators.services.cache import cache_service
 
 # Load environment variables from .env file
 load_dotenv()
 random.seed(time.time())
+
 
 class NestedNamespace(argparse.Namespace):
     def __setattr__(self, name, value):
@@ -53,7 +55,7 @@ class Config:
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Validator Configuration")
-    parser.add_argument("--subtensor.chain_endpoint", type=str, default="wss://entrypoint-finney.opentensor.ai:443")
+    parser.add_argument("--subtensor.chain_endpoint", type=str, default="wss://entrypoint-finney.opentensor.ai:443") #for testnet: wss://test.finney.opentensor.ai:443
     parser.add_argument("--wallet.name", type=str, default="default")
     parser.add_argument("--wallet.hotkey", type=str, default="default")
     parser.add_argument("--netuid", type=int, default=18)
@@ -89,8 +91,7 @@ def init_wandb(config):
     if not config.wandb_on:
         return
 
-    wallet = bt.wallet(name=config.wallet.name, hotkey=config.wallet.hotkey)
-    run_name = f"validator-{wallet.hotkey.ss58_address}-{cortext.__version__}"
+    run_name = f"validator-{config.wallet.hotkey.ss58_address}-{cortext.__version__}"
     config.run_name = run_name
     config.version = cortext.__version__
     config.type = "validator"
@@ -104,7 +105,7 @@ def init_wandb(config):
         reinit=True
     )
 
-    signature = wallet.hotkey.sign(run.id.encode()).hex()
+    signature = config.wallet.hotkey.sign(run.id.encode()).hex()
     config.signature = signature
     wandb.config.update(config.__dict__, allow_val_change=True)
 
@@ -115,15 +116,17 @@ def main():
     Config.check_required_env_vars()
     args = parse_arguments()
     config = Config(args)
+
+    setup_logging(config)
+
     config.wallet = bt.wallet(name=config.wallet.name, hotkey=config.wallet.hotkey)
     config.dendrite = bt.dendrite(wallet=config.wallet)
-    setup_logging(config)
 
     bt.logging.info(f"Config: {vars(config)}")
 
     init_wandb(config)
     loop = asyncio.get_event_loop()
-    weight_setter = WeightSetter(config=config)
+    weight_setter = WeightSetter(config=config, cache=cache_service, loop=loop)
     state_path = os.path.join(config.full_path, "state.json")
     utils.get_state(state_path)
     try:
@@ -136,6 +139,8 @@ def main():
         bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
         utils.save_state_to_file(state, state_path)
+        bt.logging.info("closing connection of cache database.")
+        cache_service.close()
         if config.wandb_on:
             wandb.finish()
 

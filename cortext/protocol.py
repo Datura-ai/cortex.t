@@ -15,7 +15,8 @@ class IsAlive(bt.Synapse):
 
 
 class Bandwidth(bt.Synapse):
-    bandwidth_rpm: Optional[Dict[str, int]] = None
+    bandwidth_rpm: Optional[Dict[str, dict]] = None
+
 
 class ImageResponse(bt.Synapse):
     """ A class to represent the response for an image-related request. """
@@ -122,6 +123,15 @@ class ImageResponse(bt.Synapse):
         ["messages"],
         title="Required Hash Fields",
         description="A list of fields required for the hash."
+    )
+
+    process_time: int = pydantic.Field(
+        default=9999,
+        title="process time",
+        description="processed time of querying dendrite.",
+    )
+    task_id: str = pydantic.Field(
+        default="9999"
     )
 
     def deserialize(self) -> Optional[Dict]:
@@ -286,6 +296,14 @@ class StreamPrompting(bt.StreamingSynapse):
         title="streaming",
         description="whether to stream the output",
     )
+    deserialize_flag: bool = pydantic.Field(
+        default=True
+    )
+    task_id: str = pydantic.Field(
+        default="9999",
+        title="task_id",
+        description="task id of the request from this syanpse."
+    )
 
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:
         if self.completion is None:
@@ -296,9 +314,6 @@ class StreamPrompting(bt.StreamingSynapse):
                 if token:
                     self.completion += token
             yield tokens
-
-    def deserialize(self) -> str:
-        return self.completion
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
         headers = {

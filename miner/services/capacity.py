@@ -5,7 +5,7 @@ from typing import Tuple
 
 from .base import BaseService
 from cortext import ISALIVE_BLACKLIST_STAKE
-from miner.constants import capacity_to_task_and_provider
+from cortext.constants import bandwidth_to_model
 
 
 class CapacityService(BaseService):
@@ -14,7 +14,7 @@ class CapacityService(BaseService):
 
     async def forward_fn(self, synapse: Bandwidth):
         bt.logging.debug("capacity request is being processed")
-        synapse.bandwidth_rpm = capacity_to_task_and_provider
+        synapse.bandwidth_rpm = bandwidth_to_model
         bt.logging.info("check status is executed.")
         return synapse
 

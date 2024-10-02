@@ -1,17 +1,16 @@
 import asyncio
 import random
-import traceback
 import wandb
 
 import cortext.reward
 from cortext.protocol import ImageResponse
-from validators.services.validators.base_validator import BaseValidator
 from validators import utils
-from validators.utils import error_handler
+from validators.utils import error_handler, save_or_get_answer_from_cache
+from cortext.utils import get_question
 import bittensor as bt
 
 
-class ImageValidator(BaseValidator):
+class ImageValidator:
     def __init__(self, config, metagraph=None):
         super().__init__(config, metagraph)
         self.num_uids_to_pick = 30
@@ -48,46 +47,43 @@ class ImageValidator(BaseValidator):
         elif self.provider == "OpenAI":
             self.model = "dall-e-3"
 
-    async def start_query(self, available_uids):
-        try:
-            query_tasks = []
+    def get_provider_to_models(self):
+        return [("OpenAI", "dall-e-3")]
 
-            self.select_random_provider_and_model()
-            await self.load_questions(available_uids, "images")
+    async def get_question(self):
+        question = await get_question("images", 1)
+        return question
 
-            # Query all images concurrently
-            for uid, content in self.uid_to_questions.items():
-                syn = ImageResponse(messages=content, model=self.model, size=self.size, quality=self.quality,
-                                    style=self.style, provider=self.provider, seed=self.seed, steps=self.steps)
-                bt.logging.info(f"uid = {uid}, syn = {syn}")
-                task = self.query_miner(self.metagraph, uid, syn)
-                query_tasks.append(task)
-
-            # Query responses is (uid. syn)
-            query_responses = await asyncio.gather(*query_tasks)
-            return query_responses
-        except:
-            bt.logging.error(f"error in start_query {traceback.format_exc()}")
+    async def create_query(self, uid, provider=None, model=None) -> bt.Synapse:
+        question = await self.get_question()
+        syn = ImageResponse(messages=question, model=model, size=self.size, quality=self.quality,
+                            style=self.style, provider=provider, seed=self.seed, steps=self.steps)
+        bt.logging.info(f"uid = {uid}, syn = {syn}")
+        return syn
 
     def should_i_score(self):
         rand = random.random()
         return rand < 1 / 1
 
     async def get_scoring_task(self, uid, answer, response: ImageResponse):
-        if answer is None:
+        if response is None:
+            bt.logging.trace(f"response is None. so return score with 0 for this uid {uid}.")
             return 0
         if response.provider == "OpenAI":
-            completion = answer.completion
+            completion = response.completion
             if completion is None:
+                bt.logging.trace(f"response completion is None for uid {uid}. so return score with 0")
                 return 0
             image_url = completion["url"]
             score = await cortext.reward.dalle_score(uid, image_url, self.size, response.messages,
-                                                    self.weight)
+                                                     self.weight)
         else:
+            bt.logging.trace(f"not found provider type {response.provider}")
             score = 0  # cortext.reward.deterministic_score(uid, syn, self.weight)
         return score
 
-    async def get_answer_task(self, uid, synapse=None):
+    @save_or_get_answer_from_cache
+    async def get_answer_task(self, uid, synapse: ImageResponse, response):
         return synapse
 
     @error_handler
@@ -112,3 +108,12 @@ class ImageValidator(BaseValidator):
             self.wandb_data["images"][uid] = wandb.Image(image) if image is not None else ''
             self.wandb_data["prompts"][uid] = self.uid_to_questions[uid]
         return self.wandb_data
+
+    @classmethod
+    def get_task_type(cls):
+        return ImageResponse.__name__
+
+    @staticmethod
+    def get_synapse_from_json(data):
+        synapse = ImageResponse.parse_raw(data)
+        return synapse
