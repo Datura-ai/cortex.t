@@ -28,7 +28,6 @@ class TaskMgr:
 
 
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
-        bt.logging.info(new_uid_to_capacity, "acerr")
         for uid, capacity in new_uid_to_capacity.items():
             if not capacity:
                 continue
