@@ -178,6 +178,8 @@ class WeightSetter:
     async def create_query_syns_for_remaining_bandwidth(self):
         query_tasks = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
+            if provider_to_cap is None:
+                continue
             for provider, model_to_cap in provider_to_cap.items():
                 for model, bandwidth in model_to_cap.items():
                     if bandwidth > 0:
