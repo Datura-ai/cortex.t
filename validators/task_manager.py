@@ -28,7 +28,10 @@ class TaskMgr:
 
 
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
+        bt.logging.info(new_uid_to_capacity, "acerr")
         for uid, capacity in new_uid_to_capacity.items():
+            if not capacity:
+                continue
             for provider, model_to_cap in capacity.items():
                 for model, cap in model_to_cap.items():
                     if self.get_remaining_bandwidth(uid, provider, model) is None:
