@@ -562,8 +562,9 @@ class WeightSetter:
             async with self.lock:
                 for uid_scores_dict, _, _ in resps:
                     for uid, score in uid_scores_dict.items():
-                        self.total_scores[uid] += score
-                        self.score_counts[uid] += 1
+                        if uid in self.total_scores.keys():
+                            self.total_scores[uid] += score
+                            self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
             await self.update_and_refresh()
 
