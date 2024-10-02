@@ -243,7 +243,7 @@ class WeightSetter:
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 300
-        max_query_cnt_per_miner = 100
+        max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
         uid_to_task_cnt = defaultdict(int)

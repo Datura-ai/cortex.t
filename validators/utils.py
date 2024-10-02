@@ -177,5 +177,7 @@ def setup_max_capacity(item):
 
 
 def get_bandwidth(data, uid, provider, model):
+    if data is None:
+        return 0
     value = data.get(uid, {}).get(provider, {}).get(model, 0)
     return value
