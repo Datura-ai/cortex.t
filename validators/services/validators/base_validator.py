@@ -149,12 +149,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             uid_scores_dict[uid] += weighted_score
             table_data.append([uid, provider, model, avg_score, model_weight, band_width, weighted_score])
 
-        table_str = tabulate(table_data, headers='firstrow', stralign='center')
+        table_str = tabulate(table_data, headers='firstrow')
 
-        bt.logging.debug(f"""
-        score details for all miners:
-        {table_str}
-        """)
+        bt.logging.debug(f"\n{table_str}")
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__
