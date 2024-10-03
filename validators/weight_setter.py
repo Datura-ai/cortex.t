@@ -210,6 +210,7 @@ class WeightSetter:
         if self.current_block != current_block:
             last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
             bt.logging.info(f"last update: {last_update} blocks ago")
+            bt.logging.info(f"current block {current_block}: next block for synthetic {self.next_block_to_wait}")
             self.current_block = current_block
         if current_block >= self.next_block_to_wait:
             return True
