@@ -123,9 +123,6 @@ class WeightSetter:
     def is_epoch_end(self):
         current_block = self.node_query('System', 'Number', [])
         last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
-        if self.current_block != current_block:
-            bt.logging.info(f"last update: {last_update} blocks ago")
-            self.current_block = current_block
         if last_update >= self.tempo * 2 or (
                 self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
             return True
@@ -208,6 +205,10 @@ class WeightSetter:
     def is_cycle_end(self):
         current_block = self.node_query('System', 'Number', [])
         bt.logging.info(current_block, self.next_block_to_wait)
+        if self.current_block != current_block:
+            last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
+            bt.logging.info(f"last update: {last_update} blocks ago")
+            self.current_block = current_block
         if current_block >= self.next_block_to_wait:
             return True
         else:
