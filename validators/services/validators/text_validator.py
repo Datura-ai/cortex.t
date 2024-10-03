@@ -69,14 +69,14 @@ class TextValidator(BaseValidator):
                 bt.logging.trace(resp)
                 yield uid, resp
 
-    async def get_question(self, miner_cnt=1):
+    async def get_question(self, batch_size=1):
         is_vision_model = self.model in constants.VISION_MODELS
-        question = await get_question("text", miner_cnt, is_vision_model)
+        question = await get_question("text", batch_size, is_vision_model)
         return question
 
     @get_query_synapse_from_cache
-    async def create_query(self, uid, provider=None, model=None) -> bt.Synapse:
-        question = await self.get_question()
+    async def create_query(self, uid, provider=None, model=None, batch_size=1) -> bt.Synapse:
+        question = await self.get_question(batch_size=batch_size)
         prompt = question.get("prompt")
         image = question.get("image")
         if image:

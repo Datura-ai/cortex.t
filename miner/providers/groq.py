@@ -5,6 +5,7 @@ from starlette.types import Send
 from .base import Provider
 from miner.config import config
 from cortext.protocol import StreamPrompting
+from ..error_handler import error_handler
 
 
 class Groq(Provider):
@@ -12,6 +13,7 @@ class Groq(Provider):
         super().__init__(synapse)
         self.groq_client = AsyncGroq(timeout=config.ASYNC_TIME_OUT, api_key=config.GROQ_API_KEY)
 
+    @error_handler
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         stream_kwargs = {
             "messages": self.messages,
