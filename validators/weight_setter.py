@@ -19,7 +19,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import error_handler, setup_max_capacity
+from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
@@ -176,7 +176,9 @@ class WeightSetter:
             pass
 
     async def create_query_syns_for_remaining_bandwidth(self):
-        query_tasks = []
+        prompts = await load_entire_questions()
+        bt.logging.debug(f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
+        total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
                 continue
@@ -185,13 +187,13 @@ class WeightSetter:
                     if bandwidth > 0:
                         # create task and send remaining requests to the miner
                         vali = self.choose_validator_from_model(model)
-                        query_task = vali.create_query(uid, provider, model, batch_size=bandwidth)
-                        query_tasks += [query_task] * bandwidth
+
+                        query_syns = [vali.create_query(uid, provider, model, prompt=prompt)
+                                      for prompt in random.choices(prompts, k=bandwidth)]
+                        total_syns += query_syns
                     else:
                         continue
-        query_synapses = await asyncio.gather(*query_tasks)
-        random.shuffle(query_synapses)
-        return query_synapses
+        return total_syns
 
     def set_up_next_block_to_wait(self):
         # score all miners based on uid.

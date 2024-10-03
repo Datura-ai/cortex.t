@@ -182,3 +182,40 @@ def get_bandwidth(data, uid, provider, model):
         return 0
     value = (data.get(uid, {}) or {}).get(provider, {}).get(model, 0)
     return value
+
+
+async def load_entire_questions():
+    # Asynchronous function to fetch a URL
+    async def fetch(session, url):
+        async with session.get(url) as response:
+            return await response.json()
+
+    # Asynchronous function to gather multiple HTTP requests
+    async def gather_requests(urls):
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for url in urls:
+                tasks.append(fetch(session, url))  # Create a task for each URL
+            results = await asyncio.gather(*tasks)  # Run all tasks concurrently
+            return results
+
+    # Main function to run the event loop
+    def main(urls):
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(gather_requests(urls))
+        return results
+
+    # select 90 so 90* 100(page_size) = 9000
+    query_ids = random.choices(list(range(80000)), k=100)
+    urls = []
+    for q_id in query_ids:
+        url = f"https://datasets-server.huggingface.co/rows?dataset=microsoft%2Fms_marco&config=v1.1&split=train&offset={q_id}&length=100"
+        urls.append(url)
+    responses = main(urls)
+    queries = []
+    for response in responses:
+        for row in response.get('rows', []):
+            query = row['row']['query']
+            queries.append(query)
+
+    return queries

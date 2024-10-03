@@ -74,15 +74,9 @@ class TextValidator(BaseValidator):
         question = await get_question("text", batch_size, is_vision_model)
         return question
 
-    @get_query_synapse_from_cache
-    async def create_query(self, uid, provider=None, model=None, batch_size=1) -> bt.Synapse:
-        question = await self.get_question(batch_size=batch_size)
-        prompt = question.get("prompt")
-        image = question.get("image")
-        if image:
-            messages = [{'role': 'user', 'content': prompt, "image": image}]
-        else:
-            messages = [{'role': 'user', 'content': prompt}]
+
+    def create_query(self, uid, provider=None, model=None, prompt="") -> bt.Synapse:
+        messages = [{'role': 'user', 'content': prompt}]
 
         syn = StreamPrompting(messages=messages, model=model, seed=self.seed, max_tokens=self.max_tokens,
                               temperature=self.temperature, provider=provider, top_p=self.top_p,
@@ -179,4 +173,3 @@ class TextValidator(BaseValidator):
     def get_synapse_from_json(data):
         synapse = StreamPrompting.parse_raw(data)
         return synapse
-
