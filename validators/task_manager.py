@@ -51,7 +51,6 @@ class TaskMgr:
         if uid is None:
             bt.logging.debug(f"no available resources to process this request.")
             return None
-        bt.logging.trace(f"Assigning task to miner {uid}")
         return uid
 
     def get_axon_from_uid(self, uid):

@@ -2,11 +2,13 @@ from abc import abstractmethod
 import asyncio
 import json
 from collections import defaultdict
+from tabulate import tabulate
 
 import random
 from typing import Tuple
 
 import bittensor as bt
+import pyarrow as pa
 
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.utils import error_handler, get_bandwidth
@@ -126,7 +128,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         # apply weight for each model and calculate score based on weight of models.
         uid_scores_dict = defaultdict(float)
-        uid_model_to_scores_dict = defaultdict(dict)
+        table_data = [
+            ["uid", "provider", "model", 'similarity', 'weight', 'bandwidth', 'weighted_score']
+        ]
         for key, avg_score in uid_provider_model_scores_avg_dict.items():
             uid = int(str(key).split("::")[0])
             provider = str(key).split("::")[1]
@@ -143,11 +147,11 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 band_width = 1
             weighted_score = avg_score * model_weight * band_width
             uid_scores_dict[uid] += weighted_score
-            uid_model_to_scores_dict[uid][model] = weighted_score
-        bt.logging.debug(f"""
-        score details for all miners:
-        {json.dumps(uid_model_to_scores_dict, indent=4)}
-        """)
+            table_data.append([uid, provider, model, avg_score, model_weight, band_width, weighted_score])
+
+        table_str = tabulate(table_data, headers='firstrow')
+
+        bt.logging.debug(f"\n{table_str}")
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__

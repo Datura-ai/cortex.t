@@ -19,7 +19,7 @@ from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.services import CapacityService, BaseValidator, TextValidator, ImageValidator
 from validators.services.cache import QueryResponseCache
-from validators.utils import error_handler, setup_max_capacity
+from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
 
 scoring_organic_timeout = 60
@@ -29,6 +29,7 @@ class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache, loop=None):
 
         # Cache object using sqlite3.
+        self.current_block = None
         self.next_block_to_wait = None
         self.synthetic_task_done = False
         self.task_mgr: TaskMgr = None
@@ -122,7 +123,6 @@ class WeightSetter:
     def is_epoch_end(self):
         current_block = self.node_query('System', 'Number', [])
         last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
-        bt.logging.info(f"last update: {last_update} blocks ago")
         if last_update >= self.tempo * 2 or (
                 self.get_blocks_til_epoch(current_block) < 10 and last_update >= self.weights_rate_limit):
             return True
@@ -176,7 +176,9 @@ class WeightSetter:
             pass
 
     async def create_query_syns_for_remaining_bandwidth(self):
-        query_tasks = []
+        prompts = await load_entire_questions()
+        bt.logging.debug(f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
+        total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
                 continue
@@ -185,13 +187,13 @@ class WeightSetter:
                     if bandwidth > 0:
                         # create task and send remaining requests to the miner
                         vali = self.choose_validator_from_model(model)
-                        query_task = vali.create_query(uid, provider, model)
-                        query_tasks += [query_task] * bandwidth
+
+                        query_syns = [vali.create_query(uid, provider, model, prompt=prompt)
+                                      for prompt in random.choices(prompts, k=bandwidth)]
+                        total_syns += query_syns
                     else:
                         continue
-        query_synapses = await asyncio.gather(*query_tasks)
-        random.shuffle(query_synapses)
-        return query_synapses
+        return total_syns
 
     def set_up_next_block_to_wait(self):
         # score all miners based on uid.
@@ -199,12 +201,17 @@ class WeightSetter:
             current_block = self.next_block_to_wait
         else:
             current_block = self.node_query('System', 'Number', [])
-        next_block = current_block + (self.tempo / NUM_INTERVALS_PER_CYCLE) # 36 blocks per cycle.
+        next_block = current_block + (self.tempo / NUM_INTERVALS_PER_CYCLE)  # 36 blocks per cycle.
         self.next_block_to_wait = next_block
 
     def is_cycle_end(self):
         current_block = self.node_query('System', 'Number', [])
         bt.logging.info(current_block, self.next_block_to_wait)
+        if self.current_block != current_block:
+            last_update = current_block - self.node_query('SubtensorModule', 'LastUpdate', [self.netuid])[self.my_uid]
+            bt.logging.info(f"last update: {last_update} blocks ago")
+            bt.logging.info(f"current block {current_block}: next block for synthetic {self.next_block_to_wait}")
+            self.current_block = current_block
         if current_block >= self.next_block_to_wait:
             return True
         else:
@@ -218,8 +225,8 @@ class WeightSetter:
             self.set_up_next_block_to_wait()
             start_time = time.time()
             # don't process any organic query while processing synthetic queries.
-            synthetic_tasks = []
             async with self.lock:
+                synthetic_tasks = []
                 # check available bandwidth and send synthetic requests to all miners.
                 query_synapses = await self.create_query_syns_for_remaining_bandwidth()
                 for query_syn in query_synapses:
