@@ -1,10 +1,8 @@
 import bittensor as bt
 import pydantic
-from enum import Enum
-from typing import AsyncIterator, Dict, List, Literal, Optional
+from typing import AsyncIterator, Dict, List
 from starlette.responses import StreamingResponse
 import asyncio
-import random
 import traceback
 
 
@@ -176,27 +174,24 @@ async def handle_response(responses):
 
 async def main():
     print("synching metagraph, this takes way too long.........")
-    subtensor = bt.subtensor( network="test" )
-    meta = subtensor.metagraph( netuid=37 )
+    subtensor = bt.subtensor( network="finney" )
+    meta = subtensor.metagraph( netuid=18 )
     print("metagraph synched!")
 
     # This needs to be your validator wallet that is running your subnet 18 validator
-    wallet = bt.wallet( name="1", hotkey="1" )
+    wallet = bt.wallet( name="default", hotkey="default" )
     dendrite = bt.dendrite( wallet=wallet )
     vali_uid = meta.hotkeys.index( wallet.hotkey.ss58_address)
     axon_to_use = meta.axons[vali_uid]
     print(f"axon to use: {axon_to_use}")
 
     # This is the question to send your validator to send your miner.
-    prompt = "Give me a long story about a cat"
+    prompt = "Give me a story about a cat"
     messages = [{'role': 'user', 'content': prompt}]
 
-    # You can edit this to pick a specific miner uid, just change miner_uid to the uid that you desire.
-    # Currently, it just picks a random miner form the top 100 uids. Or it can be hardcoded to a specific uid.
-    # miner_uid = 2
+    # see options for providers/models here: https://github.com/Datura-ai/cortex.t/blob/34f0160213d26a829e9619e3df9441760a0da1ad/cortext/constants.py#L10
     synapse = StreamPrompting(
     messages = messages,
-    # get available providers and models from : https://github.com/corcel-api/cortex.t/blob/2807988d66523a432f6159d46262500b060f13dc/cortext/protocol.py#L238
     provider = "OpenAI",
     model = "gpt-4o",
     )
@@ -208,4 +203,3 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-    
