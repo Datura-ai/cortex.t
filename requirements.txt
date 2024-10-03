@@ -16,3 +16,4 @@ pyOpenSSL==24.*
 google-generativeai
 groq==0.5.0
 aioboto3
+tabulate
