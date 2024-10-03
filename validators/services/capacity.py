@@ -17,10 +17,10 @@ class CapacityService:
     async def query_capacity_to_miners(self, available_uids):
         capacity_query_tasks = []
 
+        bt.logging.info(f"querying capacity to uid = {available_uids.keys()}")
         # Query all images concurrently
         for uid in available_uids:
             syn = Bandwidth()
-            bt.logging.info(f"querying capacity to uid = {uid}")
             task = self.dendrite.call(self.metagraph.axons[uid], syn,
                                       timeout=self.timeout)
             capacity_query_tasks.append(task)
