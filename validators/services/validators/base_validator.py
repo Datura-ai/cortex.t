@@ -128,7 +128,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         # apply weight for each model and calculate score based on weight of models.
         uid_scores_dict = defaultdict(float)
-        uids, providers, models, similarities, weights, bandwidths, weighted_scores = [], [], [], [], [], [], []
+        table_data = [
+            ["uid", "provider", "model", 'similarity', 'weight', 'bandwidth', 'weighted_score']
+        ]
         for key, avg_score in uid_provider_model_scores_avg_dict.items():
             uid = int(str(key).split("::")[0])
             provider = str(key).split("::")[1]
@@ -145,24 +147,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 band_width = 1
             weighted_score = avg_score * model_weight * band_width
             uid_scores_dict[uid] += weighted_score
-            uids.append(uid)
-            providers.append(provider)
-            models.append(model)
-            similarities.append(model)
-            weights.append(model_weight)
-            bandwidths.append(band_width)
-            weighted_scores.append(weighted_score)
+            table_data.append([uid, provider, model, avg_score, model_weight, band_width, weighted_score])
 
-        table_data = [
-            ["uid", "provider", "model", 'similarity', 'weight', 'bandwidth', 'weighted_score'],
-            uids,
-            providers,
-            models,
-            similarities,
-            weights,
-            bandwidths,
-            weighted_scores
-        ]
         table_str = tabulate(table_data, headers='firstrow', stralign='center')
 
         bt.logging.debug(f"""
