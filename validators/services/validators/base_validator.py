@@ -163,7 +163,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             bandwidths,
             weighted_scores
         ]
-        table_str = tabulate(table_data, headers='firstrow', tablefmt='grid')
+        table_str = tabulate(table_data, headers='firstrow', stralign='center')
 
         bt.logging.debug(f"""
         score details for all miners:
