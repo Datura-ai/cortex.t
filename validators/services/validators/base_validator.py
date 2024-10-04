@@ -163,7 +163,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             table.add_column(col)
 
         for row in table_data[1:]:
-            table.add_row(*row)
+            renderable_list = [str(item) for item in row]
+            table.add_row(*renderable_list)
         console = Console()
         console.print(table)
 
