@@ -25,6 +25,7 @@ from validators.task_manager import TaskMgr
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
 
+
 class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache, loop=None):
 
@@ -177,7 +178,8 @@ class WeightSetter:
 
     async def create_query_syns_for_remaining_bandwidth(self):
         prompts = await load_entire_questions()
-        bt.logging.debug(f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
+        bt.logging.debug(
+            f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
         total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
@@ -240,17 +242,20 @@ class WeightSetter:
 
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
+                start_time_batch = time.time()
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks)
+                bt.logging.debug(
+                    f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
 
             self.synthetic_task_done = True
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
-                f"total queries are {len(query_synapses)}")
+                f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 300
+        batch_size = 1000
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -303,8 +308,6 @@ class WeightSetter:
             if response.completion == 'True':
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
-
-            bt.logging.error(f"UID {uid} is not active")
             return None
 
         except Exception as err:
@@ -547,7 +550,7 @@ class WeightSetter:
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
             # accumulate all query results for 36 blocks
-            if not self.synthetic_task_done or not self.is_epoch_end():
+            if not self.query_database or not self.is_epoch_end():
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
 

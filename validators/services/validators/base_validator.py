@@ -1,14 +1,13 @@
 from abc import abstractmethod
 import asyncio
-import json
 from collections import defaultdict
-from tabulate import tabulate
+from rich.table import Table
+from rich.console import Console
 
 import random
 from typing import Tuple
 
 import bittensor as bt
-import pyarrow as pa
 
 from cortext.metaclasses import ValidatorRegistryMeta
 from validators.utils import error_handler, get_bandwidth
@@ -149,14 +148,27 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             uid_scores_dict[uid] += weighted_score
             table_data.append([uid, provider, model, avg_score, model_weight, band_width, weighted_score])
 
-        table_str = tabulate(table_data, headers='firstrow')
-
-        bt.logging.debug(f"\n{table_str}")
+        self.show_pretty_table_score(table_data)
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__
             bt.logging.debug(f"{validator_type} scores is {uid_scores_dict}")
         return uid_scores_dict
+
+    @staticmethod
+    def show_pretty_table_score(table_data):
+        table = Table(title="All Weights")
+        header = table_data[0]
+        for col in header:
+            table.add_column(col)
+
+        rows = table_data[1:]
+        rows = sorted(rows, key=lambda x: x[0])
+        for row in rows:
+            renderable_list = [str(item) for item in row]
+            table.add_row(*renderable_list)
+        console = Console()
+        console.print(table)
 
     @classmethod
     def get_task_type(cls):
