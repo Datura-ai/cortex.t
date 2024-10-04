@@ -547,7 +547,7 @@ class WeightSetter:
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
             # accumulate all query results for 36 blocks
-            if not self.synthetic_task_done or not self.is_epoch_end():
+            if not self.query_database or not self.is_epoch_end():
                 bt.logging.trace("no data in query_database. so continue...")
                 continue
 
