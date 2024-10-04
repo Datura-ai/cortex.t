@@ -240,9 +240,11 @@ class WeightSetter:
 
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
+                start_time = time.time()
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks)
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
+                bt.logging.debug(f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time}")
 
             self.synthetic_task_done = True
             bt.logging.info(
