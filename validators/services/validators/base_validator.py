@@ -162,7 +162,9 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
         for col in header:
             table.add_column(col)
 
-        for row in table_data[1:]:
+        rows = table_data[1:]
+        rows = sorted(rows, key=lambda x: x[0])
+        for row in rows:
             renderable_list = [str(item) for item in row]
             table.add_row(*renderable_list)
         console = Console()
