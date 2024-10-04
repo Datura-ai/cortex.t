@@ -25,6 +25,7 @@ from validators.task_manager import TaskMgr
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
 
+
 class WeightSetter:
     def __init__(self, config, cache: QueryResponseCache, loop=None):
 
@@ -177,7 +178,8 @@ class WeightSetter:
 
     async def create_query_syns_for_remaining_bandwidth(self):
         prompts = await load_entire_questions()
-        bt.logging.debug(f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
+        bt.logging.debug(
+            f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
         total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
@@ -243,13 +245,15 @@ class WeightSetter:
                 start_time = time.time()
                 await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks)
+                bt.logging.debug(
+                    f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time}")
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
-                bt.logging.debug(f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time}")
 
             self.synthetic_task_done = True
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}")
+            break
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 3000
