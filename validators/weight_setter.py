@@ -250,7 +250,7 @@ class WeightSetter:
                 f"total queries are {len(query_synapses)}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 300
+        batch_size = 3000
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
