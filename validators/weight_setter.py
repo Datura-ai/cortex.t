@@ -253,7 +253,6 @@ class WeightSetter:
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}")
-            break
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 3000
