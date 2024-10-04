@@ -308,8 +308,6 @@ class WeightSetter:
             if response.completion == 'True':
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
-
-            bt.logging.error(f"UID {uid} is not active")
             return None
 
         except Exception as err:
