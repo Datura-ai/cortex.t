@@ -141,7 +141,6 @@ class WeightSetter:
             if uid is None:
                 bt.logging.error("Can't create task.")
                 return
-            bt.logging.trace(f"synthetic task is created and uid is {uid}")
 
             async def handle_response(responses):
                 start_time = time.time()
@@ -180,6 +179,7 @@ class WeightSetter:
         prompts = await load_entire_questions()
         bt.logging.debug(
             f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
+        synthetic_task_created = {}
         total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
@@ -193,8 +193,10 @@ class WeightSetter:
                         query_syns = [vali.create_query(uid, provider, model, prompt=prompt)
                                       for prompt in random.choices(prompts, k=bandwidth)]
                         total_syns += query_syns
+                        synthetic_task_created[uid] = bandwidth
                     else:
                         continue
+        bt.logging.debug(f"total created synthetic tasks are {synthetic_task_created}")
         return total_syns
 
     def set_up_next_block_to_wait(self):
@@ -255,7 +257,7 @@ class WeightSetter:
                 f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 3000
+        batch_size = 1500
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -264,7 +266,8 @@ class WeightSetter:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
                 batch_tasks.append(synthetic_task)
                 if len(batch_tasks) > batch_size:
-                    break
+                    remain_tasks.append((uid, synthetic_task))
+                    continue
                 uid_to_task_cnt[uid] += 1
                 continue
             else:
