@@ -77,6 +77,10 @@ class WeightSetter:
 
         # initialize uid and capacities.
         asyncio.run(self.initialize_uids_and_capacities())
+        self.queries = load_entire_questions()
+        if len(self.queries) < 10000:
+            raise f"loading questions failed. {len(self.queries)}"
+        bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
@@ -177,9 +181,6 @@ class WeightSetter:
             pass
 
     async def create_query_syns_for_remaining_bandwidth(self):
-        prompts = await load_entire_questions()
-        bt.logging.debug(
-            f"total {len(prompts)} has been loaded for sending synthetic queries to miners based on remain_bandwidth.")
         total_syns = []
         for uid, provider_to_cap in self.task_mgr.remain_resources.items():
             if provider_to_cap is None:
@@ -191,7 +192,7 @@ class WeightSetter:
                         vali = self.choose_validator_from_model(model)
 
                         query_syns = [vali.create_query(uid, provider, model, prompt=prompt)
-                                      for prompt in random.choices(prompts, k=bandwidth)]
+                                      for prompt in random.choices(self.queries, k=bandwidth)]
                         total_syns += query_syns
                     else:
                         continue
@@ -240,6 +241,7 @@ class WeightSetter:
             # restore capacities immediately after synthetic query consuming all bandwidth.
             self.task_mgr.restore_capacities_for_all_miners()
 
+            random.shuffle(synthetic_tasks)
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
                 start_time_batch = time.time()
