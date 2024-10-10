@@ -147,21 +147,19 @@ class WeightSetter:
                 return
             bt.logging.trace(f"synthetic task is created and uid is {uid}")
 
-            async def handle_response(responses):
-                start_time = time.time()
+            async def handle_response(resp):
                 response_text = ''
-                for resp in responses:
-                    async for chunk in resp:
-                        if isinstance(chunk, str):
-                            response_text += chunk
-                            bt.logging.trace(f"Streamed text: {chunk}")
+                async for chunk in resp:
+                    if isinstance(chunk, str):
+                        response_text += chunk
+                        bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
                 async with self.lock:
                     self.query_database.append({
                         'uid': uid,
                         'synapse': query_syn,
-                        'response': (response_text, time.time() - start_time),
+                        'response': (response_text, query_syn.dendrite.process_time),
                         'query_type': 'organic',
                         'timestamp': asyncio.get_event_loop().time(),
                         'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
@@ -169,14 +167,12 @@ class WeightSetter:
                     })
 
             axon = self.metagraph.axons[uid]
-            responses = await self.dendrite(
-                axons=[axon],
+            response = self.dendrite.call_stream(
+                target_axon=axon,
                 synapse=query_syn,
-                deserialize=False,
                 timeout=query_syn.timeout,
-                streaming=True,
             )
-            await handle_response(responses)
+            await handle_response(response)
         else:
             pass
 
@@ -454,7 +450,6 @@ class WeightSetter:
             bt.logging.trace(f"task is created and uid is {uid}")
 
             async def handle_response(responses):
-                start_time = time.time()
                 response_text = ''
                 for resp in responses:
                     async for chunk in resp:
@@ -472,7 +467,7 @@ class WeightSetter:
                     self.query_database.append({
                         'uid': synapse.uid,
                         'synapse': synapse,
-                        'response': (response_text, time.time() - start_time),
+                        'response': (response_text, synapse.dendrite.process_time),
                         'query_type': 'organic',
                         'timestamp': asyncio.get_event_loop().time(),
                         'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
