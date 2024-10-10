@@ -5,12 +5,14 @@ from bittensor import dendrite
 import traceback
 import time
 
+from cortext import StreamPrompting
+
 
 class CortexDendrite(dendrite):
     async def call_stream(
             self,
             target_axon: Union[bt.AxonInfo, bt.axon],
-            synapse: bittensor.StreamingSynapse = bittensor.Synapse(),  # type: ignore
+            synapse: bt.StreamingSynapse = bt.Synapse(),  # type: ignore
             timeout: float = 12.0,
             deserialize: bool = True,
     ) -> AsyncGenerator[Any, Any]:
@@ -31,7 +33,7 @@ class CortexDendrite(dendrite):
         url = f"http://{endpoint}/{request_name}"
 
         # Preprocess synapse for making a request
-        synapse = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
+        synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
         try:
             async with (await self.session).post(
                     url,

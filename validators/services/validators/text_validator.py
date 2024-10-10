@@ -80,7 +80,7 @@ class TextValidator(BaseValidator):
 
         syn = StreamPrompting(messages=messages, model=model, seed=self.seed, max_tokens=self.max_tokens,
                               temperature=self.temperature, provider=provider, top_p=self.top_p,
-                              top_k=self.top_k)
+                              top_k=self.top_k, streaming=True)
         return syn
 
     def select_random_provider_and_model(self):
