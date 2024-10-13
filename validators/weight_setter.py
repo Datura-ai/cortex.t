@@ -248,12 +248,14 @@ class WeightSetter:
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
 
             self.synthetic_task_done = True
+
+            bt.logging.info(f"saving responses...")
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 10000
+        batch_size = 50000
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -262,7 +264,8 @@ class WeightSetter:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
                 batch_tasks.append(synthetic_task)
                 if len(batch_tasks) > batch_size:
-                    break
+                    remain_tasks.append((uid, synthetic_task))
+                    continue
                 uid_to_task_cnt[uid] += 1
                 continue
             else:
