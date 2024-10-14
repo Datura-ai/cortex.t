@@ -249,7 +249,6 @@ class WeightSetter:
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
                 start_time_batch = time.time()
-                await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks, return_exceptions=True)
                 bt.logging.debug(
                     f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
@@ -496,7 +495,6 @@ class WeightSetter:
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
             axon = self.metagraph.axons[uid]
-            await self.dendrite.aclose_session()
             responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
