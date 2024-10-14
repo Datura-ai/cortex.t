@@ -42,8 +42,13 @@ class CortexDendrite(dendrite):
                     timeout=timeout,
             ) as response:
                 # Use synapse subclass' process_streaming_response method to yield the response chunks
-                async for chunk in synapse.process_streaming_response(response):  # type: ignore
-                    yield chunk  # Yield each chunk as it's processed
+                try:
+                    async for chunk in synapse.process_streaming_response(response):  # type: ignore
+                        yield chunk  # Yield each chunk as it's processed
+                except Exception as err:
+                    bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
+                finally:
+                    yield ""
 
             # Set process time and log the response
             synapse.dendrite.process_time = str(time.time() - start_time)  # type: ignore
