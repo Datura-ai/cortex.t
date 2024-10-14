@@ -494,10 +494,9 @@ class WeightSetter:
 
             axon = self.metagraph.axons[uid]
             await self.dendrite.aclose_session()
-            responses = await self.dendrite(
-                axons=[axon],
+            responses = await self.dendrite.call_stream(
+                target_axon=axon,
                 synapse=synapse,
-                deserialize=False,
                 timeout=synapse.timeout,
                 streaming=True,
             )
