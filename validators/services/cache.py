@@ -54,7 +54,7 @@ class QueryResponseCache:
         # Insert multiple records
         cursor = self.conn.cursor()
         cursor.executemany('''
-            INSERT INTO cache (p_key, question, answer, provider, model, timestamp) 
+            INSERT OR IGNORE INTO cache (p_key, question, answer, provider, model, timestamp) 
             VALUES (?, ?, ?, ?, ?, ?)
         ''', datas)
 
