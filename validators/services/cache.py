@@ -3,6 +3,7 @@ import time
 import hashlib
 from typing import List
 
+
 from cortext import StreamPrompting
 
 
@@ -49,7 +50,7 @@ class QueryResponseCache:
         expires_at = time.time() + ttl
         for syn in syns:
             p_key = self.generate_hash(str(expires_at) + str(syn.json()))
-            datas.append((p_key, syn.json(), syn.completion, syn.provider, syn.model, expires_at))
+            datas.append((p_key, syn.json(exclude={"dendrite"}), syn.completion, syn.provider, syn.model, expires_at))
 
         # Insert multiple records
         cursor = self.conn.cursor()
