@@ -87,12 +87,12 @@ async def handle_response(resp):
 
 async def main():
     print("synching metagraph, this takes way too long.........")
-    subtensor = bt.subtensor(network="test")
-    meta = subtensor.metagraph(netuid=196)
+    subtensor = bt.subtensor(network="finney")
+    meta = subtensor.metagraph(netuid=18)
     print("metagraph synched!")
 
     # This needs to be your validator wallet that is running your subnet 18 validator
-    wallet = bt.wallet(name="miner", hotkey="default")
+    wallet = bt.wallet(name="default", hotkey="default")
     dendrite = CortexDendrite(wallet=wallet)
     vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
     axon_to_use = meta.axons[vali_uid]
