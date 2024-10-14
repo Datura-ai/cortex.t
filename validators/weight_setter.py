@@ -23,6 +23,7 @@ from validators.services import CapacityService, BaseValidator, TextValidator, I
 from validators.services.cache import QueryResponseCache
 from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
+from cortext.dendrite import CortexDendrite
 
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
@@ -64,7 +65,7 @@ class WeightSetter:
         # Set up axon and dendrite
         self.axon = bt.axon(wallet=self.wallet, config=self.config)
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
-        self.dendrite = config.dendrite
+        self.dendrite: CortexDendrite = config.dendrite
 
         # Get network tempo
         self.tempo = self.subtensor.tempo(self.netuid)
@@ -144,7 +145,7 @@ class WeightSetter:
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
         query_syn.validator_uid = self.my_uid
-        query_syn.block_num = self.current_block
+        query_syn.block_num = self.current_block or 0
         query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
@@ -249,7 +250,7 @@ class WeightSetter:
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
                 start_time_batch = time.time()
-                await asyncio.gather(*batched_tasks, return_exceptions=True)
+                await asyncio.gather(*batched_tasks)
                 bt.logging.debug(
                     f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
                 bt.logging.debug(f"remain tasks: {len(remain_tasks)}")
