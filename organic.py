@@ -3,10 +3,10 @@ import asyncio
 import traceback
 
 from cortext.protocol import StreamPrompting, Bandwidth, IsAlive
+from cortext.dendrite import CortexDendrite
 
 
-
-async def query_miner(dendrite: bt.dendrite, axon_to_use, synapse, timeout, streaming):
+async def query_miner(dendrite: CortexDendrite, axon_to_use, synapse, timeout, streaming):
     try:
         # print(f"calling vali axon {axon_to_use} to miner uid {synapse.uid} for query {synapse.messages}")
         if streaming is False:
@@ -51,7 +51,7 @@ async def main():
 
     # This needs to be your validator wallet that is running your subnet 18 validator
     wallet = bt.wallet(name="miner", hotkey="default")
-    dendrite = bt.dendrite(wallet=wallet)
+    dendrite = CortexDendrite(wallet=wallet)
     vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
     axon_to_use = meta.axons[vali_uid]
     print(f"axon to use: {axon_to_use}")

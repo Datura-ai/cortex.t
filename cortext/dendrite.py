@@ -4,11 +4,18 @@ import bittensor as bt
 from bittensor import dendrite
 import traceback
 import time
+from typing import Optional
 
 from cortext import StreamPrompting
 
 
 class CortexDendrite(dendrite):
+    def __init__(
+            self, wallet: Optional[Union[bt.wallet, bt.Keypair]] = None
+    ):
+        super().__init__(wallet)
+        self.process_time = 0
+
     async def call_stream(
             self,
             target_axon: Union[bt.AxonInfo, bt.axon],

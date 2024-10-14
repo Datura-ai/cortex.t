@@ -1,6 +1,8 @@
 import asyncio
 import concurrent
 import random
+import traceback
+
 import torch
 import time
 
@@ -455,8 +457,8 @@ class WeightSetter:
 
             synapse.deserialize_flag = False
             synapse.streaming = True
-            synapse.validator_uid = self.my_uid
-            synapse.block_num = self.current_block
+            synapse.validator_uid = self.my_uid or 0
+            synapse.block_num = self.current_block or 0
             uid = self.task_mgr.assign_task(query_synapse)
             if uid is None:
                 bt.logging.error("Can't create task. no available uids for now")
@@ -464,18 +466,17 @@ class WeightSetter:
                 return
             bt.logging.trace(f"task is created and uid is {uid}")
 
-            async def handle_response(responses):
+            async def handle_response(resp):
                 response_text = ''
-                for resp in responses:
-                    async for chunk in resp:
-                        if isinstance(chunk, str):
-                            await send({
-                                "type": "http.response.body",
-                                "body": chunk.encode("utf-8"),
-                                "more_body": True,
-                            })
-                            response_text += chunk
-                            bt.logging.trace(f"Streamed text: {chunk}")
+                async for chunk in resp:
+                    if isinstance(chunk, str):
+                        await send({
+                            "type": "http.response.body",
+                            "body": chunk.encode("utf-8"),
+                            "more_body": True,
+                        })
+                        response_text += chunk
+                        bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
                 async with self.lock:
@@ -494,11 +495,10 @@ class WeightSetter:
 
             axon = self.metagraph.axons[uid]
             await self.dendrite.aclose_session()
-            responses = await self.dendrite.call_stream(
+            responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
                 timeout=synapse.timeout,
-                streaming=True,
             )
             return await handle_response(responses)
 
