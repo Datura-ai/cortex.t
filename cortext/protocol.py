@@ -2,6 +2,7 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
 from starlette.responses import StreamingResponse
+import sys
 
 
 class IsAlive(bt.Synapse):
@@ -304,6 +305,62 @@ class StreamPrompting(bt.StreamingSynapse):
         title="task_id",
         description="task id of the request from this syanpse."
     )
+    validator_uid: int = pydantic.Field(
+        default=0,
+        title="validator_uid",
+    )
+    time_taken: int = pydantic.Field(
+        default=0,
+        title="time_taken",
+    )
+    block_num: int = pydantic.Field(
+        default=0,
+        title="block_num",
+    )
+    cycle_num: int = pydantic.Field(
+        default=0,
+        title="cycle_num",
+    )
+    epoch_num: int = pydantic.Field(
+        default=0,
+        title="epoch num",
+    )
+    score: int = pydantic.Field(
+        default=0,
+        title="score",
+    )
+    similarity: int = pydantic.Field(
+        default=0,
+        title="similarity",
+    )
+
+    def to_headers(self) -> dict:
+        headers = {"name": self.name, "timeout": str(self.timeout)}
+
+        # Adding headers for 'axon' and 'dendrite' if they are not None
+        if self.axon:
+            headers.update(
+                {
+                    f"bt_header_axon_{k}": str(v)
+                    for k, v in self.axon.dict().items()
+                    if v is not None
+                }
+            )
+        if self.dendrite:
+            headers.update(
+                {
+                    f"bt_header_dendrite_{k}": str(v)
+                    for k, v in self.dendrite.dict().items()
+                    if v is not None
+                }
+            )
+
+        headers[f"bt_header_input_obj_messages"] = "W10="
+        headers["header_size"] = str(sys.getsizeof(headers))
+        headers["total_size"] = str(self.get_total_size())
+        headers["computed_body_hash"] = self.body_hash
+
+        return headers
 
     async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:
         if self.completion is None:

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import bittensor as bt
 import wandb
 import cortext
-from cortext import utils
+from cortext import utils, dendrite
 from validators.weight_setter import WeightSetter
 from validators.services.cache import cache_service
 
@@ -120,7 +120,7 @@ def main():
     setup_logging(config)
 
     config.wallet = bt.wallet(name=config.wallet.name, hotkey=config.wallet.hotkey)
-    config.dendrite = bt.dendrite(wallet=config.wallet)
+    config.dendrite = dendrite.CortexDendrite(wallet=config.wallet)
 
     bt.logging.info(f"Config: {vars(config)}")
 

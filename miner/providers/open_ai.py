@@ -66,7 +66,7 @@ class OpenAI(Provider):
                         "more_body": True,
                     }
                 )
-                bt.logging.info(f"Streamed tokens: {joined_buffer}")
+                bt.logging.trace(f"Streamed tokens: {joined_buffer}")
                 buffer = []
 
         if buffer:

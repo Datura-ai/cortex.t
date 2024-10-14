@@ -1,6 +1,10 @@
 import sqlite3
 import time
 import hashlib
+from typing import List
+
+
+from cortext import StreamPrompting
 
 
 class QueryResponseCache:
@@ -30,7 +34,8 @@ class QueryResponseCache:
     def generate_hash(input_string):
         return hashlib.sha256(input_string.encode('utf-8')).hexdigest()
 
-    def set_cache(self, question, answer, provider, model, ttl=3600*24):
+    def set_cache(self, question, answer, provider, model, ttl=3600 * 24):
+        return
         p_key = self.generate_hash(str(question) + str(provider) + str(model))
         expires_at = time.time() + ttl
         cursor = self.conn.cursor()
@@ -38,6 +43,23 @@ class QueryResponseCache:
         INSERT OR REPLACE INTO cache (p_key, question, answer, provider, model, timestamp)
         VALUES (?, ?, ?, ?, ?, ?)
         ''', (p_key, question, answer, provider, model, expires_at))
+        self.conn.commit()
+
+    def set_cache_in_batch(self, syns: List[StreamPrompting], ttl=3600 * 24):
+        datas = []
+        expires_at = time.time() + ttl
+        for syn in syns:
+            p_key = self.generate_hash(str(expires_at) + str(syn.json()))
+            datas.append((p_key, syn.json(exclude={"dendrite"}), syn.completion, syn.provider, syn.model, expires_at))
+
+        # Insert multiple records
+        cursor = self.conn.cursor()
+        cursor.executemany('''
+            INSERT OR IGNORE INTO cache (p_key, question, answer, provider, model, timestamp) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', datas)
+
+        # Commit the transaction
         self.conn.commit()
 
     def get_answer(self, question, provider, model):

@@ -1,204 +1,125 @@
 import bittensor as bt
-import pydantic
-from typing import AsyncIterator, Dict, List
-from starlette.responses import StreamingResponse
 import asyncio
+import random
 import traceback
+from cortext.protocol import StreamPrompting
+from cortext.dendrite import CortexDendrite
+
+async def generate_prompts(num_prompts=100):
+    subjects = [
+        "artificial intelligence",
+        "climate change",
+        "space exploration",
+        "quantum computing",
+        "renewable energy",
+        "virtual reality",
+        "biotechnology",
+        "cybersecurity",
+        "autonomous vehicles",
+        "blockchain",
+        "3D printing",
+        "robotics",
+        "nanotechnology",
+        "gene editing",
+        "Internet of Things",
+        "augmented reality",
+        "machine learning",
+        "sustainable agriculture",
+        "smart cities",
+        "digital privacy",
+    ]
+
+    prompt_types = [
+        "Explain the concept of",
+        "Discuss the potential impact of",
+        "Compare and contrast two approaches to",
+        "Outline the future prospects of",
+        "Describe the ethical implications of",
+        "Analyze the current state of",
+        "Propose a solution using",
+        "Evaluate the pros and cons of",
+        "Predict how {} will change in the next decade",
+        "Discuss the role of {} in solving global challenges",
+        "Explain how {} is transforming industry",
+        "Describe a day in the life with advanced {}",
+        "Outline the key challenges in developing {}",
+        "Discuss the intersection of {} and another field",
+        "Explain the historical development of",
+    ]
+
+    prompts = set()
+    while len(prompts) < num_prompts:
+        subject = random.choice(subjects)
+        prompt_type = random.choice(prompt_types)
+        prompt = prompt_type.format(subject)
+        prompts.add(prompt)
+
+    return list(prompts)
 
 
-class StreamPrompting(bt.StreamingSynapse):
-
-    messages: List[Dict[str, str]] = pydantic.Field(
-        ...,
-        title="Messages",
-        description="A list of messages in the StreamPrompting scenario, "
-                    "each containing a role and content. Immutable.",
-        allow_mutation=False,
-    )
-
-    required_hash_fields: List[str] = pydantic.Field(
-        ["messages"],
-        title="Required Hash Fields",
-        description="A list of required fields for the hash.",
-        allow_mutation=False,
-    )
-
-    seed: int = pydantic.Field(
-        default="1234",
-        title="Seed",
-        description="Seed for text generation. This attribute is immutable and cannot be updated.",
-    )
-
-    temperature: float = pydantic.Field(
-        default=0.0001,
-        title="Temperature",
-        description="Temperature for text generation. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    max_tokens: int = pydantic.Field(
-        default=2048,
-        title="Max Tokens",
-        description="Max tokens for text generation. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    top_p: float = pydantic.Field(
-        default=0.001,
-        title="Top_p",
-        description="Top_p for text generation. The sampler will pick one of "
-                    "the top p percent tokens in the logit distirbution. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    top_k: int = pydantic.Field(
-        default=1,
-        title="Top_k",
-        description="Top_k for text generation. Sampler will pick one of  "
-                    "the k most probablistic tokens in the logit distribtion. "
-                    "This attribute is immutable and cannot be updated.",
-    )
-
-    completion: str = pydantic.Field(
-        None,
-        title="Completion",
-        description="Completion status of the current StreamPrompting object. "
-                    "This attribute is mutable and can be updated.",
-    )
-
-    provider: str = pydantic.Field(
-        default="OpenAI",
-        title="Provider",
-        description="The provider to use when calling for your response. "
-                    "Options: OpenAI, Anthropic, Gemini",
-    )
-
-    model: str = pydantic.Field(
-        default="gpt-3.5-turbo",
-        title="model",
-        description="The model to use when calling provider for your response.",
-    )
-
-    uid: int = pydantic.Field(
-        default=3,
-        title="uid",
-        description="The UID to send the streaming synapse to",
-    )
-
-    timeout: int = pydantic.Field(
-        default=60,
-        title="timeout",
-        description="The timeout for the dendrite of the streaming synapse",
-    )
-
-    streaming: bool = pydantic.Field(
-        default=True,
-        title="streaming",
-        description="whether to stream the output",
-    )
-
-    async def process_streaming_response(self, response: StreamingResponse) -> AsyncIterator[str]:
-        if self.completion is None:
-            self.completion = ""
-        async for chunk in response.content.iter_any():
-            tokens = chunk.decode("utf-8")
-            for token in tokens:
-                if token:
-                    self.completion += token
-            yield tokens
-
-    def deserialize(self) -> str:
-        return self.completion
-
-    def extract_response_json(self, response: StreamingResponse) -> dict:
-        headers = {
-            k.decode("utf-8"): v.decode("utf-8")
-            for k, v in response.__dict__["_raw_headers"]
-        }
-
-        def extract_info(prefix: str) -> dict[str, str]:
-            return {
-                key.split("_")[-1]: value
-                for key, value in headers.items()
-                if key.startswith(prefix)
-            }
-
-        return {
-            "name": headers.get("name", ""),
-            "timeout": float(headers.get("timeout", 0)),
-            "total_size": int(headers.get("total_size", 0)),
-            "header_size": int(headers.get("header_size", 0)),
-            "dendrite": extract_info("bt_header_dendrite"),
-            "axon": extract_info("bt_header_axon"),
-            "messages": self.messages,
-            "completion": self.completion,
-            "provider": self.provider,
-            "model": self.model,
-            "seed": self.seed,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens,
-            "top_p": self.top_p,
-            "top_k": self.top_k,
-            "uid": self.uid,
-            "timeout": self.timeout,
-        }
-
-async def query_miner(dendrite, axon_to_use, synapse, timeout, streaming):
+async def query_miner(dendrite: CortexDendrite, axon_to_use, synapse, timeout=60, streaming=True):
     try:
         print(f"calling vali axon {axon_to_use} to miner uid {synapse.uid} for query {synapse.messages}")
-        responses = dendrite.query(
-            axons=[axon_to_use],
+        resp = dendrite.call_stream(
+            target_axon=axon_to_use,
             synapse=synapse,
-            deserialize=False,
-            timeout=timeout,
-            streaming=streaming,
+            timeout=timeout
         )
-        return await handle_response(responses)
+        return await handle_response(resp)
     except Exception as e:
         print(f"Exception during query: {traceback.format_exc()}")
         return None
 
-async def handle_response(responses):
+
+async def handle_response(resp):
     full_response = ""
     try:
-        for resp in responses:
-            async for chunk in resp:
-                if isinstance(chunk, str):
-                    full_response += chunk
-                    print(chunk, end='', flush=True)
-                else:
-                    print(f"\n\nFinal synapse: {chunk}\n")
+        async for chunk in resp:
+            if isinstance(chunk, str):
+                full_response += chunk
+                print(chunk, end='', flush=True)
+            else:
+                print(f"\n\nFinal synapse: {chunk}\n")
     except Exception as e:
         print(f"Error processing response for uid {e}")
     return full_response
 
+
 async def main():
     print("synching metagraph, this takes way too long.........")
-    subtensor = bt.subtensor( network="finney" )
-    meta = subtensor.metagraph( netuid=18 )
+    subtensor = bt.subtensor(network="finney")
+    meta = subtensor.metagraph(netuid=18)
     print("metagraph synched!")
 
     # This needs to be your validator wallet that is running your subnet 18 validator
-    wallet = bt.wallet( name="default", hotkey="default" )
-    dendrite = bt.dendrite( wallet=wallet )
-    vali_uid = meta.hotkeys.index( wallet.hotkey.ss58_address)
+    wallet = bt.wallet(name="default", hotkey="default")
+    dendrite = CortexDendrite(wallet=wallet)
+    vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
     axon_to_use = meta.axons[vali_uid]
     print(f"axon to use: {axon_to_use}")
 
-    # This is the question to send your validator to send your miner.
-    prompt = "Give me a story about a cat"
-    messages = [{'role': 'user', 'content': prompt}]
+    num_prompts = 10
+    prompts = await generate_prompts(num_prompts)
+    synapses = [StreamPrompting(
+        messages=[{"role": "user", "content": prompt}],
+        provider="OpenAI",
+        model="gpt-4o"
+    ) for prompt in prompts]
 
-    # see options for providers/models here: https://github.com/Datura-ai/cortex.t/blob/34f0160213d26a829e9619e3df9441760a0da1ad/cortext/constants.py#L10
-    synapse = StreamPrompting(
-    messages = messages,
-    provider = "OpenAI",
-    model = "gpt-4o",
-    )
-    timeout = 60
-    streaming = True
-    print("querying miner")
-    response = await query_miner(dendrite, axon_to_use, synapse, timeout, streaming)
+    async def query_and_log(synapse):
+        return await query_miner(dendrite, axon_to_use, synapse)
+
+    responses = await asyncio.gather(*[query_and_log(synapse) for synapse in synapses])
+
+    import csv
+    with open('miner_responses.csv', 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Prompt', 'Response'])
+        for prompt, response in zip(prompts, responses):
+            writer.writerow([prompt, response])
+
+    print("Responses saved to miner_responses.csv")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
