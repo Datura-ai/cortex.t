@@ -69,6 +69,8 @@ class TaskMgr:
             if bandwidth is not None and bandwidth > 0:
                 # decrease resource by one after choosing this miner for the request.
                 available_uids.append(uid)
+        if not available_uids:
+            return None
         uid = random.choice(available_uids)
         self.remain_resources[uid][provider][model] -= 1
         return uid

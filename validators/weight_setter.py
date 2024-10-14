@@ -230,6 +230,8 @@ class WeightSetter:
                 query_synapses = await self.create_query_syns_for_remaining_bandwidth()
                 for query_syn in query_synapses:
                     uid = self.task_mgr.assign_task(query_syn)
+                    if uid is None:
+                        bt.logging.debug(f"No available uids for synthetic query process.")
                     synthetic_tasks.append((uid, self.query_miner(uid, query_syn)))
 
             bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
@@ -452,7 +454,7 @@ class WeightSetter:
             synapse.streaming = True
             uid = self.task_mgr.assign_task(query_synapse)
             if uid is None:
-                bt.logging.error("Can't create task.")
+                bt.logging.error("Can't create task. no available uids for now")
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
                 return
             bt.logging.trace(f"task is created and uid is {uid}")
