@@ -34,6 +34,7 @@ class QueryResponseCache:
         return hashlib.sha256(input_string.encode('utf-8')).hexdigest()
 
     def set_cache(self, question, answer, provider, model, ttl=3600 * 24):
+        return
         p_key = self.generate_hash(str(question) + str(provider) + str(model))
         expires_at = time.time() + ttl
         cursor = self.conn.cursor()
@@ -47,8 +48,8 @@ class QueryResponseCache:
         datas = []
         expires_at = time.time() + ttl
         for syn in syns:
-            p_key = self.generate_hash(str(syn.messages) + str(syn.provider) + str(syn.model))
-            datas.append((p_key, syn.messages, syn.completion, syn.provider, syn.model, expires_at))
+            p_key = self.generate_hash(str(expires_at) + str(syn.messages) + str(syn.provider) + str(syn.model))
+            datas.append((p_key, syn.json(), syn.completion, syn.provider, syn.model, expires_at))
 
         # Insert multiple records
         cursor = self.conn.cursor()

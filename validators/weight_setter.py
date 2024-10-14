@@ -242,17 +242,22 @@ class WeightSetter:
             while batched_tasks:
                 start_time_batch = time.time()
                 await self.dendrite.aclose_session()
-                await asyncio.gather(*batched_tasks)
+                await asyncio.gather(*batched_tasks, return_exceptions=True)
                 bt.logging.debug(
                     f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
+                bt.logging.debug(f"remain tasks: {len(remain_tasks)}")
+
                 batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
 
-            self.synthetic_task_done = True
-
-            bt.logging.info(f"saving responses...")
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
+            bt.logging.info(f"saving responses...")
+            self.cache.set_cache_in_batch([item.get('synapse') for item in self.query_database])
+            self.synthetic_task_done = True
+
+            bt.logging.info(
+                f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 50000
@@ -550,8 +555,14 @@ class WeightSetter:
         while True:
             await asyncio.sleep(1)  # Adjust the sleep time as needed
             # accumulate all query results for 36 blocks
-            if not self.query_database or not self.is_epoch_end():
-                bt.logging.trace("no data in query_database. so continue...")
+            if not self.query_database:
+                bt.logging.debug("no data in query_database. so continue...")
+                continue
+            if not self.is_epoch_end():
+                bt.logging.debug("no end of epoch. so continue...")
+                continue
+            if not self.synthetic_task_done:
+                bt.logging.debug("wait for synthetic tasks to complete.")
                 continue
 
             bt.logging.info(f"start scoring process...")
