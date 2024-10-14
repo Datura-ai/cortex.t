@@ -145,6 +145,7 @@ class WeightSetter:
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
         query_syn.validator_uid = self.my_uid
         query_syn.block_num = self.current_block
+        query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
                 bt.logging.error("Can't create task.")
@@ -455,11 +456,12 @@ class WeightSetter:
         async def _prompt(query_synapse: StreamPrompting, send: Send):
             bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
 
-            synapse.deserialize_flag = False
-            synapse.streaming = True
-            synapse.validator_uid = self.my_uid or 0
-            synapse.block_num = self.current_block or 0
+            query_synapse.deserialize_flag = False
+            query_synapse.streaming = True
+            query_synapse.validator_uid = self.my_uid or 0
+            query_synapse.block_num = self.current_block or 0
             uid = self.task_mgr.assign_task(query_synapse)
+            query_synapse.uid = uid
             if uid is None:
                 bt.logging.error("Can't create task. no available uids for now")
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
