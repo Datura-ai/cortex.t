@@ -141,6 +141,8 @@ class WeightSetter:
         bt.logging.info("Metagraph refreshed.")
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
+        query_syn.validator_uid = self.my_uid
+        query_syn.block_num = self.current_block
         if query_syn.streaming:
             if uid is None:
                 bt.logging.error("Can't create task.")
@@ -165,6 +167,7 @@ class WeightSetter:
                         'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
                                                                                       metagraph=self.metagraph)
                     })
+                    query_syn.time_taken = query_syn.dendrite.process_time
 
             axon = self.metagraph.axons[uid]
             response = self.dendrite.call_stream(
@@ -452,6 +455,8 @@ class WeightSetter:
 
             synapse.deserialize_flag = False
             synapse.streaming = True
+            synapse.validator_uid = self.my_uid
+            synapse.block_num = self.current_block
             uid = self.task_mgr.assign_task(query_synapse)
             if uid is None:
                 bt.logging.error("Can't create task. no available uids for now")
@@ -483,6 +488,7 @@ class WeightSetter:
                         'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
                                                                                       metagraph=self.metagraph)
                     })
+                    synapse.time_taken = self.dendrite.process_time
 
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 

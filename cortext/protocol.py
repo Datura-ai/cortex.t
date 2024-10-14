@@ -305,6 +305,34 @@ class StreamPrompting(bt.StreamingSynapse):
         title="task_id",
         description="task id of the request from this syanpse."
     )
+    validator_uid: int = pydantic.Field(
+        default=0,
+        title="validator_uid",
+    )
+    time_taken: int = pydantic.Field(
+        default=0,
+        title="time_taken",
+    )
+    block_num: int = pydantic.Field(
+        default=0,
+        title="block_num",
+    )
+    cycle_num: int = pydantic.Field(
+        default=0,
+        title="cycle_num",
+    )
+    epoch_num: int = pydantic.Field(
+        default=0,
+        title="epoch num",
+    )
+    score: int = pydantic.Field(
+        default=0,
+        title="score",
+    )
+    similarity: int = pydantic.Field(
+        default=0,
+        title="similarity",
+    )
 
     def to_headers(self) -> dict:
         headers = {"name": self.name, "timeout": str(self.timeout)}
