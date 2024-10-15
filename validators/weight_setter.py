@@ -269,7 +269,7 @@ class WeightSetter:
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 50000
-        max_query_cnt_per_miner = 50
+        max_query_cnt_per_miner = 100
         batch_tasks = []
         remain_tasks = []
         uid_to_task_cnt = defaultdict(int)
@@ -305,7 +305,6 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        await self.dendrite.aclose_session()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
