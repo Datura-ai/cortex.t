@@ -7,7 +7,6 @@ import torch
 import time
 
 from black.trans import defaultdict
-from click.core import batch
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple, List
@@ -24,6 +23,7 @@ from validators.services.cache import QueryResponseCache
 from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
 from cortext.dendrite import CortexDendrite
+from cortext.axon import CortexAxon
 
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
@@ -63,7 +63,7 @@ class WeightSetter:
         self.moving_average_scores = None
 
         # Set up axon and dendrite
-        self.axon = bt.axon(wallet=self.wallet, config=self.config)
+        self.axon = CortexAxon(wallet=self.wallet, config=self.config)
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
         self.dendrite: CortexDendrite = config.dendrite
 
