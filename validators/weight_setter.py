@@ -225,10 +225,10 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            if not self.is_cycle_end():
-                await asyncio.sleep(12)
-                continue
-            self.set_up_next_block_to_wait()
+            # if not self.is_cycle_end():
+            #     await asyncio.sleep(12)
+            #     continue
+            # self.set_up_next_block_to_wait()
             start_time = time.time()
             # don't process any organic query while processing synthetic queries.
             async with self.lock:
@@ -266,9 +266,10 @@ class WeightSetter:
 
             bt.logging.info(
                 f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
+            break
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 1000
+        batch_size = 500
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -277,6 +278,7 @@ class WeightSetter:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
                 if len(batch_tasks) > batch_size:
                     remain_tasks.append((uid, synthetic_task))
+                    break
                     continue
                 batch_tasks.append(synthetic_task)
                 uid_to_task_cnt[uid] += 1
