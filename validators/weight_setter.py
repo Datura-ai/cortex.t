@@ -268,8 +268,8 @@ class WeightSetter:
                 f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 50000
-        max_query_cnt_per_miner = 100
+        batch_size = 1000
+        max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
         uid_to_task_cnt = defaultdict(int)
