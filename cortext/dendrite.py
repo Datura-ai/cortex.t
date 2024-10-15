@@ -11,11 +11,11 @@ from cortext import StreamPrompting
 
 
 class CortexDendrite(dendrite):
+    task_id = 0
     def __init__(
             self, wallet: Optional[Union[bt.wallet, bt.Keypair]] = None
     ):
         super().__init__(wallet)
-        self.process_time = 0
 
     async def call_stream(
             self,
@@ -44,11 +44,11 @@ class CortexDendrite(dendrite):
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
         timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession() as session:
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
-                        json=synapse.dict()
+                        json=synapse.dict(),
                 ) as response:
                     # Use synapse subclass' process_streaming_response method to yield the response chunks
                     try:
