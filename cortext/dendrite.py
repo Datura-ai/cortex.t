@@ -42,7 +42,7 @@ class CortexDendrite(dendrite):
 
         # Preprocess synapse for making a request
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
-        timeout = aiohttp.ClientTimeout(total=200, connect=timeout, sock_connect=timeout, sock_read=30)
+        timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
