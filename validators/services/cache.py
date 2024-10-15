@@ -50,7 +50,7 @@ class QueryResponseCache:
         expires_at = time.time()
         for syn in syns:
             p_key = self.generate_hash(str(expires_at) + str(syn.json()))
-            datas.append((p_key, syn.json(exclude={"dendrite"}), syn.completion, syn.provider, syn.model, expires_at))
+            datas.append((p_key, syn.json(exclude={"dendrite", "completion"}), syn.completion, syn.provider, syn.model, expires_at))
 
         # Insert multiple records
         cursor = self.conn.cursor()
