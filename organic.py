@@ -4,6 +4,49 @@ import random
 import traceback
 from cortext.protocol import StreamPrompting
 from cortext.dendrite import CortexDendrite
+import aiohttp
+from validators.services.cache import cache_service
+
+
+
+def load_entire_questions():
+    # Asynchronous function to fetch a URL
+    async def fetch(session, url):
+        async with session.get(url) as response:
+            try:
+                return await response.json()
+            except Exception as err:
+                bt.logging.error(f"{err} {traceback.format_exc()}")
+
+    # Asynchronous function to gather multiple HTTP requests
+    async def gather_requests(urls):
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for url in urls:
+                tasks.append(fetch(session, url))  # Create a task for each URL
+            results = await asyncio.gather(*tasks)  # Run all tasks concurrently
+            return results
+
+    # Main function to run the event loop
+    def main(urls):
+        loop = asyncio.get_event_loop()
+        results = loop.run_until_complete(gather_requests(urls))
+        return results
+
+    urls = []
+    for q_id in range(0, 80000, 100):
+        url = f"https://datasets-server.huggingface.co/rows?dataset=microsoft%2Fms_marco&config=v1.1&split=train&offset={q_id}&length=100"
+        urls.append(url)
+    responses = main(urls)
+    queries = []
+    for response in responses:
+        if response is None:
+            continue
+        for row in response.get('rows', []):
+            query = row['row']['query']
+            queries.append(query)
+
+    return queries
 
 async def generate_prompts(num_prompts=100):
     subjects = [
@@ -99,26 +142,29 @@ async def main():
     print(f"axon to use: {axon_to_use}")
 
     num_prompts = 10
-    prompts = await generate_prompts(num_prompts)
+    prompts = load_entire_questions()
+    prompts = prompts[:10000]
     synapses = [StreamPrompting(
         messages=[{"role": "user", "content": prompt}],
         provider="OpenAI",
         model="gpt-4o"
     ) for prompt in prompts]
 
+    an_synapses = [StreamPrompting(
+        messages=[{"role": "user", "content": prompt}],
+        provider="Anthropic",
+        model="claude-3-5-sonnet-20240620"
+    ) for prompt in prompts]
+    synapses += an_synapses
+
     async def query_and_log(synapse):
         return await query_miner(dendrite, axon_to_use, synapse)
 
     responses = await asyncio.gather(*[query_and_log(synapse) for synapse in synapses])
 
-    import csv
-    with open('miner_responses.csv', 'w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Prompt', 'Response'])
-        for prompt, response in zip(prompts, responses):
-            writer.writerow([prompt, response])
+    cache_service.set_cache_in_batch(synapses)
 
-    print("Responses saved to miner_responses.csv")
+    print("Responses saved to cache database")
 
 
 if __name__ == "__main__":

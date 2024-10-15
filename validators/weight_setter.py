@@ -7,7 +7,6 @@ import torch
 import time
 
 from black.trans import defaultdict
-from click.core import batch
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple, List
@@ -23,6 +22,8 @@ from validators.services import CapacityService, BaseValidator, TextValidator, I
 from validators.services.cache import QueryResponseCache
 from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
+from cortext.dendrite import CortexDendrite
+from cortext.axon import CortexAxon
 
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
@@ -62,9 +63,9 @@ class WeightSetter:
         self.moving_average_scores = None
 
         # Set up axon and dendrite
-        self.axon = bt.axon(wallet=self.wallet, config=self.config)
+        self.axon = CortexAxon(wallet=self.wallet, config=self.config)
         bt.logging.info(f"Axon server started on port {self.config.axon.port}")
-        self.dendrite = config.dendrite
+        self.dendrite: CortexDendrite = config.dendrite
 
         # Get network tempo
         self.tempo = self.subtensor.tempo(self.netuid)
@@ -144,7 +145,7 @@ class WeightSetter:
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
         query_syn.validator_uid = self.my_uid
-        query_syn.block_num = self.current_block
+        query_syn.block_num = self.current_block or 0
         query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
@@ -249,7 +250,6 @@ class WeightSetter:
             batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
             while batched_tasks:
                 start_time_batch = time.time()
-                await self.dendrite.aclose_session()
                 await asyncio.gather(*batched_tasks, return_exceptions=True)
                 bt.logging.debug(
                     f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
@@ -268,17 +268,17 @@ class WeightSetter:
                 f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 50000
+        batch_size = 1000
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
         uid_to_task_cnt = defaultdict(int)
         for uid, synthetic_task in synthetic_tasks:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
-                batch_tasks.append(synthetic_task)
                 if len(batch_tasks) > batch_size:
                     remain_tasks.append((uid, synthetic_task))
-                    continue
+                    break
+                batch_tasks.append(synthetic_task)
                 uid_to_task_cnt[uid] += 1
                 continue
             else:
@@ -305,7 +305,6 @@ class WeightSetter:
 
     async def get_available_uids(self):
         """Get a dictionary of available UIDs and their axons asynchronously."""
-        await self.dendrite.aclose_session()
         tasks = {uid.item(): self.check_uid(self.metagraph.axons[uid.item()], uid.item()) for uid in
                  self.metagraph.uids}
         results = await asyncio.gather(*tasks.values())
@@ -496,7 +495,6 @@ class WeightSetter:
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
             axon = self.metagraph.axons[uid]
-            await self.dendrite.aclose_session()
             responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
