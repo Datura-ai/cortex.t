@@ -12,6 +12,7 @@ from cortext import StreamPrompting
 
 class CortexDendrite(dendrite):
     task_id = 0
+
     def __init__(
             self, wallet: Optional[Union[bt.wallet, bt.Keypair]] = None
     ):
@@ -43,24 +44,31 @@ class CortexDendrite(dendrite):
         # Preprocess synapse for making a request
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
         timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
+        max_try = 0
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                        url,
-                        headers=synapse.to_headers(),
-                        json=synapse.dict(),
-                ) as response:
-                    # Use synapse subclass' process_streaming_response method to yield the response chunks
-                    try:
-                        async for chunk in synapse.process_streaming_response(response):  # type: ignore
-                            yield chunk  # Yield each chunk as it's processed
-                    except Exception as err:
-                        bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
-                    finally:
-                        yield ""
+            while max_try < 2:
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                            url,
+                            headers=synapse.to_headers(),
+                            json=synapse.dict(),
+                    ) as response:
+                        # Use synapse subclass' process_streaming_response method to yield the response chunks
+                        try:
+                            async for chunk in synapse.process_streaming_response(response):  # type: ignore
+                                yield chunk  # Yield each chunk as it's processed
+                        except Exception as err:
+                            bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
+                        except TimeoutError as err:
+                            bt.logging.error(f"timeout error happens. max_try is {max_try}")
+                            max_try += 1
+                            continue
+                        finally:
+                            yield ""
 
-                # Set process time and log the response
-                synapse.dendrite.process_time = str(time.time() - start_time)  # type: ignore
+                    # Set process time and log the response
+                    synapse.dendrite.process_time = str(time.time() - start_time)  # type: ignore
+                    break
 
         except Exception as e:
             bt.logging.error(f"{e} {traceback.format_exc()}")
