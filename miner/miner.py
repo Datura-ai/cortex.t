@@ -9,6 +9,7 @@ from typing import Tuple
 
 from cortext.protocol import StreamPrompting
 from cortext.metaclasses import ServiceRegistryMeta
+from cortext.axon import CortexAxon
 from miner.services import ALL_SERVICE_TYPE
 
 from miner.config import get_config, Config
@@ -88,14 +89,14 @@ class StreamMiner:
             bt.logging.debug(
                 f"Starting axon on port {self.config.axon.port} and external ip {self.config.axon.external_ip}"
             )
-            self.axon = bt.axon(
+            self.axon = CortexAxon(
                 wallet=self.wallet,
                 port=self.config.axon.port,
                 external_ip=self.config.axon.external_ip
             )
         else:
             bt.logging.debug(f"Starting axon on port {self.config.axon.port}")
-            self.axon = bt.axon(wallet=self.wallet, port=self.config.axon.port)
+            self.axon = CortexAxon(wallet=self.wallet, port=self.config.axon.port)
 
         # Get all registered services
         for service in self.services:
