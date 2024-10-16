@@ -2,6 +2,7 @@ from typing import Union, AsyncGenerator, Any
 
 import aiohttp
 import bittensor as bt
+from aiohttp import ServerTimeoutError
 from bittensor import dendrite
 import traceback
 import time
@@ -60,6 +61,10 @@ class CortexDendrite(dendrite):
                         except aiohttp.client_exceptions.ClientPayloadError:
                             pass
                         except TimeoutError as err:
+                            bt.logging.error(f"timeout error happens. max_try is {max_try}")
+                            max_try += 1
+                            continue
+                        except ServerTimeoutError as err:
                             bt.logging.error(f"timeout error happens. max_try is {max_try}")
                             max_try += 1
                             continue
