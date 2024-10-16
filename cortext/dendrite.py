@@ -57,14 +57,16 @@ class CortexDendrite(dendrite):
                         try:
                             async for chunk in synapse.process_streaming_response(response):  # type: ignore
                                 yield chunk  # Yield each chunk as it's processed
-                        except Exception as err:
-                            bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
+                        except aiohttp.client_exceptions.ClientPayloadError:
+                            pass
                         except TimeoutError as err:
                             bt.logging.error(f"timeout error happens. max_try is {max_try}")
                             max_try += 1
                             continue
+                        except Exception as err:
+                            bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
                         finally:
-                            yield ""
+                            pass
 
                     # Set process time and log the response
                     synapse.dendrite.process_time = str(time.time() - start_time)  # type: ignore
