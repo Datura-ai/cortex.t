@@ -46,7 +46,7 @@ class CortexDendrite(dendrite):
         timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
         max_try = 0
         try:
-            while max_try < 2:
+            while max_try < 3:
                 async with aiohttp.ClientSession(timeout=timeout) as session:
                     async with session.post(
                             url,
