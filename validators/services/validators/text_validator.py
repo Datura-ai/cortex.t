@@ -12,6 +12,7 @@ from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
 from validators.utils import save_or_get_answer_from_cache, get_query_synapse_from_cache
+from validators import utils
 from typing import List, Dict
 
 
@@ -117,8 +118,9 @@ class TextValidator(BaseValidator):
         self.model = query_syn.model
 
         if provider == "OpenAI":
+            filtered_messages = [utils.create_filtered_message_open_ai(message) for message in conversation]
             return await call_openai(
-                conversation,
+                filtered_messages,
                 self.temperature,
                 self.model,
                 self.seed,
