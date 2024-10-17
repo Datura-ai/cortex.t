@@ -6,6 +6,8 @@ import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 import bittensor as bt
+import uvloop
+
 import wandb
 import cortext
 from cortext import utils, dendrite
@@ -126,6 +128,7 @@ def main():
 
     init_wandb(config)
     loop = asyncio.get_event_loop()
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
     weight_setter = WeightSetter(config=config, cache=cache_service, loop=loop)
     state_path = os.path.join(config.full_path, "state.json")
     utils.get_state(state_path)
