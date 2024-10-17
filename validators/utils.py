@@ -222,3 +222,30 @@ def load_entire_questions():
             queries.append(query)
 
     return queries
+
+
+def create_filtered_message_open_ai(message):
+    filtered_message = {
+        "role": message["role"],
+        "content": [],
+    }
+
+    if message.get("content"):
+        filtered_message["content"].append(
+            {
+                "type": "text",
+                "text": message["content"],
+            }
+        )
+    if message.get("image"):
+        image_url = message.get("image")
+        filtered_message["content"].append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                },
+            }
+        )
+
+    return filtered_message

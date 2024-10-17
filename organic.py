@@ -143,7 +143,7 @@ async def main():
 
     num_prompts = 10
     prompts = load_entire_questions()
-    prompts = prompts[:10000]
+    prompts = prompts[:2]
     synapses = [StreamPrompting(
         messages=[{"role": "user", "content": prompt}],
         provider="OpenAI",
