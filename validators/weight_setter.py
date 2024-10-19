@@ -103,6 +103,7 @@ class WeightSetter:
             else:
                 bt.logging.info(f"saving responses...")
                 self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas])
+                bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -606,59 +607,3 @@ class WeightSetter:
                             self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
             await self.update_and_refresh()
-
-    @property
-    def batch_list_of_all_uids(self):
-        uids = list(self.available_uid_to_axons.keys())
-        batch_size = self.batch_size
-        batched_list = []
-        for i in range(0, len(uids), batch_size):
-            batched_list.append(uids[i:i + batch_size])
-        return batched_list
-
-    async def score_miners_based_cached_answer(self, vali, query, answer):
-        total_query_resps = []
-        provider = query.provider
-        model = query.model
-
-        async def mock_create_query(*args, **kwargs):
-            return query
-
-        origin_ref_create_query = vali.create_query
-        origin_ref_provider_to_models = vali.get_provider_to_models
-
-        for batch_uids in self.batch_list_of_all_uids:
-            vali.create_query = mock_create_query
-            vali.get_provider_to_models = lambda: [(provider, model)]
-            query_responses = await self.perform_queries(vali, batch_uids)
-            total_query_resps += query_responses
-
-        vali.create_query = origin_ref_create_query
-        vali.get_provider_to_models = origin_ref_provider_to_models
-
-        bt.logging.debug(f"total cached query_resps: {len(total_query_resps)}")
-        queries_to_process = []
-        for uid, response_data in total_query_resps:
-            # Decide whether to score this query
-            queries_to_process.append({
-                'uid': uid,
-                'synapse': response_data['query'],
-                'response': response_data['response'],
-                'query_type': 'synthetic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': vali
-            })
-
-        async def mock_answer(*args, **kwargs):
-            return answer
-
-        origin_ref_answer_task = vali.get_answer_task
-        vali.get_answer_task = mock_answer
-        score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
-        responses = await asyncio.gather(*score_tasks)
-        vali.get_answer_task = origin_ref_answer_task
-
-        responses = [item for item in responses if item is not None]
-        for uid_scores_dict, _, _ in responses:
-            for uid, score in uid_scores_dict.items():
-                self.total_scores[uid] += score
