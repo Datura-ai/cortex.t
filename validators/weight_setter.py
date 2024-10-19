@@ -292,7 +292,7 @@ class WeightSetter:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
                 if len(batch_tasks) > batch_size:
                     remain_tasks.append((uid, synthetic_task))
-                    break
+                    continue
                 batch_tasks.append(synthetic_task)
                 uid_to_task_cnt[uid] += 1
                 continue
