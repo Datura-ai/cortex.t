@@ -97,13 +97,17 @@ class WeightSetter:
         daemon_thread.start()
 
     def saving_resp_answers_from_miners(self):
+        self.cache = QueryResponseCache()
+        self.cache.set_vali_info(vali_uid=self.my_uid, vali_hotkey=self.wallet.hotkey.ss58_address)
         while True:
             if not self.saving_datas:
-                time.sleep(60)
+                time.sleep(1)
             else:
                 bt.logging.info(f"saving responses...")
-                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas])
+                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas], block_num=self.current_block,
+                                              cycle_num=self.current_block//36, epoch_num=self.current_block//360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
+                self.saving_datas.clear()
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -158,8 +162,6 @@ class WeightSetter:
         bt.logging.info("Metagraph refreshed.")
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
-        query_syn.validator_uid = self.my_uid
-        query_syn.block_num = self.current_block or 0
         query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
@@ -280,7 +282,7 @@ class WeightSetter:
                 f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 1000
+        batch_size = 100
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -588,7 +590,6 @@ class WeightSetter:
 
             async with self.lock:
                 queries_to_process = self.query_database.copy()
-                self.saving_datas = self.query_database.copy()
                 self.query_database.clear()
 
             self.synthetic_task_done = False
@@ -606,4 +607,5 @@ class WeightSetter:
                             self.total_scores[uid] += score
                             self.score_counts[uid] += 1
             bt.logging.info(f"current total score are {self.total_scores}")
+            self.saving_datas = queries_to_process.copy()
             await self.update_and_refresh()
