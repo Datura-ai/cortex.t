@@ -371,9 +371,7 @@ class StreamPrompting(bt.StreamingSynapse):
             self.completion = ""
         async for chunk in response.content.iter_any():
             tokens = chunk.decode("utf-8")
-            for token in tokens:
-                if token:
-                    self.completion += token
+            self.completion += tokens
             yield tokens
 
     def extract_response_json(self, response: StreamingResponse) -> dict:

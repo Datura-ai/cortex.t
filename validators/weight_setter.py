@@ -104,8 +104,9 @@ class WeightSetter:
                 time.sleep(1)
             else:
                 bt.logging.info(f"saving responses...")
-                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas], block_num=self.current_block,
-                                              cycle_num=self.current_block//36, epoch_num=self.current_block//360)
+                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas],
+                                              block_num=self.current_block,
+                                              cycle_num=self.current_block // 36, epoch_num=self.current_block // 360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
                 self.saving_datas.clear()
 
