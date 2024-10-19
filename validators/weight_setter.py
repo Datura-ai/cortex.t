@@ -280,7 +280,7 @@ class WeightSetter:
             self.synthetic_task_done = True
 
             bt.logging.info(
-                f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
+                f"synthetic queries and answers has been processed in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 10000
