@@ -2,6 +2,7 @@ import asyncio
 import concurrent
 import random
 import traceback
+import threading
 
 import torch
 import time
@@ -90,6 +91,18 @@ class WeightSetter:
         self.loop.create_task(self.consume_organic_queries())
         self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
+
+        self.saving_datas = []
+        daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
+        daemon_thread.start()
+
+    def saving_resp_answers_from_miners(self):
+        while True:
+            if not self.saving_datas:
+                time.sleep(60)
+            else:
+                bt.logging.info(f"saving responses...")
+                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas])
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -260,8 +273,6 @@ class WeightSetter:
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
-            bt.logging.info(f"saving responses...")
-            self.cache.set_cache_in_batch([item.get('synapse') for item in self.query_database])
             self.synthetic_task_done = True
 
             bt.logging.info(
@@ -576,6 +587,7 @@ class WeightSetter:
 
             async with self.lock:
                 queries_to_process = self.query_database.copy()
+                self.saving_datas = self.query_database.copy()
                 self.query_database.clear()
 
             self.synthetic_task_done = False
