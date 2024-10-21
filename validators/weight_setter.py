@@ -613,3 +613,4 @@ class WeightSetter:
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
             await self.update_and_refresh()
+            bt.logging.info("update and referesh is done.")

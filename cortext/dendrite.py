@@ -6,13 +6,14 @@ from aiohttp import ServerTimeoutError
 from bittensor import dendrite
 import traceback
 import time
-from typing import Optional
+from typing import Optional, List
 
 from cortext import StreamPrompting
 
 
 class CortexDendrite(dendrite):
     task_id = 0
+    miner_to_session = {}
 
     def __init__(
             self, wallet: Optional[Union[bt.wallet, bt.Keypair]] = None
@@ -44,37 +45,50 @@ class CortexDendrite(dendrite):
 
         # Preprocess synapse for making a request
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
-        timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
         max_try = 0
+        session = CortexDendrite.miner_to_session.get(url)
         try:
             while max_try < 3:
-                async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.post(
-                            url,
-                            headers=synapse.to_headers(),
-                            json=synapse.dict(),
-                    ) as response:
-                        # Use synapse subclass' process_streaming_response method to yield the response chunks
-                        try:
-                            async for chunk in synapse.process_streaming_response(response):  # type: ignore
-                                yield chunk  # Yield each chunk as it's processed
-                        except aiohttp.client_exceptions.ClientPayloadError:
-                            pass
-                        except TimeoutError as err:
-                            bt.logging.error(f"timeout error happens. max_try is {max_try}")
-                            max_try += 1
-                            continue
-                        except ServerTimeoutError as err:
-                            bt.logging.error(f"timeout error happens. max_try is {max_try}")
-                            max_try += 1
-                            continue
-                        except Exception as err:
-                            bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
-                        finally:
-                            pass
-                    break
+                if not session:
+                    timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
+                    connector = aiohttp.TCPConnector(limit=200)
+                    session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+                    CortexDendrite.miner_to_session[url] = session
+                async with session.post(
+                        url,
+                        headers=synapse.to_headers(),
+                        json=synapse.dict(),
+                ) as response:
+                    # Use synapse subclass' process_streaming_response method to yield the response chunks
+                    try:
+                        async for chunk in synapse.process_streaming_response(response):  # type: ignore
+                            yield chunk  # Yield each chunk as it's processed
+                    except aiohttp.client_exceptions.ClientPayloadError:
+                        pass
+                    except TimeoutError as err:
+                        bt.logging.error(f"timeout error happens. max_try is {max_try}")
+                        max_try += 1
+                        continue
+                    except ServerTimeoutError as err:
+                        bt.logging.error(f"timeout error happens. max_try is {max_try}")
+                        max_try += 1
+                        continue
+                    except Exception as err:
+                        bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
+                    finally:
+                        pass
+                break
 
         except Exception as e:
             bt.logging.error(f"{e} {traceback.format_exc()}")
         finally:
             synapse.dendrite.process_time = str(time.time() - start_time)
+
+    async def call_stream_in_batch(
+            self,
+            target_axons: List[Union[bt.AxonInfo, bt.axon]],
+            synapses: List[bt.StreamingSynapse] = bt.Synapse(),  # type: ignore
+            timeout: float = 12.0,
+            deserialize: bool = True,
+    ) -> AsyncGenerator[Any, Any]:
+        pass
