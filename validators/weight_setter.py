@@ -594,6 +594,8 @@ class WeightSetter:
                 self.query_database.clear()
 
             self.synthetic_task_done = False
+            bt.logging.info("start scoring process")
+            start_time = time.time()
 
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
@@ -607,6 +609,7 @@ class WeightSetter:
                         if self.total_scores.get(uid) is not None:
                             self.total_scores[uid] += score
                             self.score_counts[uid] += 1
-            bt.logging.info(f"current total score are {self.total_scores}")
+            bt.logging.info(
+                f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
             await self.update_and_refresh()
