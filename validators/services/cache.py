@@ -3,12 +3,13 @@ import time
 import hashlib
 from typing import List
 
-
 from cortext import StreamPrompting
 
 
 class QueryResponseCache:
-    def __init__(self):
+    def __init__(self, validator_info=None):
+        self.vali_hotkey = None
+        self.vali_uid = None
         # Connect to (or create) the SQLite database
         conn = sqlite3.connect('cache.db')
         cursor = conn.cursor()
@@ -34,6 +35,10 @@ class QueryResponseCache:
     def generate_hash(input_string):
         return hashlib.sha256(input_string.encode('utf-8')).hexdigest()
 
+    def set_vali_info(self, vali_hotkey, vali_uid):
+        self.vali_hotkey = vali_hotkey
+        self.vali_uid = vali_uid
+
     def set_cache(self, question, answer, provider, model, ttl=3600 * 24):
         return
         p_key = self.generate_hash(str(question) + str(provider) + str(model))
@@ -45,12 +50,22 @@ class QueryResponseCache:
         ''', (p_key, question, answer, provider, model, expires_at))
         self.conn.commit()
 
-    def set_cache_in_batch(self, syns: List[StreamPrompting], ttl=3600 * 24):
+    def set_cache_in_batch(self, syns: List[StreamPrompting], ttl=3600 * 24, block_num=0, cycle_num=0, epoch_num=0):
         datas = []
-        expires_at = time.time()
+        last_update_time = time.time()
         for syn in syns:
-            p_key = self.generate_hash(str(expires_at) + str(syn.json()))
-            datas.append((p_key, syn.json(exclude={"dendrite", "completion"}), syn.completion, syn.provider, syn.model, expires_at))
+            p_key = self.generate_hash(str(time.monotonic_ns()) + str(syn.json()))
+            syn.time_taken = syn.dendrite.process_time or 0
+            syn.validator_info = {"vali_uid": self.vali_uid, "vali_hotkey": self.vali_hotkey}
+            syn.miner_info = {"miner_id": syn.uid, "miner_hotkey": syn.axon.hotkey}
+            syn.block_num = block_num
+            syn.epoch_num = epoch_num
+            syn.cycle_num = cycle_num
+            datas.append((p_key, syn.json(
+                exclude={"dendrite", "completion", "total_size", "header_size", "axon", "uid", "provider", "model",
+                         "required_hash_fields", "computed_body_hash", "streaming", "deserialize_flag", "task_id", }),
+                          syn.completion, syn.provider, syn.model,
+                          last_update_time))
 
         # Insert multiple records
         cursor = self.conn.cursor()

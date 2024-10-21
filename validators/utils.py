@@ -174,7 +174,7 @@ def setup_max_capacity(item):
         if isinstance(value, dict):  # If the value is another dictionary, recurse
             setup_max_capacity(value)
         elif isinstance(value, (int, float)):  # If the value is a number, increment by 5
-            item[key] = min(value, 50)
+            item[key] = min(value, 30)
 
 
 def get_bandwidth(data, uid, provider, model):
@@ -222,3 +222,30 @@ def load_entire_questions():
             queries.append(query)
 
     return queries
+
+
+def create_filtered_message_open_ai(message):
+    filtered_message = {
+        "role": message["role"],
+        "content": [],
+    }
+
+    if message.get("content"):
+        filtered_message["content"].append(
+            {
+                "type": "text",
+                "text": message["content"],
+            }
+        )
+    if message.get("image"):
+        image_url = message.get("image")
+        filtered_message["content"].append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                },
+            }
+        )
+
+    return filtered_message

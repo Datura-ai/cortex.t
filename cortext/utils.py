@@ -461,33 +461,9 @@ async def call_openai(messages, temperature, model, seed=1234, max_tokens=2048, 
             f"Calling Openai to get answer. Temperature = {temperature}, Model = {model}, Seed = {seed},  Messages = {messages}"
         )
         try:
-            message = messages[0]
-            filtered_messages = [
-                {
-                    "role": message["role"],
-                    "content": [],
-                }
-            ]
-            if message.get("content"):
-                filtered_messages[0]["content"].append(
-                    {
-                        "type": "text",
-                        "text": message["content"],
-                    }
-                )
-            if message.get("image"):
-                image_url = message.get("image")
-                filtered_messages[0]["content"].append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image_url,
-                        },
-                    }
-                )
             response = await client.chat.completions.create(
                 model=model,
-                messages=filtered_messages,
+                messages=messages,
                 temperature=temperature,
                 seed=seed,
                 max_tokens=max_tokens,

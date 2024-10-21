@@ -9,17 +9,13 @@ from miner.config import config
 from cortext.protocol import StreamPrompting
 from miner.error_handler import error_handler
 
+
 class OpenAI(Provider):
     def __init__(self, synapse):
         super().__init__(synapse)
         self.openai_client = AsyncOpenAI(timeout=config.ASYNC_TIME_OUT, api_key=config.OPENAI_API_KEY)
 
-
-    @error_handler
-    async def _prompt(self, synapse: StreamPrompting, send: Send):
-
-        message = self.messages[0]
-
+    def create_filtered_message(self, message):
         filtered_message: ChatCompletionMessageParam = {
             "role": message["role"],
             "content": [],
@@ -42,12 +38,18 @@ class OpenAI(Provider):
                     },
                 }
             )
+
+        return filtered_message
+
+    @error_handler
+    async def _prompt(self, synapse: StreamPrompting, send: Send):
+        filtered_messages = [self.create_filtered_message(message) for message in synapse.messages]
         try:
             response = await self.openai_client.chat.completions.create(
-                model=self.model, messages=[filtered_message],
-                temperature=self.temperature, stream=True,
-                seed=self.seed,
-                max_tokens=self.max_tokens,
+                model=synapse.model, messages=filtered_messages,
+                temperature=synapse.temperature, stream=True,
+                seed=synapse.seed,
+                max_tokens=synapse.max_tokens,
             )
         except Exception as err:
             bt.logging.exception(err)

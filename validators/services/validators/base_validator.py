@@ -1,6 +1,8 @@
 from abc import abstractmethod
 import asyncio
 from collections import defaultdict
+
+from cortext import StreamPrompting
 from rich.table import Table
 from rich.console import Console
 
@@ -107,30 +109,33 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
 
         # collect all scores per each uid, provider, model
         for (uid, query_resp), scored_response in zip(uid_to_query_resps, scored_responses):
-            synapse = query_resp.get('query')
+            synapse: StreamPrompting = query_resp.get('query')
             provider = synapse.provider
             model = synapse.model
             if scored_response is not None:
                 bt.logging.trace(f"scored response is {scored_response} for uid {uid} for provider {provider} "
                                  f"and for model {model}")
-                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(float(scored_response))
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append((float(scored_response), synapse))
             else:
-                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append(0)
+                uid_provider_model_scores_dict[f"{uid}::{provider}::{model}"].append((0, synapse))
 
         # get avg score value for each uid, provider, model
         uid_provider_model_scores_avg_dict = {}
-        for key, scores in uid_provider_model_scores_dict.items():
-            if len(scores) == 0:
+        for key, score_syns in uid_provider_model_scores_dict.items():
+            if len(score_syns) == 0:
                 bt.logging.debug(f"no scores found for this uid {key}")
+            scores = [item[0] for item in score_syns]
+            syns = [item[1] for item in score_syns]
             avg_score = sum(scores) / len(scores)
-            uid_provider_model_scores_avg_dict[key] = avg_score
+            uid_provider_model_scores_avg_dict[key] = (avg_score, syns)
 
         # apply weight for each model and calculate score based on weight of models.
         uid_scores_dict = defaultdict(float)
         table_data = [
             ["uid", "provider", "model", 'similarity', 'weight', 'bandwidth', 'weighted_score']
         ]
-        for key, avg_score in uid_provider_model_scores_avg_dict.items():
+        for key, avg_score_syns in uid_provider_model_scores_avg_dict.items():
+            avg_score, syns = avg_score_syns
             uid = int(str(key).split("::")[0])
             provider = str(key).split("::")[1]
             model = str(key).split("::")[2]
@@ -147,6 +152,10 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             weighted_score = avg_score * model_weight * band_width
             uid_scores_dict[uid] += weighted_score
             table_data.append([uid, provider, model, avg_score, model_weight, band_width, weighted_score])
+            for syn in syns:
+                syn: StreamPrompting
+                syn.similarity = avg_score
+                syn.score = weighted_score
 
         self.show_pretty_table_score(table_data)
 
