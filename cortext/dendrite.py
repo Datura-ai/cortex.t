@@ -72,10 +72,9 @@ class CortexDendrite(dendrite):
                             bt.logging.error(f"{err} issue from miner {synapse.uid} {synapse.provider} {synapse.model}")
                         finally:
                             pass
-
-                    # Set process time and log the response
-                    synapse.dendrite.process_time = str(time.time() - start_time)  # type: ignore
                     break
 
         except Exception as e:
             bt.logging.error(f"{e} {traceback.format_exc()}")
+        finally:
+            synapse.dendrite.process_time = str(time.time() - start_time)

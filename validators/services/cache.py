@@ -55,7 +55,7 @@ class QueryResponseCache:
         last_update_time = time.time()
         for syn in syns:
             p_key = self.generate_hash(str(time.monotonic_ns()) + str(syn.json()))
-            syn.time_taken = syn.dendrite.process_time
+            syn.time_taken = syn.dendrite.process_time or 0
             syn.validator_info = {"vali_uid": self.vali_uid, "vali_hotkey": self.vali_hotkey}
             syn.miner_info = {"miner_id": syn.uid, "miner_hotkey": syn.axon.hotkey}
             syn.block_num = block_num
