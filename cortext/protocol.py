@@ -305,9 +305,13 @@ class StreamPrompting(bt.StreamingSynapse):
         title="task_id",
         description="task id of the request from this syanpse."
     )
-    validator_uid: int = pydantic.Field(
-        default=0,
-        title="validator_uid",
+    validator_info: dict = pydantic.Field(
+        default={},
+        title="validator_info",
+    )
+    miner_info: dict = pydantic.Field(
+        default={},
+        title="miner_info",
     )
     time_taken: int = pydantic.Field(
         default=0,
@@ -325,11 +329,11 @@ class StreamPrompting(bt.StreamingSynapse):
         default=0,
         title="epoch num",
     )
-    score: int = pydantic.Field(
+    score: float = pydantic.Field(
         default=0,
         title="score",
     )
-    similarity: int = pydantic.Field(
+    similarity: float = pydantic.Field(
         default=0,
         title="similarity",
     )
@@ -367,9 +371,7 @@ class StreamPrompting(bt.StreamingSynapse):
             self.completion = ""
         async for chunk in response.content.iter_any():
             tokens = chunk.decode("utf-8")
-            for token in tokens:
-                if token:
-                    self.completion += token
+            self.completion += tokens
             yield tokens
 
     def extract_response_json(self, response: StreamingResponse) -> dict:

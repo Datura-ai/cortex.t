@@ -2,6 +2,7 @@ import asyncio
 import concurrent
 import random
 import traceback
+import threading
 
 import torch
 import time
@@ -91,6 +92,24 @@ class WeightSetter:
         self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
 
+        self.saving_datas = []
+        daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
+        daemon_thread.start()
+
+    def saving_resp_answers_from_miners(self):
+        self.cache = QueryResponseCache()
+        self.cache.set_vali_info(vali_uid=self.my_uid, vali_hotkey=self.wallet.hotkey.ss58_address)
+        while True:
+            if not self.saving_datas:
+                time.sleep(1)
+            else:
+                bt.logging.info(f"saving responses...")
+                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas],
+                                              block_num=self.current_block,
+                                              cycle_num=self.current_block // 36, epoch_num=self.current_block // 360)
+                bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
+                self.saving_datas.clear()
+
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
 
@@ -144,8 +163,6 @@ class WeightSetter:
         bt.logging.info("Metagraph refreshed.")
 
     async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
-        query_syn.validator_uid = self.my_uid
-        query_syn.block_num = self.current_block or 0
         query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
@@ -260,15 +277,13 @@ class WeightSetter:
             bt.logging.info(
                 f"synthetic queries has been processed successfully."
                 f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
-            bt.logging.info(f"saving responses...")
-            self.cache.set_cache_in_batch([item.get('synapse') for item in self.query_database])
             self.synthetic_task_done = True
 
             bt.logging.info(
-                f"synthetic queries and answers has been saved in cache successfully. total times {time.time() - start_time}")
+                f"synthetic queries and answers has been processed in cache successfully. total times {time.time() - start_time}")
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
-        batch_size = 1000
+        batch_size = 10000
         max_query_cnt_per_miner = 50
         batch_tasks = []
         remain_tasks = []
@@ -277,7 +292,7 @@ class WeightSetter:
             if uid_to_task_cnt[uid] < max_query_cnt_per_miner:
                 if len(batch_tasks) > batch_size:
                     remain_tasks.append((uid, synthetic_task))
-                    break
+                    continue
                 batch_tasks.append(synthetic_task)
                 uid_to_task_cnt[uid] += 1
                 continue
@@ -579,6 +594,8 @@ class WeightSetter:
                 self.query_database.clear()
 
             self.synthetic_task_done = False
+            bt.logging.info("start scoring process")
+            start_time = time.time()
 
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
@@ -592,61 +609,8 @@ class WeightSetter:
                         if self.total_scores.get(uid) is not None:
                             self.total_scores[uid] += score
                             self.score_counts[uid] += 1
-            bt.logging.info(f"current total score are {self.total_scores}")
+            bt.logging.info(
+                f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
+            self.saving_datas = queries_to_process.copy()
             await self.update_and_refresh()
-
-    @property
-    def batch_list_of_all_uids(self):
-        uids = list(self.available_uid_to_axons.keys())
-        batch_size = self.batch_size
-        batched_list = []
-        for i in range(0, len(uids), batch_size):
-            batched_list.append(uids[i:i + batch_size])
-        return batched_list
-
-    async def score_miners_based_cached_answer(self, vali, query, answer):
-        total_query_resps = []
-        provider = query.provider
-        model = query.model
-
-        async def mock_create_query(*args, **kwargs):
-            return query
-
-        origin_ref_create_query = vali.create_query
-        origin_ref_provider_to_models = vali.get_provider_to_models
-
-        for batch_uids in self.batch_list_of_all_uids:
-            vali.create_query = mock_create_query
-            vali.get_provider_to_models = lambda: [(provider, model)]
-            query_responses = await self.perform_queries(vali, batch_uids)
-            total_query_resps += query_responses
-
-        vali.create_query = origin_ref_create_query
-        vali.get_provider_to_models = origin_ref_provider_to_models
-
-        bt.logging.debug(f"total cached query_resps: {len(total_query_resps)}")
-        queries_to_process = []
-        for uid, response_data in total_query_resps:
-            # Decide whether to score this query
-            queries_to_process.append({
-                'uid': uid,
-                'synapse': response_data['query'],
-                'response': response_data['response'],
-                'query_type': 'synthetic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': vali
-            })
-
-        async def mock_answer(*args, **kwargs):
-            return answer
-
-        origin_ref_answer_task = vali.get_answer_task
-        vali.get_answer_task = mock_answer
-        score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
-        responses = await asyncio.gather(*score_tasks)
-        vali.get_answer_task = origin_ref_answer_task
-
-        responses = [item for item in responses if item is not None]
-        for uid_scores_dict, _, _ in responses:
-            for uid, score in uid_scores_dict.items():
-                self.total_scores[uid] += score
+            bt.logging.info("update and referesh is done.")

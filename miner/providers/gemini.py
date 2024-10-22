@@ -16,9 +16,10 @@ class Gemini(Provider):
 
     async def _prompt(self, synapse: StreamPrompting, send: Send):
         stream = []
+        prompt = " ".join([m['content'] for m in synapse.messages if m['content']])
         try:
             stream = self.genai_model.generate_content(
-                str(self.messages),
+                prompt,
                 stream=True,
                 generation_config=genai.types.GenerationConfig(
                     temperature=self.temperature,

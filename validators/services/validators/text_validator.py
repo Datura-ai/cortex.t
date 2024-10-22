@@ -12,6 +12,8 @@ from cortext.protocol import StreamPrompting
 from cortext.utils import (call_anthropic_bedrock, call_bedrock, call_anthropic, call_gemini,
                            call_groq, call_openai, get_question)
 from validators.utils import save_or_get_answer_from_cache, get_query_synapse_from_cache
+from validators import utils
+from typing import List, Dict
 
 
 class TextValidator(BaseValidator):
@@ -111,54 +113,73 @@ class TextValidator(BaseValidator):
             self.wandb_data["responses"][uid] = response
         return self.wandb_data
 
-    async def call_api(self, prompt: str, image_url: Optional[str], query_syn: StreamPrompting) -> str:
+    async def call_api(self, conversation: List[Dict[str, Optional[str]]], query_syn: StreamPrompting) -> str:
         provider = query_syn.provider
         self.model = query_syn.model
+
         if provider == "OpenAI":
+            filtered_messages = [utils.create_filtered_message_open_ai(message) for message in conversation]
             return await call_openai(
-                [{"role": "user", "content": prompt, "image": image_url}], self.temperature, self.model, self.seed,
+                filtered_messages,
+                self.temperature,
+                self.model,
+                self.seed,
                 self.max_tokens
             )
         elif provider == "AnthropicBedrock":
-            return await call_anthropic_bedrock(prompt, self.temperature, self.model, self.max_tokens, self.top_p,
-                                                self.top_k)
-        elif provider == "Gemini":
-            return await call_gemini(prompt, self.temperature, self.model, self.max_tokens, self.top_p, self.top_k)
-        elif provider == "Anthropic":
-            return await call_anthropic(
-                [{"role": "user", "content": prompt, "image": image_url}],
+            prompt = " ".join([m['content'] for m in conversation if m['content']])
+            return await call_anthropic_bedrock(
+                prompt,
                 self.temperature,
                 self.model,
                 self.max_tokens,
                 self.top_p,
-                self.top_k,
+                self.top_k
+            )
+        elif provider == "Gemini":
+            prompt = " ".join([m['content'] for m in conversation if m['content']])
+            return await call_gemini(
+                prompt,
+                self.temperature,
+                self.model,
+                self.max_tokens,
+                self.top_p,
+                self.top_k
+            )
+        elif provider == "Anthropic":
+            return await call_anthropic(
+                conversation,
+                self.temperature,
+                self.model,
+                self.max_tokens,
+                self.top_p,
+                self.top_k
             )
         elif provider == "Groq":
+            prompt = " ".join([m['content'] for m in conversation if m['content']])
             return await call_groq(
                 [{"role": "user", "content": prompt}],
                 self.temperature,
                 self.model,
                 self.max_tokens,
                 self.top_p,
-                self.seed,
+                self.seed
             )
         elif provider == "Bedrock":
             return await call_bedrock(
-                [{"role": "user", "content": prompt, "image": image_url}],
+                conversation,
                 self.temperature,
                 self.model,
                 self.max_tokens,
                 self.top_p,
-                self.seed,
+                self.seed
             )
         else:
             bt.logging.error(f"provider {provider} not found")
 
     @save_or_get_answer_from_cache
     async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
-        prompt = query_syn.messages[0].get("content")
-        image_url = query_syn.messages[0].get("image")
-        answer = await self.call_api(prompt, image_url, query_syn)
+        answer = await self.call_api(query_syn.messages, query_syn)
         return answer
 
     async def get_scoring_task(self, uid, answer, response):
