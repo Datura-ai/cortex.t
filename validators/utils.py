@@ -174,7 +174,7 @@ def setup_max_capacity(item):
         if isinstance(value, dict):  # If the value is another dictionary, recurse
             setup_max_capacity(value)
         elif isinstance(value, (int, float)):  # If the value is a number, increment by 5
-            item[key] = min(value, 30)
+            item[key] = min(value, 20)
 
 
 def get_bandwidth(data, uid, provider, model):
