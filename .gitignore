@@ -16,5 +16,4 @@ validators/.ipynb_checkpoints/
 **/Cortex.t.egg-info
 **/test.ipynb
 .env
-**/server/**/*.py
 cache.db
