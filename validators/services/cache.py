@@ -1,3 +1,4 @@
+import random
 import sqlite3
 import time
 import hashlib
@@ -54,7 +55,7 @@ class QueryResponseCache:
         datas = []
         last_update_time = time.time()
         for syn in syns:
-            p_key = self.generate_hash(str(time.monotonic_ns()) + str(syn.json()))
+            p_key = self.generate_hash(str(time.monotonic_ns()) + str(syn.json()) + str(random.random()))
             syn.time_taken = syn.dendrite.process_time or 0
             syn.validator_info = {"vali_uid": self.vali_uid, "vali_hotkey": self.vali_hotkey}
             syn.miner_info = {"miner_id": syn.uid, "miner_hotkey": syn.axon.hotkey}

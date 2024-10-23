@@ -11,8 +11,7 @@ conn = psycopg2.connect(DATABASE_URL)
 cur = conn.cursor()
 
 
-@asynccontextmanager
-def create_table(app):
+async def create_table(app):
     global conn, cur, TABEL_NAME
     try:
         # Connect to the PostgreSQL database
@@ -27,16 +26,19 @@ def create_table(app):
             answer TEXT,
             provider VARCHAR(100),
             model VARCHAR(100),
-            timestamp FLOAT,
+            timestamp FLOAT
         );
-        CREATE INDEX IF NOT EXISTS question_answer_index ON {TABEL_NAME} (question, answer);
         """
 
         # Execute the SQL command
         cur.execute(create_table_query)
         conn.commit()  # Save changes
+        create_index_query = f"""
+        CREATE INDEX IF NOT EXISTS question_answer_index ON {TABEL_NAME} (provider, model);
+        """
+        cur.execute(create_index_query)
+        conn.commit()
         print("Table created successfully!")
-        yield
 
     except Exception as e:
         print(f"Error creating table: {e}")
@@ -47,3 +49,6 @@ def create_table(app):
             cur.close()
         if conn:
             conn.close()
+
+
+create_table(None)

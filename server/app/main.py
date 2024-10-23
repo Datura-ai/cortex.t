@@ -1,19 +1,24 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from . import curd, models, schemas
 from .database import create_table
+from typing import List
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the ML model
+    await create_table(None)
+    yield
 
 
-@app.on_event("startup")
-async def startup_event():
-    create_table(None)
+app = FastAPI(lifespan=lifespan)
 
 
 # Create an item
-@app.post("/items/", response_model=schemas.Item)
-def create_item(item: schemas.ItemCreate):
-    return curd.create_item(item=item)
+@app.post("/items")
+def create_item(items: List[schemas.ItemCreate]):
+    return curd.create_items(items=items)
 
 
 # Read all items

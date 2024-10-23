@@ -18,10 +18,10 @@ def create_items(items: List[schemas.ItemCreate]):
     for item in items:
         datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp))
     try:
-        cur.execute(query, datas)
+        cur.executemany(query, datas)
         cur.commit()  # Save changes to the database
     except Exception as err:
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail=f"Internal Server Error {err}")
 
 
 def get_items(skip: int = 0, limit: int = 10):
