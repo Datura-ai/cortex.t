@@ -28,17 +28,17 @@ def read_item(item_id: int, db: Session = Depends(get_db)):
     return db_item
 
 # Update an item
-@app.put("/items/{item_id}", response_model=schemas.Item)
-def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)):
-    updated_item = crud.update_item(db=db, item_id=item_id, item=item)
-    if updated_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return updated_item
-
-# Delete an item
-@app.delete("/items/{item_id}", response_model=schemas.Item)
-def delete_item(item_id: int, db: Session = Depends(get_db)):
-    deleted_item = crud.delete_item(db=db, item_id=item_id)
-    if deleted_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return deleted_item
+# @app.put("/items/{item_id}", response_model=schemas.Item)
+# def update_item(item_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)):
+#     updated_item = crud.update_item(db=db, item_id=item_id, item=item)
+#     if updated_item is None:
+#         raise HTTPException(status_code=404, detail="Item not found")
+#     return updated_item
+#
+# # Delete an item
+# @app.delete("/items/{item_id}", response_model=schemas.Item)
+# def delete_item(item_id: int, db: Session = Depends(get_db)):
+#     deleted_item = crud.delete_item(db=db, item_id=item_id)
+#     if deleted_item is None:
+#         raise HTTPException(status_code=404, detail="Item not found")
+#     return deleted_item
