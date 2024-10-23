@@ -50,6 +50,7 @@ class CortexDendrite(dendrite):
         try:
             while max_try < 3:
                 if not session:
+                    timeout = aiohttp.ClientTimeout(total=timeout, connect=timeout, sock_connect=timeout, sock_read=timeout)
                     connector = aiohttp.TCPConnector(limit=200)
                     session = aiohttp.ClientSession(timeout=timeout, connector=connector)
                     CortexDendrite.miner_to_session[endpoint] = session
@@ -57,7 +58,6 @@ class CortexDendrite(dendrite):
                         url,
                         headers=synapse.to_headers(),
                         json=synapse.dict(),
-                        timeout = aiohttp.ClientTimeout(total=timeout)
                 ) as response:
                     # Use synapse subclass' process_streaming_response method to yield the response chunks
                     try:
