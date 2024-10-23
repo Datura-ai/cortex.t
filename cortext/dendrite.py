@@ -26,6 +26,7 @@ class CortexDendrite(dendrite):
             synapse: bt.StreamingSynapse = bt.Synapse(),  # type: ignore
             timeout: float = 12.0,
             deserialize: bool = True,
+            organic: bool = True
     ) -> AsyncGenerator[Any, Any]:
         start_time = time.time()
         target_axon = (
@@ -61,7 +62,7 @@ class CortexDendrite(dendrite):
                 ) as response:
                     # Use synapse subclass' process_streaming_response method to yield the response chunks
                     try:
-                        async for chunk in synapse.process_streaming_response(response):  # type: ignore
+                        async for chunk in synapse.process_streaming_response(response, organic):  # type: ignore
                             yield chunk  # Yield each chunk as it's processed
                     except aiohttp.client_exceptions.ClientPayloadError:
                         pass

@@ -162,7 +162,7 @@ class WeightSetter:
         await self.initialize_uids_and_capacities()
         bt.logging.info("Metagraph refreshed.")
 
-    async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE):
+    async def query_miner(self, uid, query_syn: cortext.ALL_SYNAPSE_TYPE, organic=True):
         query_syn.uid = uid
         if query_syn.streaming:
             if uid is None:
@@ -195,6 +195,7 @@ class WeightSetter:
                 target_axon=axon,
                 synapse=query_syn,
                 timeout=query_syn.timeout,
+                organic=organic
             )
             await handle_response(response)
         else:
@@ -256,7 +257,7 @@ class WeightSetter:
                     uid = self.task_mgr.assign_task(query_syn)
                     if uid is None:
                         bt.logging.debug(f"No available uids for synthetic query process.")
-                    synthetic_tasks.append((uid, self.query_miner(uid, query_syn)))
+                    synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
 
             bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
