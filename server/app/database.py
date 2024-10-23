@@ -12,7 +12,7 @@ cur = conn.cursor()
 
 
 @asynccontextmanager
-def create_table():
+def create_table(app):
     global conn, cur, TABEL_NAME
     try:
         # Connect to the PostgreSQL database
@@ -36,6 +36,7 @@ def create_table():
         cur.execute(create_table_query)
         conn.commit()  # Save changes
         print("Table created successfully!")
+        yield
 
     except Exception as e:
         print(f"Error creating table: {e}")

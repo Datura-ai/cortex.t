@@ -1,28 +1,32 @@
 from fastapi import FastAPI, Depends, HTTPException
-from . import crud, models, schemas
+from . import curd, models, schemas
 from .database import create_table
 
 app = FastAPI()
-app.add_event_handler("lifespan", create_table)
+
+
+@app.on_event("startup")
+async def startup_event():
+    create_table(None)
 
 
 # Create an item
 @app.post("/items/", response_model=schemas.Item)
 def create_item(item: schemas.ItemCreate):
-    return crud.create_item(item=item)
+    return curd.create_item(item=item)
 
 
 # Read all items
 @app.get("/items/", response_model=list[schemas.Item])
 def read_items(skip: int = 0, limit: int = 10):
-    items = crud.get_items(skip=skip, limit=limit)
+    items = curd.get_items(skip=skip, limit=limit)
     return items
 
 
 # Read a single item by ID
-@app.get("/items/{item_id}", response_model=schemas.Item)
-def read_item(item_id: int):
-    db_item = crud.get_item(item_id=item_id)
+@app.get("/items/{p_key}", response_model=schemas.Item)
+def read_item(p_key: int):
+    db_item = curd.get_item(p_key=p_key)
     if db_item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     return db_item

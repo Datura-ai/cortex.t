@@ -1,7 +1,7 @@
 import os
 from typing import List
 from . import models, schemas
-from database import cur, TABEL_NAME
+from .database import cur, TABEL_NAME
 from fastapi import HTTPException
 
 
