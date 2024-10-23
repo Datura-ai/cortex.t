@@ -29,7 +29,7 @@ def create_table():
             model VARCHAR(100),
             timestamp FLOAT,
         );
-        CREATE INDEX question_answer_index ON {TABEL_NAME} (question, answer);
+        CREATE INDEX IF NOT EXISTS question_answer_index ON {TABEL_NAME} (question, answer);
         """
 
         # Execute the SQL command
