@@ -1,14 +1,14 @@
 import os
 from typing import List
 from . import models, schemas
-from .database import cur, TABEL_NAME
+from .database import cur, TABEL_NAME, conn
 from fastapi import HTTPException
 
 
 def create_item(item: schemas.ItemCreate):
     query = f"INSERT INTO {TABEL_NAME} (p_key, question, answer, provider, model, timestamp) VALUES (%s, %s, %s, %s, %s, %s)"
     cur.execute(query, item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp)
-    cur.commit()  # Save changes to the database
+    conn.commit()  # Save changes to the database
     return item
 
 
@@ -19,7 +19,7 @@ def create_items(items: List[schemas.ItemCreate]):
         datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp))
     try:
         cur.executemany(query, datas)
-        cur.commit()  # Save changes to the database
+        conn.commit()  # Save changes to the database
     except Exception as err:
         raise HTTPException(status_code=500, detail=f"Internal Server Error {err}")
 

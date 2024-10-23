@@ -1,20 +1,20 @@
 import asyncio
 import concurrent
 import random
-import traceback
 import threading
 
 import torch
 import time
+import requests
 
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
-from typing import Tuple, List
+from typing import Tuple
 import bittensor as bt
 from bittensor import StreamingSynapse
 import cortext
-
+import json
 from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
@@ -93,6 +93,7 @@ class WeightSetter:
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
+        self.url = "http://0.0.0.0:8000/items"
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
 
@@ -104,11 +105,26 @@ class WeightSetter:
                 time.sleep(1)
             else:
                 bt.logging.info(f"saving responses...")
+                start_time = time.time()
                 self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas],
                                               block_num=self.current_block,
                                               cycle_num=self.current_block // 36, epoch_num=self.current_block // 360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
                 self.saving_datas.clear()
+                bt.logging.info("sending datas to central server.")
+                json_data = [item.get('synapse').dict() for item in self.saving_datas]
+                headers = {
+                    'Content-Type': 'application/json'  # Specify that we're sending JSON
+                }
+                response = requests.post(self.url, data=json.dumps(json_data), headers=headers)
+                # Check the response
+                if response.status_code == 200:
+                    bt.logging.info(
+                        f"Successfully sent data to central server. {time.time() - start_time} sec total elapsed for sending to central server.")
+                else:
+                    bt.logging.info(
+                        f"Failed to send data. Status code: {response.status_code} {time.time() - start_time} sec total elapsed for sending to central server.")
+                    bt.logging.info(f"Response:{response.text}")
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
