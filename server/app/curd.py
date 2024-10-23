@@ -1,30 +1,28 @@
-from sqlalchemy.orm import Session
+import os
+
 from . import models, schemas
+from database import cur
 
-def create_item(db: Session, item: schemas.ItemCreate):
-    db_item = models.Item(data=item.data)
-    db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
-    return db_item
+db_name = os.getenv('POSTGRES_DB')
 
-def get_items(db: Session, skip: int = 0, limit: int = 10):
-    return db.query(models.Item).offset(skip).limit(limit).all()
 
-def get_item(db: Session, item_id: int):
-    return db.query(models.Item).filter(models.Item.id == item_id).first()
+def create_item(*args):
+    query = f"INSERT INTO {db_name} (p_key, question, answer, provider, model, timestamp) VALUES (%s, %s, %s, %s, %s, %s)"
+    cur.execute(query, args)
+    cur.commit()  # Save changes to the database
+    print("item created successfully!")
+    return args
 
-def update_item(db: Session, item_id: int, item: schemas.ItemCreate):
-    db_item = db.query(models.Item).filter(models.Item.id == item_id).first()
-    if db_item:
-        db_item.data = item.data
-        db.commit()
-        db.refresh(db_item)
-    return db_item
 
-def delete_item(db: Session, item_id: int):
-    db_item = db.query(models.Item).filter(models.Item.id == item_id).first()
-    if db_item:
-        db.delete(db_item)
-        db.commit()
-    return db_item
+def get_items(skip: int = 0, limit: int = 10):
+    query = f"SELECT * FROM {db_name} LIMIT {limit} OFFSET {skip};"
+    cur.execute(query)
+    items = cur.fetchall()  # Fetch all results
+    return [dict(item) for item in items]
+
+
+def get_item(p_key: int):
+    query = "SELECT * FROM users WHERE p_key = %s"
+    cur.execute(query, (p_key,))
+    item = cur.fetchone()  # Fetch one result
+    return dict(item)

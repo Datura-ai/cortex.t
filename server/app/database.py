@@ -1,20 +1,48 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
-
 import psycopg2
-from psycopg2 import sql, OperationalError
+import os
+from contextlib import asynccontextmanager
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+TABEL_NAME = 'query_resp_data'
+# PostgreSQL connection parameters
+conn = psycopg2.connect(DATABASE_URL)
 
-# Dependency to get DB session
-def get_db():
-    db = SessionLocal()
+# Create a cursor object to interact with the database
+cur = conn.cursor()
+
+
+@asynccontextmanager
+def create_table():
+    global conn, cur, TABEL_NAME
     try:
-        yield db
+        # Connect to the PostgreSQL database
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+
+        # SQL command to create a table
+        create_table_query = f"""
+        CREATE TABLE IF NOT EXISTS {TABEL_NAME} (
+            p_key VARCHAR(100) PRIMARY KEY,
+            question JSON,
+            answer TEXT,
+            provider VARCHAR(100),
+            model VARCHAR(100),
+            timestamp FLOAT,
+        );
+        CREATE INDEX question_answer_index ON {TABEL_NAME} (question, answer);
+        """
+
+        # Execute the SQL command
+        cur.execute(create_table_query)
+        conn.commit()  # Save changes
+        print("Table created successfully!")
+
+    except Exception as e:
+        print(f"Error creating table: {e}")
+
     finally:
-        db.close()
+        # Close the cursor and connection
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()

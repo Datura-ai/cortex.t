@@ -1,19 +1,18 @@
 from pydantic import BaseModel, Json
-from typing import Any, Dict
+
 
 class ItemBase(BaseModel):
-    id: int
+    p_key: str
     question: Json
     answer: str
     provider: str
     model: str
-    time_stamp: int
+    timestamp: float
+
 
 class ItemCreate(ItemBase):
     pass
 
-class Item(ItemBase):
-    id: int
 
-    class Config:
-        orm_mode = True
+class Item(ItemBase):
+    pass
