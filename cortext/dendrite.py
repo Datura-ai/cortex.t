@@ -50,11 +50,11 @@ class CortexDendrite(dendrite):
         session = CortexDendrite.miner_to_session.get(endpoint)
         try:
             while max_try < 3:
-                if not session:
-                    timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
-                    connector = aiohttp.TCPConnector(limit=200)
-                    session = aiohttp.ClientSession(timeout=timeout, connector=connector)
-                    CortexDendrite.miner_to_session[endpoint] = session
+                # if not session:
+                timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
+                connector = aiohttp.TCPConnector(limit=200)
+                session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+                # CortexDendrite.miner_to_session[endpoint] = session
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
