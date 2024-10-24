@@ -93,7 +93,7 @@ class WeightSetter:
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
-        self.url = "http://0.0.0.0:8000/items"
+        self.url = None
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
 
@@ -111,6 +111,8 @@ class WeightSetter:
                                               cycle_num=self.current_block // 36, epoch_num=self.current_block // 360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
                 self.saving_datas.clear()
+                if not self.url:
+                    return
                 bt.logging.info("sending datas to central server.")
                 json_data = [item.get('synapse').dict() for item in self.saving_datas]
                 headers = {
