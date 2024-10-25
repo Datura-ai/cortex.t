@@ -93,7 +93,7 @@ class WeightSetter:
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
-        self.url = None
+        self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
 
