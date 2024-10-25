@@ -145,9 +145,9 @@ def main():
         bt.logging.info("Keyboard interrupt detected. Exiting validator.")
     finally:
         bt.logging.info("stopping axon server.")
-        bt.logging.info(
-            f"closing all sessins. total connections is {len(dendrite.CortexDendrite.miner_to_session.keys())}")
-        asyncio.run(close_all_connections())
+        # bt.logging.info(
+        #     f"closing all sessins. total connections is {len(dendrite.CortexDendrite.miner_to_session.keys())}")
+        # asyncio.run(close_all_connections())
         weight_setter.axon.stop()
         bt.logging.info("updating status before exiting validator")
         state = utils.get_state(state_path)
