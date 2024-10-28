@@ -43,12 +43,4 @@ async def create_table(app):
     except Exception as e:
         print(f"Error creating table: {e}")
 
-    finally:
-        # Close the cursor and connection
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-
-
 create_table(None)

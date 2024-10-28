@@ -89,13 +89,20 @@ class WeightSetter:
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.consume_organic_queries())
-        self.loop.create_task(self.perform_synthetic_queries())
+        # self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
         self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
+
+        synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
+        synthetic_thread.start()
+
+    def process_synthetic_tasks(self):
+        bt.logging.info("starting synthetic tasks.")
+        asyncio.run(self.perform_synthetic_queries())
 
     def saving_resp_answers_from_miners(self):
         self.cache = QueryResponseCache()
@@ -106,27 +113,12 @@ class WeightSetter:
             else:
                 bt.logging.info(f"saving responses...")
                 start_time = time.time()
-                self.cache.set_cache_in_batch([item.get('synapse') for item in self.saving_datas],
-                                              block_num=self.current_block,
-                                              cycle_num=self.current_block // 36, epoch_num=self.current_block // 360)
+                self.cache.set_cache_in_batch(self.url, [item.get('synapse') for item in self.saving_datas],
+                                              block_num=self.current_block or 0,
+                                              cycle_num=(self.current_block or 0) // 36, epoch_num=(self.current_block or 0) // 360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
                 self.saving_datas.clear()
-                if not self.url:
-                    return
-                bt.logging.info("sending datas to central server.")
-                json_data = [item.get('synapse').dict() for item in self.saving_datas]
-                headers = {
-                    'Content-Type': 'application/json'  # Specify that we're sending JSON
-                }
-                response = requests.post(self.url, data=json.dumps(json_data), headers=headers)
-                # Check the response
-                if response.status_code == 200:
-                    bt.logging.info(
-                        f"Successfully sent data to central server. {time.time() - start_time} sec total elapsed for sending to central server.")
-                else:
-                    bt.logging.info(
-                        f"Failed to send data. Status code: {response.status_code} {time.time() - start_time} sec total elapsed for sending to central server.")
-                    bt.logging.info(f"Response:{response.text}")
+
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)

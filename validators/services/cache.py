@@ -3,7 +3,9 @@ import sqlite3
 import time
 import hashlib
 from typing import List
-
+import json
+import requests
+import bittensor as bt
 from cortext import StreamPrompting
 
 
@@ -51,7 +53,28 @@ class QueryResponseCache:
         ''', (p_key, question, answer, provider, model, expires_at))
         self.conn.commit()
 
-    def set_cache_in_batch(self, syns: List[StreamPrompting], ttl=3600 * 24, block_num=0, cycle_num=0, epoch_num=0):
+    def send_to_central_server(self, url, datas):
+        start_time = time.time()
+        if not url:
+            return
+        bt.logging.info("sending datas to central server.")
+        headers = {
+            'Content-Type': 'application/json'  # Specify that we're sending JSON
+        }
+        response = requests.post(url, data=json.dumps(datas), headers=headers)
+        # Check the response
+        if response.status_code == 200:
+            bt.logging.info(
+                f"Successfully sent data to central server. {time.time() - start_time} sec total elapsed for sending to central server.")
+            return True
+        else:
+            bt.logging.info(
+                f"Failed to send data. Status code: {response.status_code} {time.time() - start_time} sec total elapsed for sending to central server.")
+            bt.logging.info(f"Response:{response.text}")
+            return False
+
+    def set_cache_in_batch(self, central_server_url, syns: List[StreamPrompting],
+                           ttl=3600 * 24, block_num=0, cycle_num=0, epoch_num=0):
         datas = []
         last_update_time = time.time()
         for syn in syns:
@@ -62,21 +85,29 @@ class QueryResponseCache:
             syn.block_num = block_num
             syn.epoch_num = epoch_num
             syn.cycle_num = cycle_num
-            datas.append((p_key, syn.json(
-                exclude={"dendrite", "completion", "total_size", "header_size", "axon", "uid", "provider", "model",
-                         "required_hash_fields", "computed_body_hash", "streaming", "deserialize_flag", "task_id", }),
-                          syn.completion, syn.provider, syn.model,
-                          last_update_time))
+            datas.append({"p_key": p_key,
+                          "question": json.dumps(syn.json(
+                              exclude={"dendrite", "completion", "total_size", "header_size", "axon", "uid", "provider",
+                                       "model",
+                                       "required_hash_fields", "computed_body_hash", "streaming", "deserialize_flag",
+                                       "task_id", })),
+                          "answer": syn.completion,
+                          "provider": syn.provider,
+                          "model": syn.model,
+                          "timestamp": last_update_time})
 
-        # Insert multiple records
+        if self.send_to_central_server(central_server_url, datas):
+            return
+        # if not saved in central server successfully, then just save local cache.db file
         cursor = self.conn.cursor()
         cursor.executemany('''
             INSERT OR IGNORE INTO cache (p_key, question, answer, provider, model, timestamp) 
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', datas)
+        ''', [list(item.values()) for item in datas])
 
         # Commit the transaction
         self.conn.commit()
+        return datas
 
     def get_answer(self, question, provider, model):
         p_key = self.generate_hash(str(question) + str(provider) + str(model))
