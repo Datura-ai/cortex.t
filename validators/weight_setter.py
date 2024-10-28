@@ -99,8 +99,9 @@ class WeightSetter:
         synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
         synthetic_thread.start()
 
-        organic_thread = threading.Thread(target=self.start_axon_server)
-        organic_thread.start()
+        # organic_thread = threading.Thread(target=self.start_axon_server)
+        # organic_thread.start()
+        self.loop.create_task(self.consume_organic_queries())
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
