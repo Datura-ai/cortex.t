@@ -162,7 +162,7 @@ async def main():
 
     responses = await asyncio.gather(*[query_and_log(synapse) for synapse in synapses])
 
-    cache_service.set_cache_in_batch(synapses)
+    print(responses[0], len(responses))
 
     print("Responses saved to cache database")
 
