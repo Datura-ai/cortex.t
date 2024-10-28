@@ -99,9 +99,9 @@ class WeightSetter:
         synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
         synthetic_thread.start()
 
-        # organic_thread = threading.Thread(target=self.start_axon_server)
-        # organic_thread.start()
-        self.consume_organic_queries()
+        organic_thread = threading.Thread(target=self.start_axon_server)
+        organic_thread.start()
+        # self.consume_organic_queries()
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
@@ -534,7 +534,7 @@ class WeightSetter:
 
         return synapse.create_streaming_response(token_streamer)
 
-    def consume_organic_queries(self):
+    async def consume_organic_queries(self):
         bt.logging.info("Attaching forward function to axon.")
         self.axon.attach(
             forward_fn=self.prompt,
