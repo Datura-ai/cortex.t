@@ -101,7 +101,7 @@ class WeightSetter:
 
         # organic_thread = threading.Thread(target=self.start_axon_server)
         # organic_thread.start()
-        self.loop.create_task(self.consume_organic_queries())
+        self.consume_organic_queries()
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
@@ -534,7 +534,7 @@ class WeightSetter:
 
         return synapse.create_streaming_response(token_streamer)
 
-    async def consume_organic_queries(self):
+    def consume_organic_queries(self):
         bt.logging.info("Attaching forward function to axon.")
         self.axon.attach(
             forward_fn=self.prompt,
