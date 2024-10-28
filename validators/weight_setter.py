@@ -2,6 +2,7 @@ import asyncio
 import concurrent
 import random
 import threading
+import traceback
 
 import torch
 import time
@@ -88,8 +89,6 @@ class WeightSetter:
         self.set_up_next_block_to_wait()
         # Set up async tasks
         self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
-        self.loop.create_task(self.consume_organic_queries())
-        # self.loop.create_task(self.perform_synthetic_queries())
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
@@ -99,6 +98,12 @@ class WeightSetter:
 
         synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
         synthetic_thread.start()
+
+        organic_thread = threading.Thread(target=self.start_axon_server)
+        organic_thread.start()
+
+    def start_axon_server(self):
+        asyncio.run(self.consume_organic_queries())
 
     def process_synthetic_tasks(self):
         bt.logging.info("starting synthetic tasks.")
@@ -115,10 +120,10 @@ class WeightSetter:
                 start_time = time.time()
                 self.cache.set_cache_in_batch(self.url, [item.get('synapse') for item in self.saving_datas],
                                               block_num=self.current_block or 0,
-                                              cycle_num=(self.current_block or 0) // 36, epoch_num=(self.current_block or 0) // 360)
+                                              cycle_num=(self.current_block or 0) // 36,
+                                              epoch_num=(self.current_block or 0) // 360)
                 bt.logging.info(f"total saved responses is {len(self.saving_datas)}")
                 self.saving_datas.clear()
-
 
     async def run_sync_in_async(self, fn):
         return await self.loop.run_in_executor(None, fn)
@@ -477,13 +482,9 @@ class WeightSetter:
     async def prompt(self, synapse: StreamPrompting) -> StreamingSynapse.BTStreamingResponse:
         bt.logging.info(f"Received {synapse}")
 
-        # Return the streaming response
         async def _prompt(query_synapse: StreamPrompting, send: Send):
-            bt.logging.info(f"Sending {synapse} request to uid: {synapse.uid}")
-
             query_synapse.deserialize_flag = False
             query_synapse.streaming = True
-            query_synapse.validator_uid = self.my_uid or 0
             query_synapse.block_num = self.current_block or 0
             uid = self.task_mgr.assign_task(query_synapse)
             query_synapse.uid = uid
@@ -521,14 +522,15 @@ class WeightSetter:
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
             axon = self.metagraph.axons[uid]
+            bt.logging.trace(f"Sending {query_synapse} request to uid: {query_synapse.uid}")
             responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
                 timeout=synapse.timeout,
             )
             return await handle_response(responses)
-
         token_streamer = partial(_prompt, synapse)
+
         return synapse.create_streaming_response(token_streamer)
 
     async def consume_organic_queries(self):
