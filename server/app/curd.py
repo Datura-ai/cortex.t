@@ -36,7 +36,7 @@ def get_items(skip: int = 0, limit: int = 10):
     conn = psycopg2.connect(DATABASE_URL)
     # Create a cursor object to interact with the database
     cur = conn.cursor()
-    query = f"SELECT * FROM {TABEL_NAME};"
+    query = f"SELECT * FROM {TABEL_NAME} offset {skip} limit {limit};"
     cur.execute(query)
     items = cur.fetchall()  # Fetch all results
     return [item for item in items]
