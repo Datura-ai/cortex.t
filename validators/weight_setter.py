@@ -88,7 +88,6 @@ class WeightSetter:
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
-        self.thread_executor = concurrent.futures.ThreadPoolExecutor(thread_name_prefix='asyncio')
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
@@ -101,7 +100,6 @@ class WeightSetter:
 
         organic_thread = threading.Thread(target=self.start_axon_server)
         organic_thread.start()
-        # self.consume_organic_queries()
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
