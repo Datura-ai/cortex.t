@@ -68,6 +68,9 @@ class CortexDendrite(dendrite):
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
                         continue
+                    except ConnectionRefusedError as err:
+                        bt.logging.error(f"can not connect to miner for now. connection failed")
+                        break
                     except ClientConnectorError as err:
                         bt.logging.error(f"can not connect to miner for now. connection failed")
                         break
