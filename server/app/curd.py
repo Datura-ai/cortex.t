@@ -1,3 +1,5 @@
+import traceback
+
 import psycopg2
 import os
 from typing import List
@@ -29,6 +31,7 @@ def create_items(items: List[schemas.ItemCreate]):
         conn.commit()  # Save changes to the database
         print("successfully saved in database")
     except Exception as err:
+        print(err, traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Internal Server Error {err}")
 
 
