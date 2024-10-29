@@ -2,7 +2,7 @@ from typing import Union, AsyncGenerator, Any
 
 import aiohttp
 import bittensor as bt
-from aiohttp import ServerTimeoutError
+from aiohttp import ServerTimeoutError, ClientConnectorError
 from bittensor import dendrite
 import traceback
 import time
@@ -47,14 +47,11 @@ class CortexDendrite(dendrite):
         # Preprocess synapse for making a request
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
         max_try = 0
-        session = CortexDendrite.miner_to_session.get(endpoint)
+        timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
+        connector = aiohttp.TCPConnector(limit=200)
+        session = aiohttp.ClientSession(timeout=timeout, connector=connector)
         try:
             while max_try < 3:
-                if not session:
-                    timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
-                    connector = aiohttp.TCPConnector(limit=200)
-                    session = aiohttp.ClientSession(timeout=timeout, connector=connector)
-                    CortexDendrite.miner_to_session[endpoint] = session
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
@@ -70,6 +67,12 @@ class CortexDendrite(dendrite):
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
                         continue
+                    except ConnectionRefusedError as err:
+                        bt.logging.error(f"can not connect to miner for now. connection failed")
+                        break
+                    except ClientConnectorError as err:
+                        bt.logging.error(f"can not connect to miner for now. connection failed")
+                        break
                     except ServerTimeoutError as err:
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
@@ -84,6 +87,7 @@ class CortexDendrite(dendrite):
             bt.logging.error(f"{e} {traceback.format_exc()}")
         finally:
             synapse.dendrite.process_time = str(time.time() - start_time)
+            await session.close()
 
     async def call_stream_in_batch(
             self,

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from . import curd, models, schemas
-from .database import create_table
+from .database import create_table, conn, cur
 from typing import List
 
 
@@ -15,6 +15,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    cur.close()
+    conn.close()
+
+
 # Create an item
 @app.post("/items")
 def create_item(items: List[schemas.ItemCreate]):
@@ -22,7 +28,7 @@ def create_item(items: List[schemas.ItemCreate]):
 
 
 # Read all items
-@app.get("/items", response_model=list)
+@app.get("/items")
 def read_items(skip: int = 0, limit: int = 10):
     items = curd.get_items(skip=skip, limit=limit)
     return items
