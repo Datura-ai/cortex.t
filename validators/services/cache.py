@@ -91,9 +91,9 @@ class QueryResponseCache:
                                        "model",
                                        "required_hash_fields", "computed_body_hash", "streaming", "deserialize_flag",
                                        "task_id", })),
-                          "answer": syn.completion,
-                          "provider": syn.provider,
-                          "model": syn.model,
+                          "answer": syn.completion or "",
+                          "provider": syn.provider or "",
+                          "model": syn.model or "",
                           "timestamp": last_update_time})
 
         if self.send_to_central_server(central_server_url, datas):
