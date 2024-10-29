@@ -2,7 +2,7 @@ from typing import Union, AsyncGenerator, Any
 
 import aiohttp
 import bittensor as bt
-from aiohttp import ServerTimeoutError
+from aiohttp import ServerTimeoutError, ClientConnectorError
 from bittensor import dendrite
 import traceback
 import time
@@ -49,9 +49,10 @@ class CortexDendrite(dendrite):
         max_try = 0
         timeout = aiohttp.ClientTimeout(total=300, connect=timeout, sock_connect=timeout, sock_read=timeout)
         connector = aiohttp.TCPConnector(limit=200)
-        session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+        session = None
         try:
             while max_try < 3:
+                session = aiohttp.ClientSession(timeout=timeout, connector=connector)
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
@@ -67,6 +68,9 @@ class CortexDendrite(dendrite):
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
                         continue
+                    except ClientConnectorError as err:
+                        bt.logging.error(f"can not connect to miner for now. connection failed")
+                        break
                     except ServerTimeoutError as err:
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
