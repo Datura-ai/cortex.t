@@ -364,9 +364,14 @@ async def main():
     prompts = await generate_prompts(num_prompts)
     synapses = [StreamPrompting(
         messages=[{"role": "user", "content": prompt}],
-        provider="Groq",
-        model="llama-3.1-70b-versatile"
+        provider="Anthropic",
+        model="claude-3-5-sonnet-20240620"
     ) for prompt in prompts]
+    # synapses = [StreamPrompting(
+    #     messages=[{"role": "user", "content": prompt}],
+    #     provider="Groq",
+    #     model="llama-3.1-70b-versatile"
+    # ) for prompt in prompts]
 
     async def query_and_log(synapse):
         return await query_miner(dendrite, axon_to_use, synapse)
