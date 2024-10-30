@@ -369,8 +369,8 @@ class StreamPrompting(bt.StreamingSynapse):
     async def process_streaming_response(self, response: StreamingResponse, organic=True) -> AsyncIterator[str]:
         if self.completion is None:
             self.completion = ""
-        chunk_size = 100 if organic else 1024
-        async for chunk in response.content.iter_chunked(chunk_size):
+        # chunk_size = 100 if organic else 1024
+        async for chunk in response.content.iter_any():
             tokens = chunk.decode("utf-8")
             self.completion += tokens
             yield tokens
