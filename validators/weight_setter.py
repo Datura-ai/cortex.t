@@ -255,47 +255,50 @@ class WeightSetter:
         else:
             return False
 
+    async def perform_synthetic_queries_one_cycle(self):
+        start_time = time.time()
+        # don't process any organic query while processing synthetic queries.
+        async with self.lock:
+            synthetic_tasks = []
+            # check available bandwidth and send synthetic requests to all miners.
+            query_synapses = await self.create_query_syns_for_remaining_bandwidth()
+            for query_syn in query_synapses:
+                uid = self.task_mgr.assign_task(query_syn)
+                if uid is None:
+                    bt.logging.debug(f"No available uids for synthetic query process.")
+                synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
+
+        bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
+
+        # restore capacities immediately after synthetic query consuming all bandwidth.
+        self.task_mgr.restore_capacities_for_all_miners()
+
+        random.shuffle(synthetic_tasks)
+        batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
+        while batched_tasks:
+            start_time_batch = time.time()
+            await asyncio.gather(*batched_tasks, return_exceptions=True)
+            bt.logging.debug(
+                f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
+            bt.logging.debug(f"remain tasks: {len(remain_tasks)}")
+
+            batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
+
+        bt.logging.info(
+            f"synthetic queries has been processed successfully."
+            f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
+        self.synthetic_task_done = True
+
+        bt.logging.info(
+            f"synthetic queries and answers has been processed in cache successfully. total times {time.time() - start_time}")
+
     async def perform_synthetic_queries(self):
         while True:
             if not self.is_cycle_end():
                 await asyncio.sleep(12)
                 continue
             self.set_up_next_block_to_wait()
-            start_time = time.time()
-            # don't process any organic query while processing synthetic queries.
-            async with self.lock:
-                synthetic_tasks = []
-                # check available bandwidth and send synthetic requests to all miners.
-                query_synapses = await self.create_query_syns_for_remaining_bandwidth()
-                for query_syn in query_synapses:
-                    uid = self.task_mgr.assign_task(query_syn)
-                    if uid is None:
-                        bt.logging.debug(f"No available uids for synthetic query process.")
-                    synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
-
-            bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
-
-            # restore capacities immediately after synthetic query consuming all bandwidth.
-            self.task_mgr.restore_capacities_for_all_miners()
-
-            random.shuffle(synthetic_tasks)
-            batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(synthetic_tasks)
-            while batched_tasks:
-                start_time_batch = time.time()
-                await asyncio.gather(*batched_tasks, return_exceptions=True)
-                bt.logging.debug(
-                    f"batch size {len(batched_tasks)} has been processed and time elapsed: {time.time() - start_time_batch}")
-                bt.logging.debug(f"remain tasks: {len(remain_tasks)}")
-
-                batched_tasks, remain_tasks = self.pop_synthetic_tasks_max_100_per_miner(remain_tasks)
-
-            bt.logging.info(
-                f"synthetic queries has been processed successfully."
-                f"total queries are {len(query_synapses)}: total {time.time() - start_time} elapsed")
-            self.synthetic_task_done = True
-
-            bt.logging.info(
-                f"synthetic queries and answers has been processed in cache successfully. total times {time.time() - start_time}")
+            self.loop.create_task(self.perform_synthetic_queries_one_cycle())
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
         batch_size = 3000
@@ -528,6 +531,7 @@ class WeightSetter:
                 timeout=synapse.timeout,
             )
             return await handle_response(responses)
+
         token_streamer = partial(_prompt, synapse)
 
         return synapse.create_streaming_response(token_streamer)
