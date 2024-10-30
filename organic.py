@@ -3,8 +3,6 @@ import aiohttp
 import asyncio
 import traceback
 import random
-from cortext.dendrite import CortexDendrite
-from cortext.protocol import StreamPrompting
 import bittensor as bt
 from aiohttp import ServerTimeoutError, ClientConnectorError
 from bittensor import dendrite
