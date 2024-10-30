@@ -364,9 +364,14 @@ async def main():
     prompts = await generate_prompts(num_prompts)
     synapses = [StreamPrompting(
         messages=[{"role": "user", "content": prompt}],
-        provider="Anthropic",
-        model="claude-3-5-sonnet-20240620"
+        provider="OpenAI",
+        model="gpt-4o"
     ) for prompt in prompts]
+    # synapses = [StreamPrompting(
+    #     messages=[{"role": "user", "content": prompt}],
+    #     provider="Anthropic",
+    #     model="claude-3-5-sonnet-20240620"
+    # ) for prompt in prompts]
     # synapses = [StreamPrompting(
     #     messages=[{"role": "user", "content": prompt}],
     #     provider="Groq",
