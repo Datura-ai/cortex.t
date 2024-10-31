@@ -17,7 +17,7 @@ class Filters(BaseModel):
 
 
 class RequestBody(BaseModel):
-    filters: Optional[Filters]
+    filters: Optional[Filters] = Field(..., description="filter for searching")
     search: Optional[Union[int, str]] = Field(..., description="An integer ID or a string search key")
     sort_by: Optional[str] = Field("miner_uid", description="Field to sort by")
     sort_order: Optional[str] = Field("desc", pattern="^(asc|desc)$", description="Sorting order, 'asc' or 'desc'")

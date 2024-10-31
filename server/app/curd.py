@@ -53,6 +53,7 @@ def get_items(req_body: models.RequestBody):
     cur = conn.cursor()
     skip = req_body.skip
     limit = req_body.limit
+
     filter_by_miner_score = f"score>={req_body.filters.min_score}" if req_body.filters.min_score else ""
     filter_by_miner_similarity = f"score>={req_body.filters.min_similarity}" if req_body.filters.min_similarity else ""
     filter_by_provider = f"provider={req_body.filters.provider}" if req_body.filters.provider else ""
@@ -63,15 +64,16 @@ def get_items(req_body: models.RequestBody):
     filter_by_block_num = f"epoch_num={req_body.filters.block_num}" if req_body.filters.block_num else ""
     filter_by_cycle_num = f"epoch_num={req_body.filters.cycle_num}" if req_body.filters.cycle_num else ""
     filter_by_name = f"epoch_num={req_body.filters.name}" if req_body.filters.name else ""
-
     search_by_uid_or_hotkey = (f"miner_hot_key like %{req_body.search}%" if str(req_body.search).isdigit()
                                else f"miner_uid like %{req_body.search}%") if req_body.search else ""
+    conditions = [filter_by_miner_score, filter_by_miner_similarity, filter_by_provider, filter_by_model,
+                  filter_by_min_timestamp,
+                  filter_by_max_timestamp, filter_by_epoch_num, filter_by_block_num, filter_by_cycle_num,
+                  filter_by_name, search_by_uid_or_hotkey]
+    conditions = [item for item in conditions if item]
+    conditions_query = " and ".join(conditions)
     order_by = f"order by {req_body.sort_by} {req_body.sort_order}"
-    query = (f"SELECT * FROM {TABEL_NAME} where {filter_by_miner_score} and "
-             f"{filter_by_miner_similarity} and {filter_by_provider} and"
-             f"{filter_by_model} and {filter_by_min_timestamp} and {filter_by_max_timestamp} "
-             f"and {filter_by_epoch_num} and {filter_by_block_num} and {filter_by_cycle_num} "
-             f"and {filter_by_name} and {search_by_uid_or_hotkey} offset {skip} limit {limit} {order_by};")
+    query = f"SELECT * FROM {TABEL_NAME} where {conditions_query} {order_by} limit {limit} offset {skip};"
     cur.execute(query)
     items = cur.fetchall()  # Fetch all results
     return [item for item in items]
