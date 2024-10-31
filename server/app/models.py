@@ -16,3 +16,5 @@ class RequestBody(BaseModel):
     search: Union[int, str] = Field(..., description="An integer ID or a string search key")
     sort_by: str = Field("miner", description="Field to sort by")
     sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sorting order, 'asc' or 'desc'")
+    skip: int = Field(0, description="skip for pagination")
+    limit: int = Field(100, description="skip for pagination")

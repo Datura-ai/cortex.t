@@ -28,9 +28,9 @@ def create_item(items: List[schemas.ItemCreate]):
 
 
 # Read all items
-@app.get("/items")
-def read_items(skip: int = 0, limit: int = 10):
-    items = curd.get_items(skip=skip, limit=limit)
+@app.post("/search")
+def read_items(req_body: models.RequestBody):
+    items = curd.get_items(req_body)
     return items
 
 

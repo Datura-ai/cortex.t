@@ -47,23 +47,18 @@ def create_items(items: List[schemas.ItemCreate]):
         raise HTTPException(status_code=500, detail=f"Internal Server Error {err}")
 
 
-def get_items(skip: int = 0, limit: int = 10):
-    req_body = {
-        "filters": {
-            "min_score": 0,
-            "min_similarity": 120,
-            "model": "",
-            "provider": "",
-            "min_timestamp": 12345,
-            "max_timestamp": 12345
-        },
-        "search": 123 or "2FXABC",
-        "sort_by": "miner_uid",
-        "sort_order": "desc"
-    }
+def get_items(req_body: models.RequestBody):
     conn = psycopg2.connect(DATABASE_URL)
     # Create a cursor object to interact with the database
     cur = conn.cursor()
+    skip = req_body.skip
+    limit = req_body.limit
+    filter_by_miner_score = f"score>={req_body.filters.min_score}"
+    filter_by_miner_similarity = f"score>={req_body.filters.min_similarity}"
+    filter_by_provider = f"provider={req_body.filters.provider}"
+    filter_by_model = f"model={req_body.filters.model}"
+    filter_by_min_timestamp = f"timestamp>{req_body.filters.min_timestamp}"
+    filter_by_max_timestamp = f"timestamp<={req_body.filters.max_timestamp}"
     query = f"SELECT * FROM {TABEL_NAME} offset {skip} limit {limit} ;"
     cur.execute(query)
     items = cur.fetchall()  # Fetch all results
