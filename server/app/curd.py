@@ -1,10 +1,7 @@
 import traceback
 
 import psycopg2
-import os
 from typing import List
-
-from setup import requirements
 from . import models, schemas
 from .database import cur, TABEL_NAME, conn, DATABASE_URL
 from fastapi import HTTPException
