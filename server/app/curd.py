@@ -3,6 +3,7 @@ import traceback
 import psycopg2
 import os
 from typing import List
+
 from . import models, schemas
 from .database import cur, TABEL_NAME, conn, DATABASE_URL
 from fastapi import HTTPException
@@ -34,7 +35,8 @@ def create_items(items: List[schemas.ItemCreate]):
         cycle_num = item.question.get("cycle_num")
         block_num = item.question.get("block_num")
         name = item.question.get("name")
-        datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp, miner_hot_key, miner_uid,
+        datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp, miner_hot_key,
+                      miner_uid,
                       score, similarity, vali_uid, timeout, time_taken, epoch_num, cycle_num, block_num, name))
     try:
         if conn.closed:
@@ -57,9 +59,16 @@ def get_items(req_body: models.RequestBody):
     filter_by_miner_similarity = f"score>={req_body.filters.min_similarity}"
     filter_by_provider = f"provider={req_body.filters.provider}"
     filter_by_model = f"model={req_body.filters.model}"
-    filter_by_min_timestamp = f"timestamp>{req_body.filters.min_timestamp}"
+    filter_by_min_timestamp = f"timestamp>={req_body.filters.min_timestamp}"
     filter_by_max_timestamp = f"timestamp<={req_body.filters.max_timestamp}"
-    query = f"SELECT * FROM {TABEL_NAME} offset {skip} limit {limit} ;"
+    filter_by_epoch_num = f"epoch_num={req_body.filters.epoch_num}"
+    filter_by_block_num = f"epoch_num={req_body.filters.block_num}"
+    filter_by_cycle_num = f"epoch_num={req_body.filters.cycle_num}"
+    filter_by_name = f"epoch_num={req_body.filters.name}"
+    search_by_uid_or_hotkey = f"miner_hot_key like %{req_body.search}%" if str(req_body.search).isdigit() \
+        else f"miner_uid like %{req_body.search}%"
+    order_by = f"order by {req_body.sort_by} {req_body.sort_order}"
+    query = f"SELECT * FROM {TABEL_NAME} offset {skip} limit {limit};"
     cur.execute(query)
     items = cur.fetchall()  # Fetch all results
     return [item for item in items]
