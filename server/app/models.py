@@ -17,9 +17,9 @@ class Filters(BaseModel):
 
 
 class RequestBody(BaseModel):
-    filters: Filters
-    search: Union[int, str] = Field(..., description="An integer ID or a string search key")
-    sort_by: str = Field("miner_uid", description="Field to sort by")
-    sort_order: str = Field("desc", pattern="^(asc|desc)$", description="Sorting order, 'asc' or 'desc'")
-    skip: int = Field(0, description="skip for pagination")
-    limit: int = Field(100, description="skip for pagination")
+    filters: Optional[Filters]
+    search: Optional[Union[int, str]] = Field(..., description="An integer ID or a string search key")
+    sort_by: Optional[str] = Field("miner_uid", description="Field to sort by")
+    sort_order: Optional[str] = Field("desc", pattern="^(asc|desc)$", description="Sorting order, 'asc' or 'desc'")
+    skip: Optional[int] = Field(0, description="skip for pagination")
+    limit: Optional[int] = Field(100, description="skip for pagination")
