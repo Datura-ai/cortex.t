@@ -26,7 +26,18 @@ async def create_table(app):
             answer TEXT,
             provider VARCHAR(100),
             model VARCHAR(100),
-            timestamp FLOAT
+            timestamp FLOAT,
+            miner_hot_key VARCHAR(100),
+            miner_uid VARCHAR(100),
+            score FLOAT,
+            similarity FLOAT,
+            vali_uid VARCHAR(100),
+            timeout VARCHAR(100),
+            time_taken VARCHAR(100),
+            epoch_num VARCHAR(100),
+            cycle_num VARCHAR(100),
+            block_num VARCHAR(100),
+            name VARCHAR(100)
         );
         """
 

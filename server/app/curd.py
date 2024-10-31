@@ -23,7 +23,19 @@ def create_items(items: List[schemas.ItemCreate]):
     query = f"INSERT INTO {TABEL_NAME} (p_key, question, answer, provider, model, timestamp) VALUES (%s, %s, %s, %s, %s, %s)"
     datas = []
     for item in items:
-        datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp))
+        miner_hot_key = item.question.get("miner_info", {}).get("miner_id")
+        miner_uid = item.question.get("miner_info", {}).get("miner_hotkey")
+        score = item.question.get("score")
+        similarity = item.question.get("similarity")
+        vali_uid = item.question.get("validator_info").get("vali_uid")
+        timeout = item.question.get("timeout")
+        time_taken = item.question.get("time_taken")
+        epoch_num = item.question.get("epoch_num")
+        cycle_num = item.question.get("cycle_num")
+        block_num = item.question.get("block_num")
+        name = item.question.get("name")
+        datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp, miner_hot_key, miner_uid,
+                      score, similarity, vali_uid, timeout, time_taken, epoch_num, cycle_num, block_num, name))
     try:
         if conn.closed:
             print("connection is closed already")
@@ -46,7 +58,7 @@ def get_items(skip: int = 0, limit: int = 10):
             "max_timestamp": 12345
         },
         "search": 123 or "2FXABC",
-        "sort_by": "miner",
+        "sort_by": "miner_uid",
         "sort_order": "desc"
     }
     conn = psycopg2.connect(DATABASE_URL)
