@@ -3,16 +3,16 @@ from pydantic import BaseModel, Field
 
 
 class Filters(BaseModel):
-    min_score: int = Field(0, ge=0)
-    min_similarity: int = Field(0.0, ge=0)
+    min_score: float = Field(0, ge=0)
+    min_similarity: float = Field(0.0, ge=0)
     model: Optional[str] = Field("")
     provider: Optional[str] = Field("")
-    epoch_num: Optional[str] = Field("")
-    cycle_num: Optional[str] = Field("")
-    block_num: Optional[str] = Field("")
+    epoch_num: Optional[int] = Field("")
+    cycle_num: Optional[int] = Field("")
+    block_num: Optional[int] = Field("")
     name: Optional[str] = Field("")
-    min_timestamp: Optional[int] = Field(0, ge=0)
-    max_timestamp: Optional[int] = Field(999999999999, ge=0)
+    min_timestamp: Optional[float] = Field(0, ge=0)
+    max_timestamp: Optional[float] = Field(999999999999, ge=0)
 
 
 
