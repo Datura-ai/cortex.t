@@ -1,3 +1,4 @@
+import json
 import traceback
 
 import psycopg2
@@ -19,23 +20,27 @@ def create_items(items: List[schemas.ItemCreate]):
     conn = psycopg2.connect(DATABASE_URL)
     # Create a cursor object to interact with the database
     cur = conn.cursor()
-    query = f"INSERT INTO {TABEL_NAME} (p_key, question, answer, provider, model, timestamp) VALUES (%s, %s, %s, %s, %s, %s)"
+    query = (f"INSERT INTO {TABEL_NAME} (p_key, question, answer, provider, model, timestamp, miner_hot_key, miner_uid"
+             f", score, similarity, vali_uid, timeout, time_taken, epoch_num, cycle_num, block_num"
+             f", name) VALUES (%s, %s, %s, %s, %s, %s"
+             f", %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)")
     datas = []
     for item in items:
-        miner_hot_key = item.question.get("miner_info", {}).get("miner_id")
-        miner_uid = item.question.get("miner_info", {}).get("miner_hotkey")
-        score = item.question.get("score")
-        similarity = item.question.get("similarity")
-        vali_uid = item.question.get("validator_info").get("vali_uid")
-        timeout = item.question.get("timeout")
-        time_taken = item.question.get("time_taken")
-        epoch_num = item.question.get("epoch_num")
-        cycle_num = item.question.get("cycle_num")
-        block_num = item.question.get("block_num")
-        name = item.question.get("name")
+        question = json.loads(item.question)
+        miner_uid = question.get("miner_info", {}).get("miner_id") or 99999
+        miner_hot_key = question.get("miner_info", {}).get("miner_hotkey") or ""
+        score = question.get("score") or 0
+        similarity = question.get("similarity") or 0
+        vali_uid = question.get("validator_info").get("vali_uid")
+        timeout = question.get("timeout")
+        time_taken = question.get("time_taken")
+        epoch_num = question.get("epoch_num")
+        cycle_num = question.get("cycle_num")
+        block_num = question.get("block_num")
+        name = question.get("name") or ""
         datas.append((item.p_key, item.question, item.answer, item.provider, item.model, item.timestamp, miner_hot_key,
-                      miner_uid,
-                      score, similarity, vali_uid, timeout, time_taken, epoch_num, cycle_num, block_num, name))
+                      miner_uid, score, similarity, vali_uid, timeout,
+                      time_taken, epoch_num, cycle_num, block_num, name))
     try:
         if conn.closed:
             print("connection is closed already")

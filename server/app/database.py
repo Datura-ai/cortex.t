@@ -28,15 +28,15 @@ async def create_table(app):
             model VARCHAR(100),
             timestamp FLOAT,
             miner_hot_key VARCHAR(100),
-            miner_uid VARCHAR(100),
+            miner_uid INTEGER,
             score FLOAT,
             similarity FLOAT,
-            vali_uid VARCHAR(100),
-            timeout VARCHAR(100),
-            time_taken VARCHAR(100),
-            epoch_num VARCHAR(100),
-            cycle_num VARCHAR(100),
-            block_num VARCHAR(100),
+            vali_uid INTEGER,
+            timeout INTEGER,
+            time_taken INTEGER,
+            epoch_num INTEGER,
+            cycle_num INTEGER,
+            block_num INTEGER,
             name VARCHAR(100)
         );
         """
