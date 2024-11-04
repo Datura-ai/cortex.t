@@ -2,9 +2,11 @@ import json
 import traceback
 
 import psycopg2
+from psycopg2.extras import RealDictCursor
 from typing import List
+
 from . import models, schemas
-from .database import cur, TABEL_NAME, conn, DATABASE_URL
+from .database import TABEL_NAME, DATABASE_URL
 from fastapi import HTTPException
 
 
@@ -54,8 +56,7 @@ def create_items(items: List[schemas.ItemCreate]):
 
 def get_items(req_body: models.RequestBody):
     conn = psycopg2.connect(DATABASE_URL)
-    # Create a cursor object to interact with the database
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     skip = req_body.skip
     limit = req_body.limit
 
@@ -81,7 +82,9 @@ def get_items(req_body: models.RequestBody):
     query = f"SELECT * FROM {TABEL_NAME} where {conditions_query} {order_by} limit {limit} offset {skip};"
     cur.execute(query, (f"%{req_body.search}%" if not str(req_body.search).isdigit() else str(req_body.search),))
     items = cur.fetchall()  # Fetch all results
-    return [item for item in items]
+    cur.close()
+    conn.close()
+    return items
 
 
 def get_item(p_key: int):
