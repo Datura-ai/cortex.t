@@ -1,12 +1,10 @@
 import asyncio
-import concurrent
 import random
 import threading
-import traceback
+import json
 
 import torch
 import time
-import requests
 
 from black.trans import defaultdict
 from substrateinterface import SubstrateInterface
@@ -15,7 +13,6 @@ from typing import Tuple
 import bittensor as bt
 from bittensor import StreamingSynapse
 import cortext
-import json
 from starlette.types import Send
 
 from cortext.protocol import IsAlive, StreamPrompting, ImageResponse, Embeddings
@@ -26,6 +23,7 @@ from validators.utils import error_handler, setup_max_capacity, load_entire_ques
 from validators.task_manager import TaskMgr
 from cortext.dendrite import CortexDendrite
 from cortext.axon import CortexAxon
+from fastapi import HTTPException
 
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
@@ -483,6 +481,8 @@ class WeightSetter:
 
     async def prompt(self, synapse: StreamPrompting) -> StreamingSynapse.BTStreamingResponse:
         bt.logging.info(f"Received {synapse}")
+        if len(json.dumps(synapse.messages)) > 1024:
+            raise HTTPException(status_code=413, detail="Request entity too large")
 
         async def _prompt(query_synapse: StreamPrompting, send: Send):
             query_synapse.deserialize_flag = False
