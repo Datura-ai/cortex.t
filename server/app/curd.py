@@ -81,6 +81,7 @@ def get_items(req_body: models.RequestBody):
     conditions_query = " and ".join(conditions)
     order_by = f"order by {req_body.sort_by} {req_body.sort_order}"
     query = f"SELECT * FROM {TABEL_NAME} where {conditions_query} {order_by} limit {limit} offset {skip};"
+    print(query)
     query_cnt = f"SELECT count(*) FROM {TABEL_NAME} where {conditions_query}"
     start_time = time.time()
     cur.execute(query, (f"%{req_body.search}%" if not str(req_body.search).isdigit() else str(req_body.search),))
