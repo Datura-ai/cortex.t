@@ -1,4 +1,5 @@
 import json
+import time
 import traceback
 
 import psycopg2
@@ -81,10 +82,14 @@ def get_items(req_body: models.RequestBody):
     order_by = f"order by {req_body.sort_by} {req_body.sort_order}"
     query = f"SELECT * FROM {TABEL_NAME} where {conditions_query} {order_by} limit {limit} offset {skip};"
     query_cnt = f"SELECT count(*) FROM {TABEL_NAME} where {conditions_query}"
+    start_time = time.time()
     cur.execute(query, (f"%{req_body.search}%" if not str(req_body.search).isdigit() else str(req_body.search),))
+    print(f"execution query has been completed. {time.time() - start_time}")
     items = cur.fetchall()  # Fetch all results
+    print(f"loaded to python object array. {time.time() - start_time}")
     cur.execute(query_cnt, (f"%{req_body.search}%" if not str(req_body.search).isdigit() else str(req_body.search),))
     cnt = cur.fetchone().get('count')
+    print(f"all query execution has been succeed. {time.time() - start_time}")
     cur.close()
     conn.close()
     return {"records": items, "total_count": cnt, "limit": limit, "skip": skip}
