@@ -93,7 +93,7 @@ def get_items(req_body: models.RequestBody):
     # print(f"all query execution has been succeed. {time.time() - start_time}")
     cur.close()
     conn.close()
-    return {"records": items, "total_count": cnt, "limit": limit, "skip": skip}
+    return {"records": items, "limit": limit, "skip": skip}
 
 
 def get_item(p_key: int):
