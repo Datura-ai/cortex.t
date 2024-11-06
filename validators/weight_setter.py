@@ -599,6 +599,9 @@ class WeightSetter:
             if not self.is_epoch_end():
                 bt.logging.debug("no end of epoch. so continue...")
                 continue
+            if not self.synthetic_task_done:
+                bt.logging.debug("wait for synthetic tasks to complete.")
+                continue
 
             bt.logging.info(f"start scoring process...")
 
