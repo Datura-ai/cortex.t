@@ -519,7 +519,7 @@ class WeightSetter:
                         'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
                                                                                       metagraph=self.metagraph)
                     })
-                    synapse.time_taken = self.dendrite.process_time
+                    synapse.time_taken = synapse.dendrite.process_time
 
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
