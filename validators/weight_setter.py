@@ -348,7 +348,7 @@ class WeightSetter:
     async def check_uid(self, axon, uid):
         """Asynchronously check if a UID is available."""
         try:
-            response = await self.dendrite(axon, IsAlive(), timeout=4)
+            response = await self.dendrite(axon, IsAlive(), timeout=30)
             if response.completion == 'True':
                 bt.logging.trace(f"UID {uid} is active")
                 return axon  # Return the axon info instead of the UID
@@ -598,6 +598,9 @@ class WeightSetter:
                 continue
             if not self.is_epoch_end():
                 bt.logging.debug("no end of epoch. so continue...")
+                continue
+            if not self.synthetic_task_done:
+                bt.logging.debug("wait for synthetic tasks to complete.")
                 continue
 
             bt.logging.info(f"start scoring process...")
