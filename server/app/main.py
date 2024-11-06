@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from . import curd, models, schemas
 from .database import create_table, conn, cur
 from typing import List
@@ -13,6 +14,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+)
 
 
 @app.on_event("shutdown")
@@ -28,9 +33,9 @@ def create_item(items: List[schemas.ItemCreate]):
 
 
 # Read all items
-@app.get("/items")
-def read_items(skip: int = 0, limit: int = 10):
-    items = curd.get_items(skip=skip, limit=limit)
+@app.post("/items/search")
+def read_items(req_body: models.RequestBody):
+    items = curd.get_items(req_body)
     return items
 
 

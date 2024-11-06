@@ -26,7 +26,18 @@ async def create_table(app):
             answer TEXT,
             provider VARCHAR(100),
             model VARCHAR(100),
-            timestamp FLOAT
+            timestamp FLOAT,
+            miner_hot_key VARCHAR(100),
+            miner_uid INTEGER,
+            score FLOAT,
+            similarity FLOAT,
+            vali_uid INTEGER,
+            timeout INTEGER,
+            time_taken INTEGER,
+            epoch_num INTEGER,
+            cycle_num INTEGER,
+            block_num INTEGER,
+            name VARCHAR(100)
         );
         """
 
@@ -35,6 +46,9 @@ async def create_table(app):
         conn.commit()  # Save changes
         create_index_query = f"""
         CREATE INDEX IF NOT EXISTS question_answer_index ON {TABEL_NAME} (provider, model);
+        CREATE INDEX IF NOT EXISTS miner_id_index ON {TABEL_NAME} (miner_uid);
+        CREATE INDEX IF NOT EXISTS miner_hot_key_index ON {TABEL_NAME} (miner_hot_key);
+        CREATE INDEX IF NOT EXISTS idx_score_sim_timestamp ON {TABEL_NAME} (score, similarity, timestamp);
         """
         cur.execute(create_index_query)
         conn.commit()
