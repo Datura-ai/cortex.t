@@ -10,7 +10,7 @@ class CapacityService:
     def __init__(self, metagraph, dendrite):
         self.metagraph = metagraph
         self.dendrite: bt.dendrite = dendrite
-        self.timeout = 4
+        self.timeout = 30
         self.uid_to_capacity = {}
         self.remain_uid_to_capacity = {}
 
