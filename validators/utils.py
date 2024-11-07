@@ -191,7 +191,7 @@ def load_entire_questions():
             try:
                 return await response.json()
             except Exception as err:
-                bt.logging.error(f"{err} {traceback.format_exc()}")
+                pass
 
     # Asynchronous function to gather multiple HTTP requests
     async def gather_requests(urls):

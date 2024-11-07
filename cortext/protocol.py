@@ -1,3 +1,4 @@
+import asyncio
 from typing import AsyncIterator, Dict, List, Optional, Union
 import bittensor as bt
 import pydantic
@@ -369,11 +370,17 @@ class StreamPrompting(bt.StreamingSynapse):
     async def process_streaming_response(self, response: StreamingResponse, organic=True) -> AsyncIterator[str]:
         if self.completion is None:
             self.completion = ""
-        chunk_size = 100 if organic else 1024
-        async for chunk in response.content.iter_chunked(chunk_size):
-            tokens = chunk.decode("utf-8")
-            self.completion += tokens
-            yield tokens
+        chunk_size = 100 if organic else 1000
+        remain_chunk = ""
+        try:
+            async for chunk in response.content.iter_chunked(chunk_size):
+                tokens = chunk.decode("utf-8")
+                remain_chunk = tokens
+                self.completion += tokens
+                yield tokens
+        except asyncio.TimeoutError as err:
+            yield remain_chunk
+
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
         headers = {

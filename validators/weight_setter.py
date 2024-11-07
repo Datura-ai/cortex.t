@@ -190,17 +190,16 @@ class WeightSetter:
                         bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
-                async with self.lock:
-                    self.query_database.append({
-                        'uid': uid,
-                        'synapse': query_syn,
-                        'response': (response_text, query_syn.dendrite.process_time),
-                        'query_type': 'organic',
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
-                                                                                      metagraph=self.metagraph)
-                    })
-                    query_syn.time_taken = query_syn.dendrite.process_time
+                self.query_database.append({
+                    'uid': uid,
+                    'synapse': query_syn,
+                    'response': (response_text, query_syn.dendrite.process_time),
+                    'query_type': 'organic',
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                  metagraph=self.metagraph)
+                })
+                query_syn.time_taken = query_syn.dendrite.process_time
 
             axon = self.metagraph.axons[uid]
             response = self.dendrite.call_stream(
@@ -256,15 +255,14 @@ class WeightSetter:
     async def perform_synthetic_queries_one_cycle(self):
         start_time = time.time()
         # don't process any organic query while processing synthetic queries.
-        async with self.lock:
-            synthetic_tasks = []
-            # check available bandwidth and send synthetic requests to all miners.
-            query_synapses = await self.create_query_syns_for_remaining_bandwidth()
-            for query_syn in query_synapses:
-                uid = self.task_mgr.assign_task(query_syn)
-                if uid is None:
-                    bt.logging.debug(f"No available uids for synthetic query process.")
-                synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
+        synthetic_tasks = []
+        # check available bandwidth and send synthetic requests to all miners.
+        query_synapses = await self.create_query_syns_for_remaining_bandwidth()
+        for query_syn in query_synapses:
+            uid = self.task_mgr.assign_task(query_syn)
+            if uid is None:
+                bt.logging.debug(f"No available uids for synthetic query process.")
+            synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
 
         bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
@@ -364,13 +362,12 @@ class WeightSetter:
         avg_scores = {}
 
         # Compute average scores per UID
-        async with self.lock:
-            for uid in self.total_scores:
-                count = self.score_counts[uid]
-                if count > 0:
-                    avg_scores[uid] = self.total_scores[uid] / count
-                else:
-                    avg_scores[uid] = 0.0
+        for uid in self.total_scores:
+            count = self.score_counts[uid]
+            if count > 0:
+                avg_scores[uid] = self.total_scores[uid] / count
+            else:
+                avg_scores[uid] = 0.0
 
         bt.logging.info(f"Average scores = {avg_scores}")
 
@@ -444,16 +441,15 @@ class WeightSetter:
 
         bt.logging.info(f"New synapse = {synapse_response}")
         # Store the query and response in the shared database
-        async with self.lock:
-            self.query_database.append({
-                'uid': synapse.uid,
-                'synapse': synapse,
-                'response': synapse_response,
-                'query_type': 'organic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
-                                                                               metagraph=self.metagraph)
-            })
+        self.query_database.append({
+            'uid': synapse.uid,
+            'synapse': synapse,
+            'response': synapse_response,
+            'query_type': 'organic',
+            'timestamp': asyncio.get_event_loop().time(),
+            'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+                                                                           metagraph=self.metagraph)
+        })
 
         return synapse_response
 
@@ -466,16 +462,15 @@ class WeightSetter:
 
         bt.logging.info(f"New synapse = {synapse_response}")
         # Store the query and response in the shared database
-        async with self.lock:
-            self.query_database.append({
-                'uid': synapse.uid,
-                'synapse': synapse,
-                'response': synapse_response,
-                'query_type': 'organic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config,
-                                                                                    metagraph=self.metagraph)
-            })
+        self.query_database.append({
+            'uid': synapse.uid,
+            'synapse': synapse,
+            'response': synapse_response,
+            'query_type': 'organic',
+            'timestamp': asyncio.get_event_loop().time(),
+            'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config,
+                                                                                metagraph=self.metagraph)
+        })
 
         return synapse_response
 
@@ -509,17 +504,16 @@ class WeightSetter:
                         bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
-                async with self.lock:
-                    self.query_database.append({
-                        'uid': synapse.uid,
-                        'synapse': synapse,
-                        'response': (response_text, synapse.dendrite.process_time),
-                        'query_type': 'organic',
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
-                                                                                      metagraph=self.metagraph)
-                    })
-                    synapse.time_taken = self.dendrite.process_time
+                self.query_database.append({
+                    'uid': synapse.uid,
+                    'synapse': synapse,
+                    'response': (response_text, synapse.dendrite.process_time),
+                    'query_type': 'organic',
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                  metagraph=self.metagraph)
+                })
+                synapse.time_taken = synapse.dendrite.process_time
 
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
@@ -605,9 +599,8 @@ class WeightSetter:
 
             bt.logging.info(f"start scoring process...")
 
-            async with self.lock:
-                queries_to_process = self.query_database.copy()
-                self.query_database.clear()
+            queries_to_process = self.query_database.copy()
+            self.query_database.clear()
 
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")
@@ -619,12 +612,11 @@ class WeightSetter:
             resps = await asyncio.gather(*score_tasks)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
-            async with self.lock:
-                for uid_scores_dict, _, _ in resps:
-                    for uid, score in uid_scores_dict.items():
-                        if self.total_scores.get(uid) is not None:
-                            self.total_scores[uid] += score
-                            self.score_counts[uid] += 1
+            for uid_scores_dict, _, _ in resps:
+                for uid, score in uid_scores_dict.items():
+                    if self.total_scores.get(uid) is not None:
+                        self.total_scores[uid] += score
+                        self.score_counts[uid] += 1
             bt.logging.info(
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
