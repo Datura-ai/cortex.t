@@ -1,3 +1,4 @@
+import asyncio
 from typing import Union, AsyncGenerator, Any
 
 import aiohttp
@@ -47,7 +48,7 @@ class CortexDendrite(dendrite):
         # Preprocess synapse for making a request
         synapse: StreamPrompting = self.preprocess_synapse_for_request(target_axon, synapse, timeout)  # type: ignore
         max_try = 0
-        timeout = aiohttp.ClientTimeout(total=100, connect=10, sock_connect=30, sock_read=30)
+        timeout = aiohttp.ClientTimeout(total=100, connect=timeout, sock_connect=timeout, sock_read=timeout)
         connector = aiohttp.TCPConnector(limit=200)
         session = aiohttp.ClientSession(timeout=timeout, connector=connector)
         try:
@@ -63,19 +64,18 @@ class CortexDendrite(dendrite):
                             yield chunk  # Yield each chunk as it's processed
                     except aiohttp.client_exceptions.ClientPayloadError:
                         pass
-                    except TimeoutError as err:
-                        bt.logging.error(f"timeout error happens. max_try is {max_try}")
-                        max_try += 1
-                        continue
                     except ConnectionRefusedError as err:
                         bt.logging.error(f"can not connect to miner for now. connection failed")
-                        break
+                        max_try += 1
+                        continue
                     except ClientConnectorError as err:
-                        bt.logging.error(f"can not connect to miner for now. connection failed")
-                        break
+                        bt.logging.error(f"can not connect to miner for now. retrying")
+                        max_try += 1
+                        continue
                     except ClientConnectionError as err:
-                        bt.logging.error(f"can not connect to miner for now. connection failed")
-                        break
+                        bt.logging.error(f"can not connect to miner for now. retrying")
+                        max_try += 1
+                        continue
                     except ServerTimeoutError as err:
                         bt.logging.error(f"timeout error happens. max_try is {max_try}")
                         max_try += 1
