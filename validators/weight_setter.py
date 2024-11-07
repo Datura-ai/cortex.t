@@ -441,16 +441,15 @@ class WeightSetter:
 
         bt.logging.info(f"New synapse = {synapse_response}")
         # Store the query and response in the shared database
-        async with self.lock:
-            self.query_database.append({
-                'uid': synapse.uid,
-                'synapse': synapse,
-                'response': synapse_response,
-                'query_type': 'organic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
-                                                                               metagraph=self.metagraph)
-            })
+        self.query_database.append({
+            'uid': synapse.uid,
+            'synapse': synapse,
+            'response': synapse_response,
+            'query_type': 'organic',
+            'timestamp': asyncio.get_event_loop().time(),
+            'validator': ValidatorRegistryMeta.get_class('ImageValidator')(config=self.config,
+                                                                           metagraph=self.metagraph)
+        })
 
         return synapse_response
 
@@ -463,16 +462,15 @@ class WeightSetter:
 
         bt.logging.info(f"New synapse = {synapse_response}")
         # Store the query and response in the shared database
-        async with self.lock:
-            self.query_database.append({
-                'uid': synapse.uid,
-                'synapse': synapse,
-                'response': synapse_response,
-                'query_type': 'organic',
-                'timestamp': asyncio.get_event_loop().time(),
-                'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config,
-                                                                                    metagraph=self.metagraph)
-            })
+        self.query_database.append({
+            'uid': synapse.uid,
+            'synapse': synapse,
+            'response': synapse_response,
+            'query_type': 'organic',
+            'timestamp': asyncio.get_event_loop().time(),
+            'validator': ValidatorRegistryMeta.get_class('EmbeddingsValidator')(config=self.config,
+                                                                                metagraph=self.metagraph)
+        })
 
         return synapse_response
 
@@ -506,17 +504,16 @@ class WeightSetter:
                         bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
-                async with self.lock:
-                    self.query_database.append({
-                        'uid': synapse.uid,
-                        'synapse': synapse,
-                        'response': (response_text, synapse.dendrite.process_time),
-                        'query_type': 'organic',
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
-                                                                                      metagraph=self.metagraph)
-                    })
-                    synapse.time_taken = synapse.dendrite.process_time
+                self.query_database.append({
+                    'uid': synapse.uid,
+                    'synapse': synapse,
+                    'response': (response_text, synapse.dendrite.process_time),
+                    'query_type': 'organic',
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                  metagraph=self.metagraph)
+                })
+                synapse.time_taken = synapse.dendrite.process_time
 
                 await send({"type": "http.response.body", "body": b'', "more_body": False})
 
