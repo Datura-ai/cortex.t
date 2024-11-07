@@ -177,7 +177,7 @@ class TextValidator(BaseValidator):
         else:
             bt.logging.error(f"provider {provider} not found")
 
-    @save_or_get_answer_from_cache
+    # @save_or_get_answer_from_cache
     async def get_answer_task(self, uid: int, query_syn: StreamPrompting, response):
         answer = await self.call_api(query_syn.messages, query_syn)
         return answer

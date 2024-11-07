@@ -190,17 +190,16 @@ class WeightSetter:
                         bt.logging.trace(f"Streamed text: {chunk}")
 
                 # Store the query and response in the shared database
-                async with self.lock:
-                    self.query_database.append({
-                        'uid': uid,
-                        'synapse': query_syn,
-                        'response': (response_text, query_syn.dendrite.process_time),
-                        'query_type': 'organic',
-                        'timestamp': asyncio.get_event_loop().time(),
-                        'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
-                                                                                      metagraph=self.metagraph)
-                    })
-                    query_syn.time_taken = query_syn.dendrite.process_time
+                self.query_database.append({
+                    'uid': uid,
+                    'synapse': query_syn,
+                    'response': (response_text, query_syn.dendrite.process_time),
+                    'query_type': 'organic',
+                    'timestamp': asyncio.get_event_loop().time(),
+                    'validator': ValidatorRegistryMeta.get_class('TextValidator')(config=self.config,
+                                                                                  metagraph=self.metagraph)
+                })
+                query_syn.time_taken = query_syn.dendrite.process_time
 
             axon = self.metagraph.axons[uid]
             response = self.dendrite.call_stream(
@@ -256,15 +255,14 @@ class WeightSetter:
     async def perform_synthetic_queries_one_cycle(self):
         start_time = time.time()
         # don't process any organic query while processing synthetic queries.
-        async with self.lock:
-            synthetic_tasks = []
-            # check available bandwidth and send synthetic requests to all miners.
-            query_synapses = await self.create_query_syns_for_remaining_bandwidth()
-            for query_syn in query_synapses:
-                uid = self.task_mgr.assign_task(query_syn)
-                if uid is None:
-                    bt.logging.debug(f"No available uids for synthetic query process.")
-                synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
+        synthetic_tasks = []
+        # check available bandwidth and send synthetic requests to all miners.
+        query_synapses = await self.create_query_syns_for_remaining_bandwidth()
+        for query_syn in query_synapses:
+            uid = self.task_mgr.assign_task(query_syn)
+            if uid is None:
+                bt.logging.debug(f"No available uids for synthetic query process.")
+            synthetic_tasks.append((uid, self.query_miner(uid, query_syn, organic=False)))
 
         bt.logging.debug(f"{time.time() - start_time} elapsed for creating and submitting synthetic queries.")
 
@@ -364,13 +362,12 @@ class WeightSetter:
         avg_scores = {}
 
         # Compute average scores per UID
-        async with self.lock:
-            for uid in self.total_scores:
-                count = self.score_counts[uid]
-                if count > 0:
-                    avg_scores[uid] = self.total_scores[uid] / count
-                else:
-                    avg_scores[uid] = 0.0
+        for uid in self.total_scores:
+            count = self.score_counts[uid]
+            if count > 0:
+                avg_scores[uid] = self.total_scores[uid] / count
+            else:
+                avg_scores[uid] = 0.0
 
         bt.logging.info(f"Average scores = {avg_scores}")
 
@@ -605,9 +602,8 @@ class WeightSetter:
 
             bt.logging.info(f"start scoring process...")
 
-            async with self.lock:
-                queries_to_process = self.query_database.copy()
-                self.query_database.clear()
+            queries_to_process = self.query_database.copy()
+            self.query_database.clear()
 
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")
