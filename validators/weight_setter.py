@@ -615,12 +615,11 @@ class WeightSetter:
             resps = await asyncio.gather(*score_tasks)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
-            async with self.lock:
-                for uid_scores_dict, _, _ in resps:
-                    for uid, score in uid_scores_dict.items():
-                        if self.total_scores.get(uid) is not None:
-                            self.total_scores[uid] += score
-                            self.score_counts[uid] += 1
+            for uid_scores_dict, _, _ in resps:
+                for uid, score in uid_scores_dict.items():
+                    if self.total_scores.get(uid) is not None:
+                        self.total_scores[uid] += score
+                        self.score_counts[uid] += 1
             bt.logging.info(
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
