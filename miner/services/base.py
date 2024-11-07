@@ -57,8 +57,8 @@ class BaseService(metaclass=ServiceRegistryMeta):
 
             # check the stake
             stake = self.metagraph.S[self.metagraph.hotkeys.index(hotkey)]
-            if stake < self.blacklist_amt:
-                return True, f"Blacklisted a low stake {synapse_type} request: {stake} < {self.blacklist_amt} from {hotkey}"
+            # if stake < self.blacklist_amt:
+            #     return True, f"Blacklisted a low stake {synapse_type} request: {stake} < {self.blacklist_amt} from {hotkey}"
 
             return False, f"accepting {synapse_type} request from {hotkey}"
 
