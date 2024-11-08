@@ -86,8 +86,9 @@ class WeightSetter:
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
-        score_thread = threading.Thread(target=self.start_scoring_process)
-        score_thread.start()
+        # score_thread = threading.Thread(target=self.start_scoring_process)
+        # score_thread.start()
+        self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
         self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
