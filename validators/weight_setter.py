@@ -116,7 +116,8 @@ class WeightSetter:
         self.cache.set_vali_info(vali_uid=self.my_uid, vali_hotkey=self.wallet.hotkey.ss58_address)
         while True:
             if not self.saving_datas:
-                time.sleep(1)
+                time.sleep(10)
+                bt.logging.trace("no datas for sending to central server")
             else:
                 bt.logging.info(f"saving responses...")
                 start_time = time.time()
@@ -615,7 +616,7 @@ class WeightSetter:
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
-            resps = await asyncio.gather(*score_tasks)
+            resps = await asyncio.gather(*score_tasks,return_exceptions=True)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
             for uid_scores_dict, _, _ in resps:
