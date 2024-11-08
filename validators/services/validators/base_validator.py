@@ -130,6 +130,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
             uid_provider_model_scores_avg_dict[key] = (avg_score, syns)
 
         # apply weight for each model and calculate score based on weight of models.
+        bt.logging.info("building table data.")
         uid_scores_dict = defaultdict(float)
         table_data = [
             ["uid", "provider", "model", 'similarity', 'weight', 'bandwidth', 'weighted_score']
@@ -157,6 +158,7 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 syn.similarity = avg_score
                 syn.score = weighted_score
 
+        bt.logging.info("showing pretty formated table scores.")
         self.show_pretty_table_score(table_data)
 
         if not len(uid_scores_dict):

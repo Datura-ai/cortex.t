@@ -522,7 +522,7 @@ class WeightSetter:
             responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
-                timeout=synapse.timeout,
+                timeout=synapse.timeout
             )
             return await handle_response(responses)
 
