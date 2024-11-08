@@ -86,7 +86,8 @@ class WeightSetter:
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
-        self.loop.create_task(self.process_queries_from_database())
+        score_thread = threading.Thread(target=self.start_scoring_process)
+        score_thread.start()
 
         self.saving_datas = []
         self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
@@ -101,6 +102,9 @@ class WeightSetter:
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
+
+    def start_scoring_process(self):
+        asyncio.run(self.process_queries_from_database())
 
     def process_synthetic_tasks(self):
         bt.logging.info("starting synthetic tasks.")
