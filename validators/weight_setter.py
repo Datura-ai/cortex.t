@@ -120,7 +120,6 @@ class WeightSetter:
                 bt.logging.trace("no datas for sending to central server")
             else:
                 bt.logging.info(f"saving responses...")
-                start_time = time.time()
                 self.cache.set_cache_in_batch(self.url, [item.get('synapse') for item in self.saving_datas],
                                               block_num=self.current_block or 0,
                                               cycle_num=(self.current_block or 0) // 36,
@@ -393,15 +392,14 @@ class WeightSetter:
         # Update the moving average scores
         self.moving_average_scores = alpha * scores + (1 - alpha) * self.moving_average_scores
         bt.logging.info(f"Updated moving average of weights: {self.moving_average_scores}")
-        await self.run_sync_in_async(
-            lambda: self.subtensor.set_weights(
-                netuid=self.config.netuid,
-                wallet=self.wallet,
-                uids=self.metagraph.uids,
-                weights=self.moving_average_scores,
-                wait_for_inclusion=True,
-                version_key=cortext.__weights_version__,
-            )
+
+        self.subtensor.set_weights(
+            netuid=self.config.netuid,
+            wallet=self.wallet,
+            uids=self.metagraph.uids,
+            weights=self.moving_average_scores,
+            wait_for_inclusion=True,
+            version_key=cortext.__weights_version__,
         )
         bt.logging.success("Successfully included weights in block.")
 
@@ -616,7 +614,7 @@ class WeightSetter:
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
-            resps = await asyncio.gather(*score_tasks,return_exceptions=True)
+            resps = await asyncio.gather(*score_tasks, return_exceptions=True)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
             for uid_scores_dict, _, _ in resps:
