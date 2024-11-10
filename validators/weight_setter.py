@@ -392,7 +392,7 @@ class WeightSetter:
         # Update the moving average scores
         self.moving_average_scores = alpha * scores + (1 - alpha) * self.moving_average_scores
         bt.logging.info(f"Updated moving average of weights: {self.moving_average_scores}")
-
+        start_time = time.time()
         self.subtensor.set_weights(
             netuid=self.config.netuid,
             wallet=self.wallet,
@@ -401,7 +401,7 @@ class WeightSetter:
             wait_for_inclusion=True,
             version_key=cortext.__weights_version__,
         )
-        bt.logging.success("Successfully included weights in block.")
+        bt.logging.success(f"Successfully included weights in block. {time.time() - start_time} elaspsed for updating weights.")
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
