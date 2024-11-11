@@ -295,11 +295,11 @@ class WeightSetter:
 
     async def perform_synthetic_queries(self):
         while True:
-            # if not self.is_cycle_end():
-            #     await asyncio.sleep(12)
-            #     continue
-            # self.set_up_next_block_to_wait()
-            await asyncio.sleep(432)
+            if not self.is_cycle_end():
+                await asyncio.sleep(12)
+                continue
+            self.set_up_next_block_to_wait()
+            # await asyncio.sleep(432)
             self.loop.create_task(self.perform_synthetic_queries_one_cycle())
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
@@ -394,7 +394,7 @@ class WeightSetter:
         self.moving_average_scores = alpha * scores + (1 - alpha) * self.moving_average_scores
         bt.logging.info(f"Updated moving average of weights: {self.moving_average_scores}")
         start_time = time.time()
-        self.subtensor.set_weights(
+        success, msg = self.subtensor.set_weights(
             netuid=self.config.netuid,
             wallet=self.wallet,
             uids=self.metagraph.uids,
@@ -402,7 +402,7 @@ class WeightSetter:
             wait_for_inclusion=True,
             version_key=cortext.__weights_version__,
         )
-        bt.logging.success(f"Successfully included weights in block. {time.time() - start_time} elaspsed for updating weights.")
+        bt.logging.info(f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
