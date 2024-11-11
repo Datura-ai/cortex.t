@@ -62,7 +62,7 @@ def get_items(req_body: models.RequestBody):
     limit = req_body.limit
 
     filter_by_miner_score = f"score>={req_body.filters.min_score}" if req_body.filters.min_score else ""
-    filter_by_miner_similarity = f"score>={req_body.filters.min_similarity}" if req_body.filters.min_similarity else ""
+    filter_by_miner_similarity = f"similarity>={req_body.filters.min_similarity}" if req_body.filters.min_similarity else ""
     filter_by_provider = f"provider='{req_body.filters.provider}'" if req_body.filters.provider else ""
     filter_by_model = f"model='{req_body.filters.model}'" if req_body.filters.model else ""
     filter_by_min_timestamp = f"timestamp>={req_body.filters.min_timestamp}" if req_body.filters.min_timestamp else ""
