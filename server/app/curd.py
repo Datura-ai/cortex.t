@@ -70,7 +70,7 @@ def get_items(req_body: models.RequestBody):
     filter_by_epoch_num = f"epoch_num={req_body.filters.epoch_num}" if req_body.filters.epoch_num else ""
     filter_by_block_num = f"block_num={req_body.filters.block_num}" if req_body.filters.block_num else ""
     filter_by_cycle_num = f"cycle_num={req_body.filters.cycle_num}" if req_body.filters.cycle_num else ""
-    filter_by_name = f"name={req_body.filters.name}" if req_body.filters.name else ""
+    filter_by_name = f"name='{req_body.filters.name}'" if req_body.filters.name else ""
     search_by_uid_or_hotkey = (f"miner_uid=%s" if str(req_body.search).isdigit()
                                else f"miner_hot_key like %s") if req_body.search else ""
     conditions = [filter_by_miner_score, filter_by_miner_similarity, filter_by_provider, filter_by_model,
