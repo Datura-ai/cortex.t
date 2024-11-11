@@ -158,8 +158,8 @@ class BaseValidator(metaclass=ValidatorRegistryMeta):
                 syn.similarity = avg_score
                 syn.score = weighted_score
 
-        # bt.logging.info("showing pretty formated table scores.")
-        # self.show_pretty_table_score(table_data)
+        bt.logging.info("showing pretty formated table scores.")
+        self.show_pretty_table_score(table_data)
 
         if not len(uid_scores_dict):
             validator_type = self.__class__.__name__
