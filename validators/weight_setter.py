@@ -400,7 +400,7 @@ class WeightSetter:
             wallet=self.wallet,
             uids=self.metagraph.uids,
             weights=self.moving_average_scores,
-            wait_for_inclusion=True,
+            wait_for_inclusion=False,
             version_key=cortext.__weights_version__,
         )
         bt.logging.info(
