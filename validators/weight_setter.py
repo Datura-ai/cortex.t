@@ -87,9 +87,9 @@ class WeightSetter:
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
-        # score_thread = threading.Thread(target=self.start_scoring_process)
-        # score_thread.start()
-        self.loop.create_task(self.process_queries_from_database())
+        score_thread = threading.Thread(target=self.start_scoring_process)
+        score_thread.start()
+        # self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
         self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
@@ -619,14 +619,14 @@ class WeightSetter:
             for item in queries_to_process:
                 uid = item.get("uid")
                 resp = item.get("response")
-                model = item.get("synapse").get("model")
+                model = item.get("synapse").model
                 if not resp:
                     empty_uid_model_items.append((uid, model))
 
             items_to_score = []
             for item in queries_to_process:
                 uid = item.get("uid")
-                model = item.get("synapse").get("model")
+                model = item.get("synapse").model
                 if (uid, model) in empty_uid_model_items:
                     bt.logging.trace(f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
                     continue
