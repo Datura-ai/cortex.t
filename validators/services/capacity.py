@@ -32,6 +32,25 @@ class CapacityService:
             if isinstance(resp, Exception):
                 bt.logging.error(f"exception happens while querying capacity to miner {uid}, {resp}")
             else:
-                uid_to_capacity[uid] = resp.bandwidth_rpm
+                uid_to_capacity[uid] = self.validate_capacity(resp.bandwidth_rpm)
         self.uid_to_capacity = deepcopy(uid_to_capacity)
         return uid_to_capacity
+
+    def validate_capacity(self, bandwidth):
+        try:
+            open_ai_cap = bandwidth.get("OpenAI").get("gpt-4o")
+            anthropic_cap = bandwidth.get("Anthropic").get("claude-3-5-sonnet-20240620")
+            groq_cap = bandwidth.get("Groq").get("llama-3.1-70b-versatile")
+            return {
+                "OpenAI": {
+                    "gpt-4o": int(open_ai_cap)
+                },
+                "Anthropic": {
+                    "claude-3-5-sonnet-20240620": int(anthropic_cap)
+                },
+                "Groq": {
+                    "llama-3.1-70b-versatile": int(groq_cap)
+                }
+            }
+        except Exception as err:
+            return None
