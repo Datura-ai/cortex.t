@@ -12,6 +12,7 @@ from functools import partial
 from typing import Tuple
 import bittensor as bt
 from bittensor import StreamingSynapse
+
 import cortext
 from starlette.types import Send
 
@@ -402,7 +403,8 @@ class WeightSetter:
             wait_for_inclusion=True,
             version_key=cortext.__weights_version__,
         )
-        bt.logging.info(f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
+        bt.logging.info(
+            f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
@@ -612,8 +614,27 @@ class WeightSetter:
             bt.logging.info("start scoring process")
             start_time = time.time()
 
+            # remove query_resps where len of resp is 0
+            empty_uid_model_items = []
+            for item in queries_to_process:
+                uid = item.get("uid")
+                resp = item.get("response")
+                model = item.get("synapse").get("model")
+                if not resp:
+                    empty_uid_model_items.append((uid, model))
+
+            items_to_score = []
+            for item in queries_to_process:
+                uid = item.get("uid")
+                model = item.get("synapse").get("model")
+                if (uid, model) in empty_uid_model_items:
+                    bt.logging.trace(f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
+                    continue
+                items_to_score.append(item)
+
+
             # with all query_respones, select one per uid, provider, model randomly and score them.
-            score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
+            score_tasks = self.get_scoring_tasks_from_query_responses(items_to_score)
 
             resps = await asyncio.gather(*score_tasks, return_exceptions=True)
             resps = [item for item in resps if item is not None]
@@ -623,6 +644,7 @@ class WeightSetter:
                     if self.total_scores.get(uid) is not None:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
+
             bt.logging.info(
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
