@@ -1,5 +1,6 @@
 import asyncio
 import random
+import traceback
 from copy import deepcopy
 import bittensor as bt
 
@@ -28,21 +29,24 @@ class TaskMgr:
 
 
     def update_remain_capacity_based_on_new_capacity(self, new_uid_to_capacity):
-        for uid, capacity in new_uid_to_capacity.items():
-            if not capacity:
-                continue
-            for provider, model_to_cap in capacity.items():
-                for model, cap in model_to_cap.items():
-                    if self.get_remaining_bandwidth(uid, provider, model) is None:
-                        utils.update_nested_dict(self.remain_resources, keys=[uid, provider, model], value=cap)
-                    else:
-                        diff = self.uid_to_capacity[uid][provider][model] - cap
-                        if diff:
-                            bt.logging.debug(f"diff {diff} found in {uid}, {provider}, {model}")
-                        self.remain_resources[uid][provider][model] -= diff
+        try:
+            for uid, capacity in new_uid_to_capacity.items():
+                if not capacity:
+                    continue
+                for provider, model_to_cap in capacity.items():
+                    for model, cap in model_to_cap.items():
+                        if self.get_remaining_bandwidth(uid, provider, model) is None:
+                            utils.update_nested_dict(self.remain_resources, keys=[uid, provider, model], value=cap)
+                        else:
+                            diff = self.uid_to_capacity[uid][provider][model] - cap
+                            if diff:
+                                bt.logging.debug(f"diff {diff} found in {uid}, {provider}, {model}")
+                            self.remain_resources[uid][provider][model] -= diff
 
-        bt.logging.debug(f"remain_resources after epoch = {self.remain_resources}")
-        self.uid_to_capacity = deepcopy(self.remain_resources)
+            bt.logging.debug(f"remain_resources after epoch = {self.remain_resources}")
+            self.uid_to_capacity = deepcopy(self.remain_resources)
+        except Exception as err:
+            bt.logging.info(f"{err}, {traceback.format_exc()}")
 
     @error_handler
     def assign_task(self, synapse: ALL_SYNAPSE_TYPE):

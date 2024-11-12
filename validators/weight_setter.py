@@ -86,6 +86,8 @@ class WeightSetter:
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
+        # score_thread = threading.Thread(target=self.start_scoring_process)
+        # score_thread.start()
         self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
@@ -102,6 +104,9 @@ class WeightSetter:
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
 
+    def start_scoring_process(self):
+        asyncio.run(self.process_queries_from_database())
+
     def process_synthetic_tasks(self):
         bt.logging.info("starting synthetic tasks.")
         asyncio.run(self.perform_synthetic_queries())
@@ -111,10 +116,10 @@ class WeightSetter:
         self.cache.set_vali_info(vali_uid=self.my_uid, vali_hotkey=self.wallet.hotkey.ss58_address)
         while True:
             if not self.saving_datas:
-                time.sleep(1)
+                time.sleep(10)
+                bt.logging.trace("no datas for sending to central server")
             else:
                 bt.logging.info(f"saving responses...")
-                start_time = time.time()
                 self.cache.set_cache_in_batch(self.url, [item.get('synapse') for item in self.saving_datas],
                                               block_num=self.current_block or 0,
                                               cycle_num=(self.current_block or 0) // 36,
@@ -294,6 +299,7 @@ class WeightSetter:
                 await asyncio.sleep(12)
                 continue
             self.set_up_next_block_to_wait()
+            # await asyncio.sleep(432)
             self.loop.create_task(self.perform_synthetic_queries_one_cycle())
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
@@ -387,17 +393,16 @@ class WeightSetter:
         # Update the moving average scores
         self.moving_average_scores = alpha * scores + (1 - alpha) * self.moving_average_scores
         bt.logging.info(f"Updated moving average of weights: {self.moving_average_scores}")
-        await self.run_sync_in_async(
-            lambda: self.subtensor.set_weights(
-                netuid=self.config.netuid,
-                wallet=self.wallet,
-                uids=self.metagraph.uids,
-                weights=self.moving_average_scores,
-                wait_for_inclusion=True,
-                version_key=cortext.__weights_version__,
-            )
+        start_time = time.time()
+        success, msg = self.subtensor.set_weights(
+            netuid=self.config.netuid,
+            wallet=self.wallet,
+            uids=self.metagraph.uids,
+            weights=self.moving_average_scores,
+            wait_for_inclusion=True,
+            version_key=cortext.__weights_version__,
         )
-        bt.logging.success("Successfully included weights in block.")
+        bt.logging.info(f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
@@ -476,7 +481,8 @@ class WeightSetter:
 
     async def prompt(self, synapse: StreamPrompting) -> StreamingSynapse.BTStreamingResponse:
         bt.logging.info(f"Received {synapse}")
-        if len(json.dumps(synapse.messages)) > 1024:
+        contents = " ".join([message.get("content") for message in synapse.messages])
+        if len(contents.split()) > 2048:
             raise HTTPException(status_code=413, detail="Request entity too large")
 
         async def _prompt(query_synapse: StreamPrompting, send: Send):
@@ -522,7 +528,7 @@ class WeightSetter:
             responses = self.dendrite.call_stream(
                 target_axon=axon,
                 synapse=synapse,
-                timeout=synapse.timeout,
+                timeout=synapse.timeout
             )
             return await handle_response(responses)
 
@@ -609,7 +615,7 @@ class WeightSetter:
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
 
-            resps = await asyncio.gather(*score_tasks)
+            resps = await asyncio.gather(*score_tasks, return_exceptions=True)
             resps = [item for item in resps if item is not None]
             # Update total_scores and score_counts
             for uid_scores_dict, _, _ in resps:

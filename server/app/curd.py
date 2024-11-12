@@ -62,7 +62,7 @@ def get_items(req_body: models.RequestBody):
     limit = req_body.limit
 
     filter_by_miner_score = f"score>={req_body.filters.min_score}" if req_body.filters.min_score else ""
-    filter_by_miner_similarity = f"score>={req_body.filters.min_similarity}" if req_body.filters.min_similarity else ""
+    filter_by_miner_similarity = f"similarity>={req_body.filters.min_similarity}" if req_body.filters.min_similarity else ""
     filter_by_provider = f"provider='{req_body.filters.provider}'" if req_body.filters.provider else ""
     filter_by_model = f"model='{req_body.filters.model}'" if req_body.filters.model else ""
     filter_by_min_timestamp = f"timestamp>={req_body.filters.min_timestamp}" if req_body.filters.min_timestamp else ""
@@ -70,7 +70,7 @@ def get_items(req_body: models.RequestBody):
     filter_by_epoch_num = f"epoch_num={req_body.filters.epoch_num}" if req_body.filters.epoch_num else ""
     filter_by_block_num = f"block_num={req_body.filters.block_num}" if req_body.filters.block_num else ""
     filter_by_cycle_num = f"cycle_num={req_body.filters.cycle_num}" if req_body.filters.cycle_num else ""
-    filter_by_name = f"name={req_body.filters.name}" if req_body.filters.name else ""
+    filter_by_name = f"name='{req_body.filters.name}'" if req_body.filters.name else ""
     search_by_uid_or_hotkey = (f"miner_uid=%s" if str(req_body.search).isdigit()
                                else f"miner_hot_key like %s") if req_body.search else ""
     conditions = [filter_by_miner_score, filter_by_miner_similarity, filter_by_provider, filter_by_model,
