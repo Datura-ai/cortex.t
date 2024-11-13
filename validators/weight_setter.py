@@ -80,7 +80,6 @@ class WeightSetter:
         self.query_database = []
 
         # initialize uid and capacities.
-        asyncio.run(self.initialize_uids_and_capacities())
         self.queries = load_entire_questions()
         if len(self.queries) < 10000:
             raise f"loading questions failed. {len(self.queries)}"
@@ -110,6 +109,7 @@ class WeightSetter:
 
     def process_synthetic_tasks(self):
         bt.logging.info("starting synthetic tasks.")
+        asyncio.run(self.initialize_uids_and_capacities())
         asyncio.run(self.perform_synthetic_queries())
 
     def saving_resp_answers_from_miners(self):
@@ -636,11 +636,11 @@ class WeightSetter:
                 uid = item.get("uid")
                 model = item.get("synapse").model
                 if (uid, model) in empty_uid_model_items:
-                    bt.logging.trace(f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
+                    bt.logging.trace(
+                        f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
                     continue
                 items_to_score.append(item)
             bt.logging.info(f"total len of datas to score: {len(items_to_score)}")
-
 
             # with all query_respones, select one per uid, provider, model randomly and score them.
             score_tasks = self.get_scoring_tasks_from_query_responses(items_to_score)
