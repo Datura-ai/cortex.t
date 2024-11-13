@@ -135,6 +135,7 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def initialize_uids_and_capacities(self):
+        bt.logging.info("start initializing uids and capacities")
         self.available_uid_to_axons = await self.get_available_uids()
         self.uids_to_query = list(self.available_uid_to_axons.keys())
         bt.logging.info(f"Available UIDs: {list(self.available_uid_to_axons.keys())}")
@@ -176,7 +177,8 @@ class WeightSetter:
     async def update_and_refresh(self):
         await self.update_weights()
         bt.logging.info("Refreshing metagraph...")
-        await self.refresh_metagraph()
+
+        self.metagraph.sync()
         await self.initialize_uids_and_capacities()
         bt.logging.info("Metagraph refreshed.")
 
@@ -637,6 +639,7 @@ class WeightSetter:
                     bt.logging.trace(f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
                     continue
                 items_to_score.append(item)
+            bt.logging.info(f"total len of datas to score: {len(items_to_score)}")
 
 
             # with all query_respones, select one per uid, provider, model randomly and score them.
