@@ -80,26 +80,30 @@ class WeightSetter:
         self.query_database = []
 
         # initialize uid and capacities.
+        asyncio.run(self.initialize_uids_and_capacities())
         self.queries = load_entire_questions()
         if len(self.queries) < 10000:
             raise f"loading questions failed. {len(self.queries)}"
         bt.logging.info(f"total loaded questions are {len(self.queries)}")
         self.set_up_next_block_to_wait()
         # Set up async tasks
-        score_thread = threading.Thread(target=self.start_scoring_process)
-        score_thread.start()
-        # self.loop.create_task(self.process_queries_from_database())
+        # score_thread = threading.Thread(target=self.start_scoring_process)
+        # score_thread.start()
+        self.loop.create_task(self.process_queries_from_database())
 
         self.saving_datas = []
         self.url = "http://ec2-3-239-8-190.compute-1.amazonaws.com:8000/items"
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
 
-        synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
-        synthetic_thread.start()
+        # synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
+        # synthetic_thread.start()
+        self.loop.create_task(self.perform_synthetic_queries())
 
-        organic_thread = threading.Thread(target=self.start_axon_server)
-        organic_thread.start()
+        # organic_thread = threading.Thread(target=self.start_axon_server)
+        # organic_thread.start()
+        self.loop.create_task(self.consume_organic_queries())
+
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
@@ -109,7 +113,6 @@ class WeightSetter:
 
     def process_synthetic_tasks(self):
         bt.logging.info("starting synthetic tasks.")
-        asyncio.run(self.initialize_uids_and_capacities())
         asyncio.run(self.perform_synthetic_queries())
 
     def saving_resp_answers_from_miners(self):
@@ -611,12 +614,9 @@ class WeightSetter:
 
             bt.logging.info(f"start scoring process...")
 
-            try:
-                self.lock.acquire()
-                queries_to_process = self.query_database.copy()
-                self.query_database.clear()
-            finally:
-                self.lock.release()
+            queries_to_process = self.query_database.copy()
+            self.query_database.clear()
+
 
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")
