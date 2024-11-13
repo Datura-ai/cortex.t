@@ -73,7 +73,7 @@ class WeightSetter:
         self.weights_rate_limit = self.node_query('SubtensorModule', 'WeightsSetRateLimit', [self.netuid])
 
         # Set up async-related attributes
-        self.lock = asyncio.Lock()
+        self.lock = threading.Lock()
         self.loop = loop or asyncio.get_event_loop()
 
         # Initialize shared query database
@@ -598,17 +598,21 @@ class WeightSetter:
             if not self.query_database:
                 bt.logging.debug("no data in query_database. so continue...")
                 continue
-            if not self.is_epoch_end():
-                bt.logging.debug("no end of epoch. so continue...")
-                continue
             if not self.synthetic_task_done:
                 bt.logging.debug("wait for synthetic tasks to complete.")
+                continue
+            if not self.is_epoch_end():
+                bt.logging.debug("no end of epoch. so continue...")
                 continue
 
             bt.logging.info(f"start scoring process...")
 
-            queries_to_process = self.query_database.copy()
-            self.query_database.clear()
+            try:
+                self.lock.acquire()
+                queries_to_process = self.query_database.copy()
+                self.query_database.clear()
+            finally:
+                self.lock.release()
 
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")
