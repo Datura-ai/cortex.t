@@ -259,6 +259,7 @@ class WeightSetter:
             return False
 
     async def perform_synthetic_queries_one_cycle(self):
+        bt.logging.debug("start synthetic queries")
         start_time = time.time()
         # don't process any organic query while processing synthetic queries.
         synthetic_tasks = []
@@ -300,7 +301,7 @@ class WeightSetter:
                 await asyncio.sleep(12)
                 continue
             self.set_up_next_block_to_wait()
-            # await asyncio.sleep(432)
+            await asyncio.sleep(432)
             self.loop.create_task(self.perform_synthetic_queries_one_cycle())
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
