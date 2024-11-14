@@ -637,7 +637,7 @@ class WeightSetter:
                 model = item.get("synapse").model
                 if (uid, model) in empty_uid_model_items:
                     bt.logging.trace(
-                        f"this miner {uid} has at least 1 empty response for model {model}. so not being scored.")
+                        f"this miner {uid} has at least 1 empty response for model {model}. so being scored as 0.")
                     continue
                 items_to_score.append(item)
             bt.logging.info(f"total len of datas to score: {len(items_to_score)}")
@@ -653,6 +653,11 @@ class WeightSetter:
                     if self.total_scores.get(uid) is not None:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
+
+            for uid in self.uid_to_capacity:
+                if self.total_scores.get(uid) is None:
+                    self.total_scores[uid] = 0
+                    self.score_counts[uid] = 1
 
             bt.logging.info(
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
