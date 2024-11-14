@@ -12,6 +12,7 @@ from functools import partial
 from typing import Tuple
 import bittensor as bt
 from bittensor import StreamingSynapse
+
 import cortext
 from starlette.types import Send
 
@@ -72,7 +73,7 @@ class WeightSetter:
         self.weights_rate_limit = self.node_query('SubtensorModule', 'WeightsSetRateLimit', [self.netuid])
 
         # Set up async-related attributes
-        self.lock = asyncio.Lock()
+        self.lock = threading.Lock()
         self.loop = loop or asyncio.get_event_loop()
 
         # Initialize shared query database
@@ -95,11 +96,14 @@ class WeightSetter:
         daemon_thread = threading.Thread(target=self.saving_resp_answers_from_miners)
         daemon_thread.start()
 
-        synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
-        synthetic_thread.start()
+        # synthetic_thread = threading.Thread(target=self.process_synthetic_tasks)
+        # synthetic_thread.start()
+        self.loop.create_task(self.perform_synthetic_queries())
 
-        organic_thread = threading.Thread(target=self.start_axon_server)
-        organic_thread.start()
+        # organic_thread = threading.Thread(target=self.start_axon_server)
+        # organic_thread.start()
+        self.loop.create_task(self.consume_organic_queries())
+
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
@@ -134,6 +138,7 @@ class WeightSetter:
         await self.run_sync_in_async(lambda: self.metagraph.sync())
 
     async def initialize_uids_and_capacities(self):
+        bt.logging.info("start initializing uids and capacities")
         self.available_uid_to_axons = await self.get_available_uids()
         self.uids_to_query = list(self.available_uid_to_axons.keys())
         bt.logging.info(f"Available UIDs: {list(self.available_uid_to_axons.keys())}")
@@ -175,7 +180,8 @@ class WeightSetter:
     async def update_and_refresh(self):
         await self.update_weights()
         bt.logging.info("Refreshing metagraph...")
-        await self.refresh_metagraph()
+
+        self.metagraph.sync()
         await self.initialize_uids_and_capacities()
         bt.logging.info("Metagraph refreshed.")
 
@@ -300,6 +306,8 @@ class WeightSetter:
                 continue
             self.set_up_next_block_to_wait()
             # await asyncio.sleep(432)
+            bt.logging.debug("start synthetic queries")
+            self.loop = asyncio.get_event_loop()
             self.loop.create_task(self.perform_synthetic_queries_one_cycle())
 
     def pop_synthetic_tasks_max_100_per_miner(self, synthetic_tasks):
@@ -399,10 +407,11 @@ class WeightSetter:
             wallet=self.wallet,
             uids=self.metagraph.uids,
             weights=self.moving_average_scores,
-            wait_for_inclusion=True,
+            wait_for_inclusion=False,
             version_key=cortext.__weights_version__,
         )
-        bt.logging.info(f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
+        bt.logging.info(
+            f"done setting weights: {success}, {msg}. {time.time() - start_time} elaspsed for updating weights.")
 
     def blacklist_prompt(self, synapse: StreamPrompting) -> Tuple[bool, str]:
         blacklist = self.base_blacklist(synapse, cortext.PROMPT_BLACKLIST_STAKE)
@@ -596,11 +605,11 @@ class WeightSetter:
             if not self.query_database:
                 bt.logging.debug("no data in query_database. so continue...")
                 continue
-            if not self.is_epoch_end():
-                bt.logging.debug("no end of epoch. so continue...")
-                continue
             if not self.synthetic_task_done:
                 bt.logging.debug("wait for synthetic tasks to complete.")
+                continue
+            if not self.is_epoch_end():
+                bt.logging.debug("no end of epoch. so continue...")
                 continue
 
             bt.logging.info(f"start scoring process...")
@@ -608,12 +617,33 @@ class WeightSetter:
             queries_to_process = self.query_database.copy()
             self.query_database.clear()
 
+
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")
             start_time = time.time()
 
+            # remove query_resps where len of resp is 0
+            empty_uid_model_items = []
+            for item in queries_to_process:
+                uid = item.get("uid")
+                resp = item.get("response")
+                model = item.get("synapse").model
+                if not resp:
+                    empty_uid_model_items.append((uid, model))
+
+            items_to_score = []
+            for item in queries_to_process:
+                uid = item.get("uid")
+                model = item.get("synapse").model
+                if (uid, model) in empty_uid_model_items:
+                    bt.logging.trace(
+                        f"this miner {uid} has at least 1 empty response for model {model}. so being scored as 0.")
+                    continue
+                items_to_score.append(item)
+            bt.logging.info(f"total len of datas to score: {len(items_to_score)}")
+
             # with all query_respones, select one per uid, provider, model randomly and score them.
-            score_tasks = self.get_scoring_tasks_from_query_responses(queries_to_process)
+            score_tasks = self.get_scoring_tasks_from_query_responses(items_to_score)
 
             resps = await asyncio.gather(*score_tasks, return_exceptions=True)
             resps = [item for item in resps if item is not None]
@@ -623,6 +653,12 @@ class WeightSetter:
                     if self.total_scores.get(uid) is not None:
                         self.total_scores[uid] += score
                         self.score_counts[uid] += 1
+
+            for uid in self.uid_to_capacity:
+                if self.total_scores.get(uid) is None:
+                    self.total_scores[uid] = 0
+                    self.score_counts[uid] = 1
+
             bt.logging.info(
                 f"current total score are {self.total_scores}. total time of scoring is {time.time() - start_time}")
             self.saving_datas = queries_to_process.copy()
