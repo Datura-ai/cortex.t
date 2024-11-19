@@ -3,8 +3,8 @@ from typing import Any, AsyncGenerator
 from fastapi import Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRouter
-from cursor.app.core.config import config
-from cursor.app.models import ChatRequest
+from app.core.config import config
+from app.models import ChatRequest
 import asyncio
 import time
 
@@ -22,6 +22,5 @@ router.add_api_route(
     chat,
     methods=["POST", "OPTIONS"],
     tags=["StreamPrompting"],
-    response_model=None,
-    dependencies=[Depends(verify_api_key_rate_limit)],
+    response_model=None
 )

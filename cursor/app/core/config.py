@@ -16,8 +16,8 @@ class Config:
     def from_env() -> "Config":
         """Load configuration from environment variables."""
         return Config(
-            api_key=os.getenv("WALLET_NAME", "default"),  # Default to an empty string if not set
-            db_host=os.getenv("WALLET_HOTKEY", "default")
+            wallet_name=os.getenv("WALLET_NAME", "default"),  # Default to an empty string if not set
+            wallet_hotkey=os.getenv("WALLET_HOTKEY", "default")
         )
 
 
