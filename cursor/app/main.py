@@ -19,31 +19,3 @@ app.add_middleware(
     allow_origins=["*"],  # Allows all origins
 )
 app.include_router(chat_router)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    cur.close()
-    conn.close()
-
-
-# Create an item
-@app.post("/items")
-def create_item(items: List[schemas.ItemCreate]):
-    return curd.create_items(items=items)
-
-
-# Read all items
-@app.post("/items/search")
-def read_items(req_body: models.RequestBody):
-    items = curd.get_items(req_body)
-    return items
-
-
-# Read a single item by ID
-@app.get("/items/{p_key}", response_model=schemas.Item)
-def read_item(p_key: int):
-    db_item = curd.get_item(p_key=p_key)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return db_item
