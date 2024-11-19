@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from redis.asyncio import Redis
 from fastapi.routing import APIRouter
-from cursor.app.models import RequestModel
+from cursor.app.models import ChatRequest
 import asyncio
 from redis.asyncio.client import PubSub
 import time
@@ -123,7 +123,7 @@ async def _handle_no_stream(text_generator: AsyncGenerator[str, str]) -> JSONRes
 
 
 async def chat(
-        chat_request: request_models.ChatRequest,
+        chat_request: ChatRequest,
         config: Config = Depends(get_config),
 ) -> StreamingResponse | JSONResponse:
     payload = request_models.chat_to_payload(chat_request)
