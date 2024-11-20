@@ -17,7 +17,7 @@ class Config:
         """Load configuration from environment variables."""
         return Config(
             wallet_name=os.getenv("WALLET_NAME", "default"),  # Default to an empty string if not set
-            wallet_hotkey=os.getenv("WALLET_HOTKEY", "default")
+            wallet_hotkey=os.getenv("HOT_KEY", "default")
         )
 
 

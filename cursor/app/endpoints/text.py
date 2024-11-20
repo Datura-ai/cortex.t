@@ -6,6 +6,7 @@ from fastapi.routing import APIRouter
 from app.core.config import config
 from app.models import ChatRequest
 from app.core.dendrite import CortexDendrite
+from cursor.app.core.query_to_validator import query_miner
 import asyncio
 import time
 
@@ -13,7 +14,7 @@ import time
 async def chat(
         chat_request: ChatRequest
 ) -> StreamingResponse | JSONResponse:
-    return StreamingResponse(generate_numbers(), media_type="text/event-stream")
+    return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
 
 
 router = APIRouter()

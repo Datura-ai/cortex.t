@@ -28,8 +28,8 @@ class ChatRequest(BaseModel):
     temperature: float = Field(default=0.0001, examples=[0.5, 0.4, 0.3], title="Temperature",
                                description="Temperature for text generation.")
     max_tokens: int = Field(2048, title="Max Tokens", description="Max tokens for text generation.")
-    model: str = Field(..., examples=["gpt-4o"], title="Model")
-    provider: str = Field(..., examples=["OpenAI"], title="Model")
+    model: str = Field(default="gpt-4o", examples=["gpt-4o"], title="Model")
+    provider: str = Field(default="OpenAI", examples=["OpenAI"], title="Provider")
     top_p: float = Field(default=0.001, title="Top P", description="Top P for text generation.")
     stream: bool = Field(default=True, title="Stream", description="Stream for text generation.")
     logprobs: bool = True
