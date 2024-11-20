@@ -13,7 +13,7 @@ import time
 async def chat(
         chat_request: ChatRequest
 ) -> StreamingResponse | JSONResponse:
-    return config
+    return StreamingResponse(generate_numbers(), media_type="text/event-stream")
 
 
 router = APIRouter()
