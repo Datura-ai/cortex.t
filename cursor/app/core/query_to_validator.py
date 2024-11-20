@@ -5,8 +5,8 @@ from cursor.app.core.config import config
 from cursor.app.core.dendrite import CortexDendrite
 import traceback
 
-subtensor = bt.subtensor(network="test")
-meta = subtensor.metagraph(netuid=196)
+subtensor = bt.subtensor(network="finney")
+meta = subtensor.metagraph(netuid=18)
 print("metagraph synched!")
 
 # This needs to be your validator wallet that is running your subnet 18 validator
