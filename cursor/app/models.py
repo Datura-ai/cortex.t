@@ -33,5 +33,3 @@ class ChatRequest(BaseModel):
     stream: bool = Field(default=True, title="Stream", description="Stream for text generation.")
     logprobs: bool = True
 
-    class Config:
-        use_enum_values = True
