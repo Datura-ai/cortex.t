@@ -11,6 +11,7 @@ print("metagraph synched!")
 
 # This needs to be your validator wallet that is running your subnet 18 validator
 wallet = bt.wallet(name=config.wallet_name, hotkey=config.wallet_hotkey)
+print(f"wallet_name is {config.wallet_name}, hot_key is {config.wallet_hotkey}")
 dendrite = CortexDendrite(wallet=wallet)
 vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
 axon_to_use = meta.axons[vali_uid]
