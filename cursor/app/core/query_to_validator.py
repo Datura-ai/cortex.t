@@ -12,6 +12,20 @@ vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
 axon_to_use = meta.axons[vali_uid]
 
 
+async def handle_response(resp):
+    full_response = ""
+    try:
+        async for chunk in resp:
+            if isinstance(chunk, str):
+                full_response += chunk
+                print(chunk, end='', flush=True)
+            else:
+                print(f"\n\nFinal synapse: {chunk}\n")
+    except Exception as e:
+        print(f"Error processing response for uid {e}")
+    return full_response
+
+
 async def query_miner(dendrite: CortexDendrite, axon_to_use, synapse, timeout=60, streaming=True):
     try:
         print(f"calling vali axon {axon_to_use} to miner uid {synapse.uid} for query {synapse.messages}")
