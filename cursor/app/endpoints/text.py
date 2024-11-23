@@ -7,6 +7,7 @@ from app.core.config import config
 from app.models import ChatRequest
 from app.core.dendrite import CortexDendrite
 from cursor.app.core.query_to_validator import query_miner
+from cursor.app.core.middleware import verify_api_key_rate_limit
 import asyncio
 import time
 
@@ -23,5 +24,6 @@ router.add_api_route(
     chat,
     methods=["POST", "OPTIONS"],
     tags=["StreamPrompting"],
-    response_model=None
+    response_model=None,
+    dependencies=[Depends(verify_api_key_rate_limit)]
 )
