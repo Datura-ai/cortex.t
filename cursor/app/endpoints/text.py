@@ -24,6 +24,5 @@ router.add_api_route(
     chat,
     methods=["POST", "OPTIONS"],
     tags=["StreamPrompting"],
-    response_model=None,
-    dependencies=[Depends(verify_api_key_rate_limit)]
+    response_model=None
 )
