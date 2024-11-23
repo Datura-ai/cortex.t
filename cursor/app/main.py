@@ -7,8 +7,4 @@ from .endpoints.text import router as chat_router
 
 
 app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
-)
 app.include_router(chat_router)
