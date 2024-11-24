@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from .endpoints.text import router as chat_router
+from .endpoints.generic import router as generic_router
 
 app = FastAPI()
 # Add CORS middleware to allow all origins
@@ -14,3 +15,4 @@ app.add_middleware(
 )
 
 app.include_router(chat_router)
+app.include_router(generic_router)
