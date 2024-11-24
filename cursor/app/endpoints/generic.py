@@ -3,7 +3,7 @@ from fastapi.routing import APIRouter
 from cursor.app.constants import llm_models
 
 async def models() -> list[dict[str, Any]]:
-    return models()
+    return llm_models
 
 
 router = APIRouter()
