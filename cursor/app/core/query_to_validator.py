@@ -35,3 +35,23 @@ async def query_miner(chat_request: ChatRequest):
     except Exception as e:
         print(f"Exception during query: {traceback.format_exc()}")
         yield "Exception ocurred."
+
+async def query_miner_no_stream(chat_request: ChatRequest):
+    try:
+        synapse = StreamPrompting(**chat_request.dict())
+
+        resp = dendrite.call_stream(
+            target_axon=axon_to_use,
+            synapse=synapse,
+            timeout=60
+        )
+        full_resp = ""
+        async for chunk in resp:
+            if isinstance(chunk, str):
+                full_resp += chunk
+                print(chunk, end='', flush=True)
+            else:
+                print(f"\n\nFinal synapse: {chunk}\n")
+    except Exception as e:
+        print(f"Exception during query: {traceback.format_exc()}")
+        return ""
