@@ -11,8 +11,6 @@ from cursor.app.core.middleware import verify_api_key_rate_limit
 import asyncio
 import time
 
-from uaclient.status import status
-
 
 async def chat(
         chat_request: ChatRequest
