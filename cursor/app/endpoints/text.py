@@ -19,7 +19,8 @@ async def chat(
         if chat_request.stream:
             return StreamingResponse(query_miner(chat_request), media_type="text/plain")
         else:
-            return await query_miner_no_stream(chat_request)
+            resp = await query_miner_no_stream(chat_request)
+        return JSONResponse({"choices": [{"message": {"content": resp}}]})
     except Exception as err:
         print(err)
         raise HTTPException(status_code=500, detail={"message": "internal server error"})

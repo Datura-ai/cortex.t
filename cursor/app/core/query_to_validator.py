@@ -52,6 +52,8 @@ async def query_miner_no_stream(chat_request: ChatRequest):
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
+        return full_resp
+
     except Exception as e:
         print(f"Exception during query: {traceback.format_exc()}")
         return ""
