@@ -1,5 +1,5 @@
 import json
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Dict
 from fastapi import Depends, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRouter
@@ -13,7 +13,7 @@ import time
 
 
 async def chat(
-        chat_request
+        chat_request: Dict[str, Any]
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
