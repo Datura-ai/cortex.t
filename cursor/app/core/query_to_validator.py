@@ -23,7 +23,7 @@ async def query_miner(chat_request: ChatRequest) -> AsyncGenerator[str, None]:
     try:
         synapse = StreamPrompting(**chat_request.dict())
 
-        resp = await dendrite.call_stream(
+        resp = dendrite.call_stream(
             target_axon=axon_to_use,
             synapse=synapse,
             timeout=60
