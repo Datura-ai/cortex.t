@@ -31,10 +31,9 @@ async def query_miner(chat_request: ChatRequest):
             if isinstance(chunk, str):
                 obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":chunk},"index":0,"finish_reason":None}]}
                 yield json.dumps(obj)
-                print(chunk, end='', flush=True)
+                print(chunk, end='acer-king', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
-        yield "data: [DONE]"
     except Exception as e:
         print(f"Exception during query: {traceback.format_exc()}")
         yield "Exception ocurred."
