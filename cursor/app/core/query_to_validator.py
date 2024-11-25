@@ -1,3 +1,4 @@
+import json
 import bittensor as bt
 from cursor.app.models import ChatRequest
 from cursor.app.core.protocol import StreamPrompting
@@ -30,7 +31,7 @@ async def query_miner(chat_request: ChatRequest):
             if isinstance(chunk, str):
                 obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":"Once"}}]}
                 obj['choices'][0]['delta']['content'] = chunk
-                yield obj
+                yield json.dumps(obj)
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
