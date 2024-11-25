@@ -17,7 +17,7 @@ async def chat(
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
-            print("stream started.")
+            print(f"stream started. {chat_request}")
             return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
         else:
             resp = await query_miner_no_stream(chat_request)
