@@ -17,7 +17,7 @@ async def chat(
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
-            return StreamingResponse(query_miner(chat_request), media_type="text/plain")
+            return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
         else:
             resp = await query_miner_no_stream(chat_request)
         return JSONResponse({"choices": [{"message": {"content": resp}}]})
