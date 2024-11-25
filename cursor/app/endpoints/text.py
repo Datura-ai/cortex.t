@@ -17,7 +17,7 @@ async def chat(
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
-            return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
+            return StreamingResponse(query_miner(chat_request), media_type="text/plain")
         else:
             return query_miner_no_stream(chat_request)
     except Exception as err:
