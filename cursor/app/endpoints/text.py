@@ -13,11 +13,12 @@ import time
 
 
 async def chat(
-        chat_request: ChatRequest
+        chat_request
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
             print(f"stream started. {chat_request}")
+            return "hello world"
             return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
         else:
             resp = await query_miner_no_stream(chat_request)
