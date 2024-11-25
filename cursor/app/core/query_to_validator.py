@@ -29,9 +29,10 @@ async def query_miner(chat_request: ChatRequest):
         )
         async for chunk in resp:
             if isinstance(chunk, str):
-                obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":"Once"}}]}
+                obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":" a"},"index":0,"finish_reason":None}]}
                 obj['choices'][0]['delta']['content'] = chunk
-                yield json.dumps(obj)
+                resp = f"data: {obj}"
+                yield resp
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
