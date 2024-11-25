@@ -16,13 +16,11 @@ async def chat(
         chat_request: Dict[str, Any]
 ) -> StreamingResponse | JSONResponse:
     try:
-        print(f"stream started. {chat_request}")
-        return "hello world"
         if chat_request.stream:
             return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
         else:
             resp = await query_miner_no_stream(chat_request)
-        return JSONResponse({"choices": [{"message": {"content": resp}}]})
+            return JSONResponse({"choices": [{"message": {"content": resp}}]})
     except Exception as err:
         print(err)
         raise HTTPException(status_code=500, detail={"message": "internal server error"})

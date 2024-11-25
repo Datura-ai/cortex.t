@@ -1,6 +1,6 @@
 llm_models = [
     {
-        "id": "chat-gpt-4o",
+        "id": "gpt-4o",
         "name": "Meta: gpt-4o Instruct",
         "created": 8192,
         "description": "OpenAI gpt-4o model.",
