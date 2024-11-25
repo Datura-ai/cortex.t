@@ -11,11 +11,17 @@ from cursor.app.core.middleware import verify_api_key_rate_limit
 import asyncio
 import time
 
+from uaclient.status import status
+
 
 async def chat(
         chat_request: ChatRequest
 ) -> StreamingResponse | JSONResponse:
-    return StreamingResponse(query_miner(chat_request), media_type="text/event-stream")
+    try:
+        return StreamingResponse(await query_miner(chat_request), media_type="text/event-stream")
+    except Exception as err:
+        print(err)
+        raise HTTPException(status_code=500, detail={"message": "internal server error"})
 
 
 router = APIRouter()
