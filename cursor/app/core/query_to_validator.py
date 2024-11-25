@@ -1,4 +1,5 @@
 import json
+from typing import AsyncGenerator
 import bittensor as bt
 from cursor.app.models import ChatRequest
 from cursor.app.core.protocol import StreamPrompting
@@ -18,7 +19,7 @@ vali_uid = meta.hotkeys.index(wallet.hotkey.ss58_address)
 axon_to_use = meta.axons[vali_uid]
 
 
-async def query_miner(chat_request: ChatRequest):
+async def query_miner(chat_request: ChatRequest) -> AsyncGenerator[str, None]:
     try:
         synapse = StreamPrompting(**chat_request.dict())
 
@@ -29,9 +30,8 @@ async def query_miner(chat_request: ChatRequest):
         )
         async for chunk in resp:
             if isinstance(chunk, str):
-                # obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":chunk},"index":0,"finish_reason":None}]}
-                # yield json.dumps(obj)
-                yield chunk
+                obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":chunk},"index":0,"finish_reason":None}]}
+                yield json.dumps(obj)
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
