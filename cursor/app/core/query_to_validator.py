@@ -36,6 +36,7 @@ async def query_miner(chat_request: ChatRequest):
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
+        yield "data: [DONE]"
     except Exception as e:
         print(f"Exception during query: {traceback.format_exc()}")
         yield "Exception ocurred."
