@@ -13,7 +13,7 @@ import time
 
 
 async def chat(
-        chat_request: Dict[str, Any]
+        chat_request: ChatRequest
 ) -> StreamingResponse | JSONResponse:
     try:
         if chat_request.stream:
