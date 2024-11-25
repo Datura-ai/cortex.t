@@ -31,7 +31,7 @@ async def query_miner(chat_request: ChatRequest) -> AsyncGenerator[str, None]:
         async for chunk in resp:
             if isinstance(chunk, str):
                 obj = {"id":"chatcmpl-abc123","object":"chat.completion.chunk","choices":[{"delta":{"content":chunk},"index":0,"finish_reason":None}]}
-                yield "data: " + json.dumps(obj).encode("utf-8") + "\n\n"
+                yield "data: " + json.dumps(obj) + "\n\n"
                 print(chunk, end='', flush=True)
             else:
                 print(f"\n\nFinal synapse: {chunk}\n")
