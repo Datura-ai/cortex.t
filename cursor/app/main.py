@@ -5,9 +5,10 @@ from .endpoints.text import router as chat_router
 from .endpoints.generic import router as generic_router
 from cursor.app.core.config import config
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 # Your predefined valid API keys
-VALID_API_KEYS =  {config.api_key}
+VALID_API_KEYS = {config.api_key}
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
