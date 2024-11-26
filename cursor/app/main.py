@@ -14,7 +14,7 @@ VALID_API_KEYS = {config.api_key}
 class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Get the API key from the `Authorization` header
-        api_key = request.headers.get("Authorization").splite(" ")[1]
+        api_key = request.headers.get("Authorization").split(" ")[1]
 
         # Validate the API key
         if not api_key or api_key not in VALID_API_KEYS:
