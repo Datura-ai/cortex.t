@@ -1,2 +1,2 @@
 # run application
-uvicorn cursor.app.main:app --port 8001 --reload --host 0.0.0.0
+pm2 start start_cursor.sh --name cursor_app
