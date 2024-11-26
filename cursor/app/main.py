@@ -14,7 +14,6 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Get the API key from the `Authorization` header
         api_key = request.headers.get("Authorization")
-        print("api_key is: ", api_key)
 
         # Validate the API key
         if not api_key or api_key not in VALID_API_KEYS:
@@ -35,6 +34,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all HTTP methods
     allow_headers=["*"],  # Allows all headers
 )
+app.add_middleware(APIKeyMiddleware)
 
 app.include_router(chat_router)
 app.include_router(generic_router)
