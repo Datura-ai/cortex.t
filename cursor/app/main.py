@@ -16,6 +16,12 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         # Get the API key from the `Authorization` header
         if request.method == "OPTIONS":
             return await call_next(request)
+
+        if not request.headers.get("Authorization"):
+            return JSONResponse(
+                {"detail": "Invalid or missing API Key"}, status_code=401
+            )
+
         api_key = request.headers.get("Authorization").split(" ")[1]
 
         # Validate the API key
