@@ -7,7 +7,6 @@ from cursor.app.core.config import config
 from cursor.app.models import ChatRequest
 from cursor.app.core.dendrite import CortexDendrite
 from cursor.app.core.query_to_validator import query_miner, query_miner_no_stream
-from cursor.app.core.middleware import verify_api_key_rate_limit
 import asyncio
 import time
 
