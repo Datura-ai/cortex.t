@@ -235,8 +235,7 @@ class CortexAxon(bt.axon):
                                 allow_origins=["*"],  # Allows all origins
                                 allow_credentials=True,
                                 allow_methods=["*"],  # Allows all HTTP methods
-                                allow_headers=["*"],
-                                axon=self)
+                                allow_headers=["*"])
 
 
     def default_verify(self, synapse: bittensor.Synapse):
