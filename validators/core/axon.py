@@ -234,7 +234,7 @@ class CortexAxon(bt.axon):
         self.attach(
             forward_fn=ping, verify_fn=None, blacklist_fn=None, priority_fn=None
         )
-        self.app.add_middleware(CortexAxonMiddleware, axon=self.axon)
+        self.app.add_middleware(CortexAxonMiddleware, axon=self)
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],  # Allows all origins
