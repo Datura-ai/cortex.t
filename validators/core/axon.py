@@ -47,7 +47,7 @@ class CortexAxon(bt.axon):
                  max_workers: Optional[int] = None,
                  ):
         super().__init__(wallet, config, port, ip, external_ip, external_port, max_workers)
-        self.app.add_middleware(AxonMiddleware, axon=self)
+        self.app.add_middleware(CortexAxonMiddleware, axon=self)
 
 
 class CortexAxonMiddleware(BaseHTTPMiddleware):
