@@ -1,4 +1,3 @@
-
 import os
 import uuid
 import copy
@@ -51,7 +50,6 @@ class CortexAxon(bt.axon):
         self.app.add_middleware(AxonMiddleware, axon=self)
 
 
-
 class CortexAxonMiddleware(BaseHTTPMiddleware):
     """
     The `AxonMiddleware` class is a key component in the Axon server, responsible for processing all incoming requests.
@@ -85,7 +83,7 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         self.axon = axon
 
     async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
+            self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """
         Asynchronously processes incoming HTTP requests and returns the corresponding responses. This
@@ -114,6 +112,21 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         """
         # Records the start time of the request processing.
         start_time = time.time()
+
+        if "v1/chat/completions" in request.url.path:
+            if request.method == "OPTIONS":
+                return await call_next(request)
+            try:
+                api_key = request.headers.get("Authorization").split(" ")[1]
+                if not api_key or api_key not in VALID_API_KEYS:
+                    return JSONResponse(
+                        {"detail": "Invalid or missing API Key"}, status_code=401
+                    )
+                return await call_next(request)
+            except Exception:
+                return JSONResponse(
+                    {"detail": "Invalid or missing API Key"}, status_code=401
+                )
 
         try:
             # Set up the synapse from its headers.
@@ -410,7 +423,7 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         priority_fn = self.axon.priority_fns.get(str(synapse.name), None)
 
         async def submit_task(
-            executor: PriorityThreadPoolExecutor, priority: float
+                executor: PriorityThreadPoolExecutor, priority: float
         ) -> Tuple[float, Any]:
             """
             Submits the given priority function to the specified executor for asynchronous execution.
@@ -455,10 +468,10 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
                 raise PriorityException(f"Response timeout after: {synapse.timeout}s")
 
     async def run(
-        self,
-        synapse: bittensor.Synapse,
-        call_next: RequestResponseEndpoint,
-        request: Request,
+            self,
+            synapse: bittensor.Synapse,
+            call_next: RequestResponseEndpoint,
+            request: Request,
     ) -> Response:
         """
         Executes the requested function as part of the request processing pipeline. This method calls
@@ -499,7 +512,7 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         return response
 
     async def postprocess(
-        self, synapse: bittensor.Synapse, response: Response, start_time: float
+            self, synapse: bittensor.Synapse, response: Response, start_time: float
     ) -> Response:
         """
         Performs the final processing on the response before sending it back to the client. This method
