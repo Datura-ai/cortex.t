@@ -83,7 +83,7 @@ class CortexAxon(bt.axon):
         config.axon.max_workers = max_workers or config.axon.get(
             "max_workers", bittensor.defaults.axon.max_workers
         )
-        axon.check_config(config)
+        CortexAxon.check_config(config)
         self.config = config  # type: ignore [method-assign]
 
         # Get wallet or use default.
