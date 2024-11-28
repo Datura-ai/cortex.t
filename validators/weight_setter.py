@@ -495,7 +495,7 @@ class WeightSetter:
     async def prompt(self, synapse: StreamPrompting) -> StreamingSynapse.BTStreamingResponse:
         bt.logging.info(f"Received {synapse}")
         contents = " ".join([message.get("content") for message in synapse.messages])
-        if len(contents.split()) > 2048:
+        if len(contents.split()) > 10000:
             raise HTTPException(status_code=413, detail="Request entity too large")
 
         async def _prompt(query_synapse: StreamPrompting, send: Send):
