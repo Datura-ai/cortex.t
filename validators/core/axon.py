@@ -254,6 +254,19 @@ class CortexAxon(bt.axon):
             raise SynapseDendriteNoneException()
 
 
+def create_error_response(synapse: bittensor.Synapse):
+    if synapse.axon is None:
+        return JSONResponse(
+            status_code=400,
+            headers=synapse.to_headers(),
+            content={"message": "Invalid request name"},
+        )
+    else:
+        return JSONResponse(
+            status_code=synapse.axon.status_code or 400,
+            headers=synapse.to_headers(),
+            content={"message": synapse.axon.status_message},
+        )
 
 def log_and_handle_error(
     synapse: bittensor.Synapse,
