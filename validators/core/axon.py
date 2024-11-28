@@ -38,7 +38,7 @@ import bittensor
 import bittensor as bt
 from substrateinterface import Keypair
 from bittensor.errors import SynapseDendriteNoneException
-
+from cursor.app.core.config import config
 
 class CortexAxon(bt.axon):
     def __init__(self,
@@ -142,7 +142,7 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
             try:
                 api_key = request.headers.get("Authorization").split(" ")[1]
-                if not api_key or api_key not in VALID_API_KEYS:
+                if not api_key or api_key != config.api_key:
                     return JSONResponse(
                         {"detail": "Invalid or missing API Key"}, status_code=401
                     )
