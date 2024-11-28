@@ -24,8 +24,8 @@ from validators.services import CapacityService, BaseValidator, TextValidator, I
 from validators.services.cache import QueryResponseCache
 from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
+from validators.core.axon import CortexAxon
 from cortext.dendrite import CortexDendrite
-from cortext.axon import CortexAxon
 from cursor.app.endpoints.text import chat
 from cursor.app.endpoints.generic import models
 from cursor.app.core.middleware import APIKeyMiddleware
