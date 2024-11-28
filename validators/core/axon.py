@@ -41,16 +41,102 @@ from bittensor.errors import SynapseDendriteNoneException
 from cursor.app.core.config import config
 
 class CortexAxon(bt.axon):
-    def __init__(self,
-                 wallet: Optional["bittensor.wallet"] = None,
-                 config: Optional["bittensor.config"] = None,
-                 port: Optional[int] = None,
-                 ip: Optional[str] = None,
-                 external_ip: Optional[str] = None,
-                 external_port: Optional[int] = None,
-                 max_workers: Optional[int] = None,
-                 ):
-        super().__init__(wallet, config, port, ip, external_ip, external_port, max_workers)
+    def __init__(
+            self,
+            wallet: Optional["bittensor.wallet"] = None,
+            config: Optional["bittensor.config"] = None,
+            port: Optional[int] = None,
+            ip: Optional[str] = None,
+            external_ip: Optional[str] = None,
+            external_port: Optional[int] = None,
+            max_workers: Optional[int] = None,
+    ):
+        r"""Creates a new bittensor.Axon object from passed arguments.
+        Args:
+            config (:obj:`Optional[bittensor.config]`, `optional`):
+                bittensor.axon.config()
+            wallet (:obj:`Optional[bittensor.wallet]`, `optional`):
+                bittensor wallet with hotkey and coldkeypub.
+            port (:type:`Optional[int]`, `optional`):
+                Binding port.
+            ip (:type:`Optional[str]`, `optional`):
+                Binding ip.
+            external_ip (:type:`Optional[str]`, `optional`):
+                The external ip of the server to broadcast to the network.
+            external_port (:type:`Optional[int]`, `optional`):
+                The external port of the server to broadcast to the network.
+            max_workers (:type:`Optional[int]`, `optional`):
+                Used to create the threadpool if not passed, specifies the number of active threads servicing requests.
+        """
+        # Build and check config.
+        if config is None:
+            config = axon.config()
+        config = copy.deepcopy(config)
+        config.axon.ip = ip or config.axon.get("ip", bittensor.defaults.axon.ip)
+        config.axon.port = port or config.axon.get("port", bittensor.defaults.axon.port)
+        config.axon.external_ip = external_ip or config.axon.get(
+            "external_ip", bittensor.defaults.axon.external_ip
+        )
+        config.axon.external_port = external_port or config.axon.get(
+            "external_port", bittensor.defaults.axon.external_port
+        )
+        config.axon.max_workers = max_workers or config.axon.get(
+            "max_workers", bittensor.defaults.axon.max_workers
+        )
+        axon.check_config(config)
+        self.config = config  # type: ignore [method-assign]
+
+        # Get wallet or use default.
+        self.wallet = wallet or bittensor.wallet()
+
+        # Build axon objects.
+        self.uuid = str(uuid.uuid1())
+        self.ip = self.config.axon.ip
+        self.port = self.config.axon.port
+        self.external_ip = (
+            self.config.axon.external_ip
+            if self.config.axon.external_ip != None
+            else bittensor.utils.networking.get_external_ip()
+        )
+        self.external_port = (
+            self.config.axon.external_port
+            if self.config.axon.external_port != None
+            else self.config.axon.port
+        )
+        self.full_address = str(self.config.axon.ip) + ":" + str(self.config.axon.port)
+        self.started = False
+
+        # Build middleware
+        self.thread_pool = bittensor.PriorityThreadPoolExecutor(
+            max_workers=self.config.axon.max_workers
+        )
+        self.nonces: Dict[str, int] = {}
+
+        # Request default functions.
+        self.forward_class_types: Dict[str, List[Signature]] = {}
+        self.blacklist_fns: Dict[str, Optional[Callable]] = {}
+        self.priority_fns: Dict[str, Optional[Callable]] = {}
+        self.forward_fns: Dict[str, Optional[Callable]] = {}
+        self.verify_fns: Dict[str, Optional[Callable]] = {}
+        self.required_hash_fields: Dict[str, str] = {}
+
+        # Instantiate FastAPI
+        self.app = FastAPI()
+        log_level = "trace" if bittensor.logging.__trace_on__ else "critical"
+        self.fast_config = uvicorn.Config(
+            self.app, host="0.0.0.0", port=self.config.axon.port, log_level=log_level
+        )
+        self.fast_server = FastAPIThreadedServer(config=self.fast_config)
+        self.router = APIRouter()
+        self.app.include_router(self.router)
+
+        # Attach default forward.
+        def ping(r: bittensor.Synapse) -> bittensor.Synapse:
+            return r
+
+        self.attach(
+            forward_fn=ping, verify_fn=None, blacklist_fn=None, priority_fn=None
+        )
         self.app.add_middleware(CortexAxonMiddleware, axon=self)
 
     def default_verify(self, synapse: bittensor.Synapse):
