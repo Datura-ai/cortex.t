@@ -13,7 +13,10 @@ import bittensor
 import contextlib
 
 from inspect import signature, Signature, Parameter
+
+from cursor.app.core.query_to_validator import axon_to_use
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from substrateinterface import Keypair
 from fastapi import FastAPI, APIRouter, Request, Response, Depends
 from starlette.responses import Response
@@ -231,11 +234,14 @@ class CortexAxon(bt.axon):
         self.attach(
             forward_fn=ping, verify_fn=None, blacklist_fn=None, priority_fn=None
         )
-        self.app.add_middleware(CortexAxonMiddleware,
-                                allow_origins=["*"],  # Allows all origins
-                                allow_credentials=True,
-                                allow_methods=["*"],  # Allows all HTTP methods
-                                allow_headers=["*"])
+        self.app.add_middleware(CortexAxonMiddleware, axon=self.axon)
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # Allows all origins
+            allow_credentials=True,
+            allow_methods=["*"],  # Allows all HTTP methods
+            allow_headers=["*"],  # Allows all headers
+        )
 
 
     def default_verify(self, synapse: bittensor.Synapse):
