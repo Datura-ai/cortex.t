@@ -254,6 +254,36 @@ class CortexAxon(bt.axon):
             raise SynapseDendriteNoneException()
 
 
+
+def log_and_handle_error(
+    synapse: bittensor.Synapse,
+    exception: Exception,
+    status_code: int,
+    start_time: float,
+):
+    # Display the traceback for user clarity.
+    bittensor.logging.trace(f"Forward exception: {traceback.format_exc()}")
+
+    # Set the status code of the synapse to the given status code.
+    error_type = exception.__class__.__name__
+    error_message = str(exception)
+    detailed_error_message = f"{error_type}: {error_message}"
+
+    # Log the detailed error message for internal use
+    bittensor.logging.error(detailed_error_message)
+
+    if synapse.axon is None:
+        raise SynapseParsingError(detailed_error_message)
+    # Set a user-friendly error message
+    synapse.axon.status_code = status_code
+    synapse.axon.status_message = error_message
+
+    # Calculate the processing time by subtracting the start time from the current time.
+    synapse.axon.process_time = str(time.time() - start_time)  # type: ignore
+
+    return synapse
+
+
 class CortexAxonMiddleware(BaseHTTPMiddleware):
     """
     The `AxonMiddleware` class is a key component in the Axon server, responsible for processing all incoming requests.
