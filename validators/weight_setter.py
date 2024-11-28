@@ -576,7 +576,6 @@ class WeightSetter:
             response_model=None
         )
         self.axon.router.add_api_route("/v1/models", models, methods=["GET"], tags=["Text"], response_model=None)
-        self.axon.app.add_middleware(APIKeyMiddleware)
 
     def get_scoring_tasks_from_query_responses(self, queries_to_process):
 
