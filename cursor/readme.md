@@ -19,7 +19,3 @@ Use:
 Endpoint: `https://{server_base_url}/v1` 
 
 ![OPENAI Key Configuration](openai_key.png)
-
-# Done
-
-Enjoy :)
