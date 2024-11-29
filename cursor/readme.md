@@ -12,7 +12,7 @@ It's very important the name matches exactly. If there is already existing one, 
 
 ### **Configure custom 'OPENAI' endpoint**
 
-First, disable all other OpenAI models. Don't worry, they're degraded to hell anyway
+First, disable all other OpenAI models
 
 Use:
 
