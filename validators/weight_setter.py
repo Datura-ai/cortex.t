@@ -6,7 +6,7 @@ import json
 import torch
 import time
 
-from black.trans import defaultdict
+from collections import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple
