@@ -1,30 +1,26 @@
 import os
 import uuid
 import copy
-import json
 import time
 import asyncio
 import inspect
 import uvicorn
-import argparse
 import traceback
 import threading
-import bittensor
 import contextlib
 
-from inspect import signature, Signature, Parameter
+from inspect import Signature
 
 from cursor.app.core.query_to_validator import axon_to_use
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from substrateinterface import Keypair
 from fastapi import FastAPI, APIRouter, Request, Response, Depends
 from starlette.responses import Response
 from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from typing import List, Optional, Tuple, Callable, Any, Dict
 
-from bittensor.errors import (
+from bittensor.core.errors import (
     InvalidRequestNameError,
     SynapseDendriteNoneException,
     SynapseParsingError,
@@ -36,11 +32,10 @@ from bittensor.errors import (
     PostProcessException,
     InternalServerError,
 )
-from bittensor.threadpool import PriorityThreadPoolExecutor
+from bittensor.core.threadpool import PriorityThreadPoolExecutor
 import bittensor
 import bittensor as bt
 from substrateinterface import Keypair
-from bittensor.errors import SynapseDendriteNoneException
 from cursor.app.core.config import config
 
 
@@ -167,7 +162,7 @@ class CortexAxon(bt.axon):
         """
         # Build and check config.
         if config is None:
-            config = axon.config()
+            config = CortexAxon.config()
         config = copy.deepcopy(config)
         config.axon.ip = ip or config.axon.get("ip", bittensor.defaults.axon.ip)
         config.axon.port = port or config.axon.get("port", bittensor.defaults.axon.port)
