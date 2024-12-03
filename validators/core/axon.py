@@ -164,19 +164,19 @@ class CortexAxon(bt.axon):
         if config is None:
             config = CortexAxon.config()
         config = copy.deepcopy(config)
-        config.axon.ip = ip or config.axon.get("ip", bittensor.defaults.axon.ip)
-        config.axon.port = port or config.axon.get("port", bittensor.defaults.axon.port)
+        config.axon.ip = ip or config.axon.get("ip")
+        config.axon.port = port or config.axon.get("port")
         config.axon.external_ip = external_ip or config.axon.get(
-            "external_ip", bittensor.defaults.axon.external_ip
+            "external_ip"
         )
         config.axon.external_port = external_port or config.axon.get(
-            "external_port", bittensor.defaults.axon.external_port
+            "external_port"
         )
         config.axon.max_workers = max_workers or config.axon.get(
-            "max_workers", bittensor.defaults.axon.max_workers
+            "max_workers"
         )
         CortexAxon.check_config(config)
-        self.config = config  # type: ignore [method-assign]
+        self.config = config
 
         # Get wallet or use default.
         self.wallet = wallet or bittensor.wallet()

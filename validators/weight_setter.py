@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import random
 import threading
 import json
@@ -53,6 +54,7 @@ class WeightSetter:
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
+
         self.subtensor = bt.subtensor(config=config)
         self.node = SubstrateInterface(url=config.subtensor.chain_endpoint)
         self.netuid = self.config.netuid
