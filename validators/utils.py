@@ -187,20 +187,18 @@ def get_bandwidth(data, uid, provider, model):
 def load_entire_questions():
     # Asynchronous function to fetch a URL
     async def fetch(session, url):
-        async with session.get(url) as response:
-            try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+            async with session.get(url) as response:
                 return await response.json()
-            except Exception as err:
-                pass
 
     # Asynchronous function to gather multiple HTTP requests
     async def gather_requests(urls):
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for url in urls:
-                tasks.append(fetch(session, url))  # Create a task for each URL
-            results = await asyncio.gather(*tasks)  # Run all tasks concurrently
-            return results
+        # async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+        tasks = []
+        for url in urls:
+            tasks.append(fetch(None, url))
+        results = await asyncio.gather(*tasks, return_exceptions=True)  # Run all tasks concurrently
+        return results
 
     # Main function to run the event loop
     def main(urls):
@@ -215,12 +213,11 @@ def load_entire_questions():
     responses = main(urls)
     queries = []
     for response in responses:
-        if response is None:
+        if response is None or isinstance(response, Exception):
             continue
         for row in response.get('rows', []):
             query = row['row']['query']
             queries.append(query)
-
     return queries
 
 
