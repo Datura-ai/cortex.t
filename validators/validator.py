@@ -69,7 +69,8 @@ def parse_arguments():
     parser.add_argument("--autoupdate", action="store_true", help="Enable auto-updates")
     parser.add_argument("--image_validator_probability", type=float, default=0.001)
     parser.add_argument("--async_time_out", type=int, default=60)
-    return parser.parse_args(namespace=NestedNamespace())
+    bt_config = bt.config(parser)
+    return bt_config
 
 
 def setup_logging(config):
@@ -124,8 +125,8 @@ async def close_all_connections():
 
 def main():
     Config.check_required_env_vars()
-    args = parse_arguments()
-    config = Config(args)
+    config = parse_arguments()
+    # config = Config(args)
 
     setup_logging(config)
 
