@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from typing import List, Optional, Tuple, Callable, Any, Dict
 
-from bittensor.core.errors import (
+from bittensor.errors import (
     InvalidRequestNameError,
     SynapseDendriteNoneException,
     SynapseParsingError,
@@ -32,7 +32,7 @@ from bittensor.core.errors import (
     PostProcessException,
     InternalServerError,
 )
-from bittensor.core.threadpool import PriorityThreadPoolExecutor
+from bittensor.threadpool import PriorityThreadPoolExecutor
 import bittensor
 import bittensor as bt
 from substrateinterface import Keypair

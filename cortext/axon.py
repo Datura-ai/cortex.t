@@ -1,7 +1,7 @@
 import bittensor
 import bittensor as bt
 from substrateinterface import Keypair
-from bittensor.core.errors import SynapseDendriteNoneException
+from bittensor.errors import SynapseDendriteNoneException
 
 
 class CortexAxon(bt.axon):
