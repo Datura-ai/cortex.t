@@ -1,14 +1,12 @@
-import json
-from typing import Any, AsyncGenerator, Dict
-from fastapi import Depends, HTTPException
+from __future__ import annotations
+
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRouter
-from cursor.app.core.config import config
 from cursor.app.models import ChatRequest
-from cursor.app.core.dendrite import CortexDendrite
 from cursor.app.core.query_to_validator import query_miner, query_miner_no_stream
-import asyncio
-import time
+import bittensor as bt
+import traceback
 
 
 async def chat(
@@ -21,7 +19,7 @@ async def chat(
             resp = await query_miner_no_stream(chat_request)
             return JSONResponse({"choices": [{"message": {"content": resp}}]})
     except Exception as err:
-        print(err)
+        bt.logging.error(f"{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail={"message": "internal server error"})
 
 
