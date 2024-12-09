@@ -56,7 +56,7 @@ class CortexDendrite(dendrite):
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
-                        json=synapse.model_dump(),
+                        json=synapse.dict(),
                 ) as response:
                     # Use synapse subclass' process_streaming_response method to yield the response chunks
                     try:
