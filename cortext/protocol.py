@@ -314,7 +314,7 @@ class StreamPrompting(bt.StreamingSynapse):
         default={},
         title="miner_info",
     )
-    time_taken: int = pydantic.Field(
+    time_taken: float = pydantic.Field(
         default=0,
         title="time_taken",
     )
