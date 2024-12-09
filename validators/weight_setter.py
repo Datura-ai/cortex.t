@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import random
 import threading
 import json
@@ -6,10 +7,12 @@ import json
 import torch
 import time
 
-from black.trans import defaultdict
+from collections import defaultdict
 from substrateinterface import SubstrateInterface
 from functools import partial
 from typing import Tuple
+
+from fastapi import HTTPException
 import bittensor as bt
 from bittensor import StreamingSynapse
 
@@ -22,9 +25,12 @@ from validators.services import CapacityService, BaseValidator, TextValidator, I
 from validators.services.cache import QueryResponseCache
 from validators.utils import error_handler, setup_max_capacity, load_entire_questions
 from validators.task_manager import TaskMgr
+from validators.core.axon import CortexAxon
 from cortext.dendrite import CortexDendrite
-from cortext.axon import CortexAxon
-from fastapi import HTTPException
+from cursor.app.endpoints.text import chat
+from cursor.app.endpoints.generic import models
+from cursor.app.core.middleware import APIKeyMiddleware
+
 
 scoring_organic_timeout = 60
 NUM_INTERVALS_PER_CYCLE = 10
@@ -48,6 +54,7 @@ class WeightSetter:
         bt.logging.info("Initializing WeightSetter")
         self.config = config
         self.wallet = config.wallet
+
         self.subtensor = bt.subtensor(config=config)
         self.node = SubstrateInterface(url=config.subtensor.chain_endpoint)
         self.netuid = self.config.netuid
@@ -103,7 +110,6 @@ class WeightSetter:
         # organic_thread = threading.Thread(target=self.start_axon_server)
         # organic_thread.start()
         self.loop.create_task(self.consume_organic_queries())
-
 
     def start_axon_server(self):
         asyncio.run(self.consume_organic_queries())
@@ -491,7 +497,7 @@ class WeightSetter:
     async def prompt(self, synapse: StreamPrompting) -> StreamingSynapse.BTStreamingResponse:
         bt.logging.info(f"Received {synapse}")
         contents = " ".join([message.get("content") for message in synapse.messages])
-        if len(contents.split()) > 2048:
+        if len(contents.split()) > 10000:
             raise HTTPException(status_code=413, detail="Request entity too large")
 
         async def _prompt(query_synapse: StreamPrompting, send: Send):
@@ -557,10 +563,22 @@ class WeightSetter:
             forward_fn=self.embeddings,
             blacklist_fn=self.blacklist_embeddings,
         )
+        self.cursor_setup()
         self.axon.serve(netuid=self.netuid, subtensor=self.subtensor)
         print(f"axon: {self.axon}")
         self.axon.start()
         bt.logging.info(f"Running validator on uid: {self.my_uid}")
+
+    def cursor_setup(self):
+        self.axon.router.add_api_route(
+            "/v1/chat/completions",
+            chat,
+            methods=["POST", "OPTIONS"],
+            tags=["StreamPrompting"],
+            response_model=None
+        )
+        self.axon.router.add_api_route("/v1/models", models, methods=["GET"], tags=["Text"], response_model=None)
+        self.axon.app.include_router(self.axon.router)
 
     def get_scoring_tasks_from_query_responses(self, queries_to_process):
 
@@ -616,7 +634,6 @@ class WeightSetter:
 
             queries_to_process = self.query_database.copy()
             self.query_database.clear()
-
 
             self.synthetic_task_done = False
             bt.logging.info("start scoring process")

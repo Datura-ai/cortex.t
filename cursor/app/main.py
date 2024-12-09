@@ -1,49 +1,49 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from . import curd, models, schemas
-from .database import create_table, conn, cur
 from typing import List
 from .endpoints.text import router as chat_router
+from .endpoints.generic import router as generic_router
+from cursor.app.core.config import config
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Load the ML model
-    await create_table(None)
-    yield
+# Your predefined valid API keys
+VALID_API_KEYS = {config.api_key}
 
 
-app = FastAPI(lifespan=lifespan)
+class APIKeyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Get the API key from the `Authorization` header
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
+        if not request.headers.get("Authorization"):
+            return JSONResponse(
+                {"detail": "Invalid or missing API Key"}, status_code=401
+            )
+
+        api_key = request.headers.get("Authorization").split(" ")[1]
+
+        # Validate the API key
+        if not api_key or api_key not in VALID_API_KEYS:
+            return JSONResponse(
+                {"detail": "Invalid or missing API Key"}, status_code=401
+            )
+
+        # Proceed to the next middleware or route handler
+        return await call_next(request)
+
+
+app = FastAPI()
+# Add CORS middleware to allow all origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all HTTP methods
+    allow_headers=["*"],  # Allows all headers
 )
+app.add_middleware(APIKeyMiddleware)
+
 app.include_router(chat_router)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    cur.close()
-    conn.close()
-
-
-# Create an item
-@app.post("/items")
-def create_item(items: List[schemas.ItemCreate]):
-    return curd.create_items(items=items)
-
-
-# Read all items
-@app.post("/items/search")
-def read_items(req_body: models.RequestBody):
-    items = curd.get_items(req_body)
-    return items
-
-
-# Read a single item by ID
-@app.get("/items/{p_key}", response_model=schemas.Item)
-def read_item(p_key: int):
-    db_item = curd.get_item(p_key=p_key)
-    if db_item is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    return db_item
+app.include_router(generic_router)
