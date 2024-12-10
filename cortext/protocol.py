@@ -379,8 +379,9 @@ class StreamPrompting(bt.StreamingSynapse):
                 self.completion += tokens
                 yield tokens
         except asyncio.TimeoutError as err:
-            self.completion += remain_chunk
-            yield remain_chunk
+            # self.completion += remain_chunk
+            # yield remain_chunk
+            pass
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
         headers = {
