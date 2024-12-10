@@ -19,6 +19,7 @@ from starlette.responses import Response
 from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from typing import List, Optional, Tuple, Callable, Any, Dict
+from bittensor.core.synapse import Synapse
 
 from bittensor.core.errors import (
     InvalidRequestNameError,
@@ -31,6 +32,7 @@ from bittensor.core.errors import (
     RunException,
     PostProcessException,
     InternalServerError,
+    SynapseException
 )
 from bittensor.core.threadpool import PriorityThreadPoolExecutor
 import bittensor
@@ -381,7 +383,14 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
 
         try:
             # Set up the synapse from its headers.
-            synapse: bittensor.Synapse = await self.preprocess(request)
+            try:
+                synapse: "Synapse" = await self.preprocess(request)
+            except Exception as exc:
+                if isinstance(exc, SynapseException) and exc.synapse is not None:
+                    synapse = exc.synapse
+                else:
+                    synapse = Synapse()
+                raise
 
             # Logs the start of the request processing
             if synapse.dendrite is not None:
