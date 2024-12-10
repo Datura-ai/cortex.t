@@ -20,6 +20,7 @@ from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from typing import List, Optional, Tuple, Callable, Any, Dict
 from bittensor.core.synapse import Synapse
+from bittensor.core.settings import DEFAULTS, version_as_int
 
 from bittensor.core.errors import (
     InvalidRequestNameError,
@@ -237,7 +238,6 @@ class CortexAxon(bt.axon):
             allow_headers=["*"],  # Allows all headers
         )
 
-
     def default_verify(self, synapse: bittensor.Synapse):
         if synapse.dendrite is not None:
             keypair = Keypair(ss58_address=synapse.dendrite.hotkey)
@@ -273,11 +273,12 @@ def create_error_response(synapse: bittensor.Synapse):
             content={"message": synapse.axon.status_message},
         )
 
+
 def log_and_handle_error(
-    synapse: bittensor.Synapse,
-    exception: Exception,
-    status_code: int,
-    start_time: float,
+        synapse: bittensor.Synapse,
+        exception: Exception,
+        status_code: int,
+        start_time: float,
 ):
     # Display the traceback for user clarity.
     bittensor.logging.trace(f"Forward exception: {traceback.format_exc()}")
@@ -364,7 +365,6 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         """
         # Records the start time of the request processing.
         start_time = time.time()
-
 
         if "v1/chat/completions" in request.url.path:
             if request.method == "OPTIONS":
@@ -535,11 +535,10 @@ class CortexAxonMiddleware(BaseHTTPMiddleware):
         # Fills the local axon information into the synapse.
         synapse.axon.__dict__.update(
             {
-                "version": str(bittensor.__version_as_int__),
+                "version": str(version_as_int),
                 "uuid": str(self.axon.uuid),
-                "nonce": f"{time.monotonic_ns()}",
-                "status_message": "Success",
-                "status_code": "100",
+                "nonce": time.time_ns(),
+                "status_code": 100,
             }
         )
 
