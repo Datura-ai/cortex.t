@@ -232,7 +232,7 @@ class StreamPrompting(bt.StreamingSynapse):
                     "This attribute is immutable and cannot be updated.",
     )
 
-    completion: str = pydantic.Field(
+    completion: Optional[str] = pydantic.Field(
         None,
         title="Completion",
         description="Completion status of the current StreamPrompting object. "
@@ -347,7 +347,7 @@ class StreamPrompting(bt.StreamingSynapse):
             headers.update(
                 {
                     f"bt_header_axon_{k}": str(v)
-                    for k, v in self.axon.dict().items()
+                    for k, v in self.axon.model_dump().items()
                     if v is not None
                 }
             )
@@ -355,7 +355,7 @@ class StreamPrompting(bt.StreamingSynapse):
             headers.update(
                 {
                     f"bt_header_dendrite_{k}": str(v)
-                    for k, v in self.dendrite.dict().items()
+                    for k, v in self.dendrite.model_dump().items()
                     if v is not None
                 }
             )
@@ -381,7 +381,6 @@ class StreamPrompting(bt.StreamingSynapse):
         except asyncio.TimeoutError as err:
             self.completion += remain_chunk
             yield remain_chunk
-
 
     def extract_response_json(self, response: StreamingResponse) -> dict:
         headers = {

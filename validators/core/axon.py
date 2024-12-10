@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from typing import List, Optional, Tuple, Callable, Any, Dict
 
-from bittensor.errors import (
+from bittensor.core.errors import (
     InvalidRequestNameError,
     SynapseDendriteNoneException,
     SynapseParsingError,
@@ -32,9 +32,11 @@ from bittensor.errors import (
     PostProcessException,
     InternalServerError,
 )
-from bittensor.threadpool import PriorityThreadPoolExecutor
+from bittensor.core.threadpool import PriorityThreadPoolExecutor
 import bittensor
+from bittensor.utils import networking
 import bittensor as bt
+from bittensor_wallet import Wallet
 from substrateinterface import Keypair
 from cursor.app.core.config import config
 
@@ -135,8 +137,8 @@ class FastAPIThreadedServer(uvicorn.Server):
 class CortexAxon(bt.axon):
     def __init__(
             self,
-            wallet: Optional["bittensor.wallet"] = None,
-            config: Optional["bittensor.config"] = None,
+            wallet: Optional["Wallet"] = None,
+            config: Optional["Config"] = None,
             port: Optional[int] = None,
             ip: Optional[str] = None,
             external_ip: Optional[str] = None,
@@ -164,36 +166,30 @@ class CortexAxon(bt.axon):
         if config is None:
             config = CortexAxon.config()
         config = copy.deepcopy(config)
-        config.axon.ip = ip or config.axon.get("ip")
-        config.axon.port = port or config.axon.get("port")
-        config.axon.external_ip = external_ip or config.axon.get(
-            "external_ip"
-        )
-        config.axon.external_port = external_port or config.axon.get(
-            "external_port"
-        )
-        config.axon.max_workers = max_workers or config.axon.get(
-            "max_workers"
-        )
+        config.axon.ip = ip or config.axon.ip
+        config.axon.port = port or config.axon.port
+        config.axon.external_ip = external_ip or config.axon.external_ip
+        config.axon.external_port = external_port or config.axon.external_port
+        config.axon.max_workers = max_workers or config.axon.max_workers
         CortexAxon.check_config(config)
         self.config = config
 
         # Get wallet or use default.
-        self.wallet = wallet or bittensor.wallet()
+        self.wallet = wallet or Wallet()
 
         # Build axon objects.
         self.uuid = str(uuid.uuid1())
         self.ip = self.config.axon.ip
         self.port = self.config.axon.port
         self.external_ip = (
-            self.config.axon.external_ip
-            if self.config.axon.external_ip != None
-            else bittensor.utils.networking.get_external_ip()
+            self.config.axon.external_ip  # type: ignore
+            if self.config.axon.external_ip is not None  # type: ignore
+            else networking.get_external_ip()
         )
         self.external_port = (
-            self.config.axon.external_port
-            if self.config.axon.external_port != None
-            else self.config.axon.port
+            self.config.axon.external_port  # type: ignore
+            if self.config.axon.external_port is not None  # type: ignore
+            else self.config.axon.port  # type: ignore
         )
         self.full_address = str(self.config.axon.ip) + ":" + str(self.config.axon.port)
         self.started = False
@@ -229,7 +225,8 @@ class CortexAxon(bt.axon):
         self.attach(
             forward_fn=ping, verify_fn=None, blacklist_fn=None, priority_fn=None
         )
-        self.app.add_middleware(CortexAxonMiddleware, axon=self)
+        self.middleware_cls = CortexAxonMiddleware
+        self.app.add_middleware(self.middleware_cls, axon=self)
         self.app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],  # Allows all origins
