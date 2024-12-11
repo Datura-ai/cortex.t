@@ -356,7 +356,7 @@ class CortexAxonMiddleware(AxonMiddleware):
         # Records the start time of the request processing.
         start_time = time.time()
 
-        if "v1/chat/completions" in request.url.path:
+        if "v1" in request.url.path:
             if request.method == "OPTIONS":
                 return await call_next(request)
             try:
