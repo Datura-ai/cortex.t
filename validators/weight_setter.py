@@ -145,14 +145,12 @@ class WeightSetter:
 
     async def initialize_uids_and_capacities(self):
         bt.logging.info("start initializing uids and capacities")
-        self.available_uid_to_axons = await self.get_available_uids()
-        self.uids_to_query = list(self.available_uid_to_axons.keys())
-        bt.logging.info(f"Available UIDs: {list(self.available_uid_to_axons.keys())}")
-        self.uid_to_capacity = await self.get_capacities_for_uids(self.available_uid_to_axons)
+        bt.logging.info(f"Available UIDs: {self.metagraph.uids}")
+        self.uid_to_capacity = await self.get_capacities_for_uids(self.metagraph.uids)
         bt.logging.info(f"Capacities for miners: {self.uid_to_capacity}")
         # Initialize total_scores, score_counts.
-        self.total_scores = {uid: 0.0 for uid in self.available_uid_to_axons.keys()}
-        self.score_counts = {uid: 0 for uid in self.available_uid_to_axons.keys()}
+        self.total_scores = {uid: 0.0 for uid in self.uid_to_capacity.keys()}
+        self.score_counts = {uid: 0 for uid in self.uid_to_capacity.keys()}
 
         # update task_mgr after synthetic query at the end of iterator.
         if self.task_mgr:

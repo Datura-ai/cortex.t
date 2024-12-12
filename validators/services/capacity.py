@@ -17,7 +17,7 @@ class CapacityService:
     async def query_capacity_to_miners(self, available_uids):
         capacity_query_tasks = []
 
-        bt.logging.info(f"querying capacity to uid = {available_uids.keys()}")
+        bt.logging.info(f"querying capacity to uid = {available_uids}")
         # Query all images concurrently
         for uid in available_uids:
             syn = Bandwidth()
@@ -32,7 +32,9 @@ class CapacityService:
             if isinstance(resp, Exception):
                 bt.logging.error(f"exception happens while querying capacity to miner {uid}, {resp}")
             else:
-                uid_to_capacity[uid] = self.validate_capacity(resp.bandwidth_rpm)
+                cap = self.validate_capacity(resp.bandwidth_rpm)
+                if cap:
+                    uid_to_capacity[uid] = cap
         self.uid_to_capacity = deepcopy(uid_to_capacity)
         return uid_to_capacity
 
