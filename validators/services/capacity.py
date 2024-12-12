@@ -34,7 +34,7 @@ class CapacityService:
             else:
                 cap = self.validate_capacity(resp.bandwidth_rpm)
                 if cap:
-                    uid_to_capacity[uid] = cap
+                    uid_to_capacity[int(uid)] = cap
         self.uid_to_capacity = deepcopy(uid_to_capacity)
         return uid_to_capacity
 
