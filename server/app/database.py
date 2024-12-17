@@ -49,6 +49,7 @@ async def create_table(app):
         CREATE INDEX IF NOT EXISTS miner_id_index ON {TABEL_NAME} (miner_uid);
         CREATE INDEX IF NOT EXISTS miner_hot_key_index ON {TABEL_NAME} (miner_hot_key);
         CREATE INDEX IF NOT EXISTS idx_score_sim_timestamp ON {TABEL_NAME} (score, similarity, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_block__cycle_epoch_num_ ON {TABEL_NAME} (block_num, cycle_num, epoch_num);
         """
         cur.execute(create_index_query)
         conn.commit()
