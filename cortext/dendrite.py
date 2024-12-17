@@ -52,7 +52,7 @@ class CortexDendrite(dendrite):
         connector = aiohttp.TCPConnector(limit=200)
         session = aiohttp.ClientSession(timeout=timeout, connector=connector)
         try:
-            while max_try < 1:
+            while max_try < 2:
                 async with session.post(
                         url,
                         headers=synapse.to_headers(),
