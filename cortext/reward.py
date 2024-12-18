@@ -74,7 +74,7 @@ async def api_score(api_answer: str, response: str, weight: float, temperature: 
 
         # Check if the word count of the response is within the thresholds
         if words_in_response <= word_count_over_threshold and words_in_response >= word_count_under_threshold:
-            score = weight * similarity
+            score = weight * (similarity ** 3)
         else:
             score = 0
 
