@@ -243,6 +243,14 @@ pm2 start start_validator.py --interpreter python3 -- --wallet_name "default" --
 ```
 ---
 
+# Cursor App Setup
+add env varialbe CURSOR_API_KEY to .env file 
+go to inside of cursor directory and run this command.
+```bash
+pm2 start start_cursor.sh --name cursor_app
+```
+for settings in cursor. Pls check this [Cursor README](./cursor/readme.md)
+
 ## License
 This repository is licensed under the MIT License.
 ```text
