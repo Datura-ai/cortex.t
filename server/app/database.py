@@ -1,9 +1,11 @@
+import time
 import psycopg2
 import os
-from contextlib import asynccontextmanager
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 TABEL_NAME = 'query_resp_data'
+TIME_EXPIRATION = 3600 * 24 * 10 # delete records after 10 days since it's creation.
+LAST_EXECUTION = time.time()
 # PostgreSQL connection parameters
 conn = psycopg2.connect(DATABASE_URL)
 
@@ -57,5 +59,21 @@ async def create_table(app):
 
     except Exception as e:
         print(f"Error creating table: {e}")
+
+
+def delete_records():
+    global TIME_EXPIRATION, LAST_EXECUTION
+    if (time.time() - LAST_EXECUTION) < TIME_EXPIRATION:
+        return
+    LAST_EXECUTION = time.time()
+    timestamp = time.time() - TIME_EXPIRATION
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    query_str = f"""
+    delete from query_resp_data where timestamp <= {timestamp}
+    """
+    cur.execute(query_str)
+    conn.commit()
+
 
 create_table(None)
