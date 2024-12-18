@@ -1,9 +1,16 @@
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 from . import curd, models, schemas
-from .database import create_table, conn, cur
+from .database import create_table, conn, cur, delete_records
 from typing import List
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(delete_records, CronTrigger(day_of_week="mon", hour=10, minute=0))
+scheduler.start()
 
 
 @asynccontextmanager

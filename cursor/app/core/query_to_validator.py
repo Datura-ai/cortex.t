@@ -4,7 +4,7 @@ import bittensor as bt
 from cursor.app.models import ChatRequest
 from cursor.app.core.protocol import StreamPrompting
 from cursor.app.core.config import config
-from cursor.app.core.dendrite import CortexDendrite
+from cortext.dendrite import CortexDendrite
 import traceback
 
 subtensor = bt.subtensor(network="finney")
