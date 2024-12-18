@@ -31,7 +31,6 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
             subprocess.run(["git", "reset", "--hard"])
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
-            subprocess.run(["pip", "install", "httpx==0.27.2"])
             subprocess.run(["pip", "uninstall", "uvloop"])
             subprocess.run(
                 ["pm2", "start", "--name", pm2_name, f"python3 -m validators.validator --wallet.name {wallet_name}"
