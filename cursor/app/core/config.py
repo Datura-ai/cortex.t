@@ -14,6 +14,8 @@ class Config:
     wallet_name: str
     wallet_hotkey: str
     api_key: str
+    netuid: int
+    network: str
 
     @staticmethod
     def from_env() -> "Config":

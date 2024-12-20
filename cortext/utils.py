@@ -24,7 +24,7 @@ import requests
 import stability_sdk.interfaces.gooseai.generation.generation_pb2 as generation
 import wandb
 from anthropic import AI_PROMPT, HUMAN_PROMPT, Anthropic, AsyncAnthropic
-from anthropic_bedrock import AsyncAnthropicBedrock
+# from anthropic_bedrock import AsyncAnthropicBedrock
 from groq import AsyncGroq
 from cortext import IMAGE_PROMPTS
 
@@ -60,7 +60,7 @@ google_key = get_api_key("Google", "GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
 
 # Anthropic Bedrock
-anthropic_bedrock_client = AsyncAnthropicBedrock()
+# anthropic_bedrock_client = AsyncAnthropicBedrock()
 
 # Groq
 groq_key = get_api_key("Groq", "GROQ_API_KEY")
