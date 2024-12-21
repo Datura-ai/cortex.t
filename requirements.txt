@@ -17,5 +17,5 @@ google-generativeai
 groq==0.13.1
 aioboto3
 tabulate
-httpx==0.28.1
+httpx==0.27.2
 numpy==2.0.2
