@@ -11,11 +11,11 @@ current_version = cortext.__version__
 def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, autoupdate, logging, wandb_on):
     global current_version
     wandb = "--wandb_on" if wandb_on else ""
-    subprocess.run(["pm2", "start", "--name", pm2_name, f"\"python3 -m validators.validator --wallet.name {wallet_name}"
+    subprocess.run(["pm2", "start", "--name", pm2_name, f"python3 -m validators.validator --wallet.name {wallet_name}"
                                                         f" --wallet.hotkey {wallet_hotkey} "
                                                         f" --netuid {netuid} "
                                                         f"--subtensor.chain_endpoint {address} "
-                                                        f"--logging.{logging} {wandb}\""])
+                                                        f"--logging.{logging} {wandb}"])
     while True:
         latest_version = get_version()
         print(f"Current version: {current_version}")
@@ -33,11 +33,11 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
             subprocess.run(["pip", "install", "-e", "."])
             subprocess.run(["pip", "uninstall", "uvloop"])
             subprocess.run(
-                ["pm2", "start", "--name", pm2_name, f"\"python3 -m validators.validator --wallet.name {wallet_name}"
+                ["pm2", "start", "--name", pm2_name, f"python3 -m validators.validator --wallet.name {wallet_name}"
                                                      f" --wallet.hotkey {wallet_hotkey} "
                                                      f" --netuid {netuid} "
                                                      f"--subtensor.chain_endpoint {address} "
-                                                     f"--logging.{logging} {wandb}\""])
+                                                     f"--logging.{logging} {wandb}"])
             current_version = latest_version
 
         print("All up to date!")
