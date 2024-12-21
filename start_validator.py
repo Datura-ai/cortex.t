@@ -55,7 +55,7 @@ if __name__ == "__main__":
     parser.add_argument("--netuid", required=False, default=18, help="netuid for validator")
     parser.add_argument("--subtensor.chain_endpoint", required=False, default="wss://entrypoint-finney.opentensor.ai:443", dest="address")
     parser.add_argument("--autoupdate", action='store_true',  dest="autoupdate")
-    parser.add_argument("--logging", required=False, default="info")
+    parser.add_argument("--logging_level", choices=['info', 'debug', 'trace'], default='info')
     parser.add_argument("--wandb_on", action='store_true', required=False, dest="wandb_on")
     parser.add_argument("--max_miners_cnt", type=int, default=30)
 
@@ -63,6 +63,6 @@ if __name__ == "__main__":
 
     try:
         update_and_restart(args.pm2_name, args.netuid, args.wallet_name, args.wallet_hotkey, args.address,
-                           args.autoupdate, args.logging, args.wandb_on)
+                           args.autoupdate, args.logging_level, args.wandb_on)
     except Exception as e:
         parser.error(f"An error occurred: {e}")
