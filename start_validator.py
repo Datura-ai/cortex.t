@@ -15,7 +15,7 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
                                                         f" --wallet.hotkey {wallet_hotkey} "
                                                         f" --netuid {netuid} "
                                                         f"--subtensor.chain_endpoint {address} "
-                                                        f"--logging.level {logging} {wandb}"])
+                                                        f"--logging.{logging} {wandb}"])
     while True:
         latest_version = get_version()
         print(f"Current version: {current_version}")
@@ -37,7 +37,7 @@ def update_and_restart(pm2_name, netuid, wallet_name, wallet_hotkey, address, au
                                                      f" --wallet.hotkey {wallet_hotkey} "
                                                      f" --netuid {netuid} "
                                                      f"--subtensor.chain_endpoint {address} "
-                                                     f"--logging.level {logging} {wandb}"])
+                                                     f"--logging.{logging} {wandb}"])
             current_version = latest_version
 
         print("All up to date!")
